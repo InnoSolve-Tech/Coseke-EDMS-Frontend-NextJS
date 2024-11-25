@@ -2,7 +2,6 @@ import React, { useState, ReactNode } from 'react';
 import { 
   Folder, 
   LayoutDashboard, 
-  ShoppingCart, 
   List as ListIcon, 
   Workflow, 
   Users, 
