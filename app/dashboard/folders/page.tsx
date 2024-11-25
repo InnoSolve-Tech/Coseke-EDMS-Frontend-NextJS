@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo } from "react";
 import { Folder, Description } from "@mui/icons-material";
 import { Breadcrumbs, Typography, Card, CardContent, Menu, MenuItem } from "@mui/joy";
 
@@ -51,8 +51,6 @@ const handleCloseMenu = () => {
   setAnchorEl(null); // Close the menu
   setMenuTarget(null);
 };
-
-  const menuRef = useRef<HTMLDivElement>(null);
 
   const toggleNode = (id: string) => {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
