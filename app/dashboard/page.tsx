@@ -8,10 +8,11 @@ import { FileTypeChart } from "@/components/FileTypeChart";
 import { WorkflowStatusChart } from "@/components/WorkflowStatusChart";
 import { RecentActivities } from "@/components/RecentActivities";
 import { RecentFilesCard } from "@/components/RecentFilesCard";
-import { getFiles } from "@/components/files/api"; // Assuming this API is available
+import { getFiles,getFolders } from "@/components/files/api"; // Assuming this API is available
 
 export default function Page() {
   const [fileCount, setFileCount] = useState<string>("...");
+  const [folderCount, setFolderCount] = useState<string>("...");
 
   useEffect(() => {
     const fetchFileCount = async () => {
@@ -21,11 +22,32 @@ export default function Page() {
         setFileCount(files.length > 0 ? files.length.toLocaleString() : "0");
       } catch (error) {
         console.error("Error fetching file data:", error);
-        setFileCount("Error");
+        setFileCount("---");
       }
     };
 
     fetchFileCount();
+  }, []);
+
+  useEffect(() => {
+    const fetchFolderCount = async () => {
+      try {
+        const foldersResponse = await getFolders();
+        console.log("Raw response:", foldersResponse); 
+  
+        const folders = Array.isArray(foldersResponse)
+          ? foldersResponse 
+          : foldersResponse.data || [];
+  
+        console.log("Parsed folders:", folders); 
+        setFolderCount(folders.length > 0 ? folders.length.toString() : "0");
+      } catch (error) {
+        console.error("Error fetching folder data:", error);
+        setFolderCount("---");
+      }
+    };
+  
+    fetchFolderCount();
   }, []);
 
   return (
@@ -39,7 +61,7 @@ export default function Page() {
         <StatCard
           icon={<Folder className="h-8 w-8 text-green-600" />}
           title="Total Folders"
-          value="1,234"
+          value={folderCount}
         />
         <StatCard
           icon={<GitBranch className="h-8 w-8 text-purple-600" />}

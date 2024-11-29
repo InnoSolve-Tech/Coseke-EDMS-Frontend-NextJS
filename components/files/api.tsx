@@ -27,9 +27,20 @@ type FileData = {
 };
 
 type ApiResponse<T> = {
+  id: number;
+  name: string;
+  parentFolderID: number | undefined;
+  folderID: ApiResponse<FileData[]>;
   data: T;
   message?: string;
 };
+
+export interface DirectoryData {
+  folderID?: number;
+  id?: number;
+  name: string;
+  parentFolderID?: number;
+}
 
 export const addDocument = async (data: DocumentProps, file: File): Promise<void> => {
   const token = getTokenFromSessionStorage();
@@ -180,7 +191,7 @@ export const deleteDocumentType = async (
   }
 };
 
-export const allFiles = async (
+export const deleteFile = async (
     documentTypeId: number
   ): Promise<ApiResponse<void>> => {
     try {
@@ -193,3 +204,72 @@ export const allFiles = async (
       throw error;
     }
   };
+
+  export const getFolders = async (): Promise<ApiResponse<DirectoryData[]>> => {
+    const response = await AxiosInstance.get<ApiResponse<DirectoryData[]>>(
+      "file-management/api/v1/directories/all"
+    );
+    return response.data;
+  };
+
+  export const createFolders = async (
+    newFolder: Omit<DirectoryData, "folderID">
+): Promise<ApiResponse<DirectoryData>> => {
+    try {
+        const response = await AxiosInstance.post<ApiResponse<DirectoryData>>(
+            "file-management/api/v1/directories/create",
+            newFolder
+        );
+        return response.data;
+    } catch (error) {
+        console.error("Failed to create folder via API:", error);
+        throw error; // Ensure errors are properly propagated
+    }
+};
+
+
+export const createSubFolders = async (newFolder: DirectoryData) => {
+  try {
+    const response = await AxiosInstance.post<ApiResponse<DirectoryData>>(
+      "file-management/api/v1/directories/subfolder",
+      {
+        name: newFolder.name,
+        parentFolderID: newFolder.parentFolderID
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error creating subfolder:", error);
+    throw error;
+  }
+};
+
+export const fetchChildFolders = async (parentFolderId: number) => {
+  try {
+    const response = await AxiosInstance.get<ApiResponse<DirectoryData[]>>(
+      `file-management/api/v1/directories/by-parent/${parentFolderId}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching child folders:", error);
+    throw error;
+  }
+};
+
+
+  export const deleteFolder = async (folderId: number): Promise<void> => {
+    try {
+      const response = await AxiosInstance.delete<ApiResponse<void>>(
+        `file-management/api/v1/directory/delete/${folderId}`
+      );
+  
+      if (!response.data) {
+        throw new Error(response.data || 'Failed to delete folder');
+      }
+    } catch (error) {
+      console.error('Failed to delete folder', error);
+      throw error;
+    }
+  };
+
+  
