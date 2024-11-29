@@ -1,7 +1,7 @@
 "use client"
 
-import { Pie, PieChart, ResponsiveContainer, Cell, Legend, Tooltip } from "recharts"
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+import { Pie, PieChart, ResponsiveContainer, Cell, Legend } from "recharts"
+import { ChartContainer, ChartTooltip } from "@/components/ui/chart"
 
 const data = [
   { name: "PDF", value: 400 },

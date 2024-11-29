@@ -1,6 +1,7 @@
 import { createContext, useContext, useState } from 'react';
 import { Workflow } from '@/lib/types/workflow';
 import axios from 'axios';
+import { AxiosInstance } from '@/components/routes/api';
 
 interface WorkflowContextType {
   workflow: Partial<Workflow>;
@@ -19,7 +20,7 @@ export function WorkflowProvider({ children }: { children: React.ReactNode }) {
 
   const updateWorkflow = async (data: Partial<Workflow>) => {
     setWorkflow(prev => ({ ...prev, ...data }));
-    await axios.post('http://localhost:8787/workflows/api/v1/workflows', workflow);
+    await AxiosInstance.post('http://localhost:8787/workflows/api/v1/workflows', workflow);
     console.log(workflow);
   };
 

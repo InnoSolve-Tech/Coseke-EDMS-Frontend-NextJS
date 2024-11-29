@@ -36,7 +36,7 @@ const dummyDocument: Document = {
 const documentTypes = ["User Manual", "Procurement Document", "Contract"]
 
 const FileViewPage = () => {
-  const { id } = useParams()
+  const {} = useParams()
   const [document, setDocument] = useState<Document>(dummyDocument)  
   const [snackbar, setSnackbar] = useState<{open: boolean; color: ColorPaletteProp, message: string}>({ open: false, message: '', color: 'success' })
 

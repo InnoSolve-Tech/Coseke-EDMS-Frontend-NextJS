@@ -93,6 +93,20 @@ export function WorkflowDesigner() {
     setSelectedNode(null);
   };
 
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      updateWorkflow({ 
+        nodes: nodes.map(node => ({
+          ...node,
+          type: node.type as WorkflowNodeType['type']
+        })), 
+        edges 
+      });
+    }, 100);
+
+    return () => clearTimeout(timeoutId);
+  }, [nodes, edges]);
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
