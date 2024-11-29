@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 import ReactFlow, {
   addEdge,
   Background,
@@ -21,6 +21,27 @@ import { WorkflowNode as WorkflowNodeType, Workflow } from "@/lib/types/workflow
 import { WorkflowJson } from "./workflow-json";
 import { WorkflowHelpDialog } from "./workflow-help-dialog";
 import { Info } from "lucide-react";
+import { useWorkflow } from "@/lib/contexts/workflow-context";
+
+type NodeForm = {
+  id: string;
+  fields: Array<{
+    id: string;
+    type: "number" | "text" | "select" | "date" | "checkbox";
+    label: string;
+    required?: boolean;
+  }>;
+};
+
+type WorkflowNodeData = {
+  label: string;
+  description?: string;
+  conditions?: { field: string; operator: string; value: string; }[];
+  assignee?: { type: "role" | "user"; id: string; };
+  dueDate?: string;
+  form?: NodeForm;
+  branches?: string[];
+};
 
 const nodeTypes = {
   start: WorkflowNode,
@@ -34,12 +55,14 @@ const nodeTypes = {
 interface WorkflowDesignerProps {
   name?: string;
   description?: string;
+  onSave?: (workflow: Partial<Workflow>) => void;
 }
 
-export function WorkflowDesigner({ name, description }: WorkflowDesignerProps) {
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+export function WorkflowDesigner() {
+  const { updateWorkflow } = useWorkflow();
+  const [nodes, setNodes, onNodesChange] = useNodesState<WorkflowNodeData>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [selectedNode, setSelectedNode] = useState<WorkflowNodeType | null>(null);
+  const [selectedNode, setSelectedNode] = useState<Node<WorkflowNodeData> & { type: "start" | "end" | "task" | "decision" | "parallel" | "merge" } | null>(null);
 
   const onConnect = useCallback(
     (params: Connection | Edge) => setEdges((eds) => addEdge(params, eds)),
@@ -47,7 +70,7 @@ export function WorkflowDesigner({ name, description }: WorkflowDesignerProps) {
   );
 
   const addNode = (type: keyof typeof nodeConfig) => {
-    const newNode: Node = {
+    const newNode: Node<WorkflowNodeData> = {
       id: `${type}-${Date.now()}`,
       type,
       position: { x: 250, y: 250 },
@@ -59,22 +82,15 @@ export function WorkflowDesigner({ name, description }: WorkflowDesignerProps) {
     setNodes((nds) => [...nds, newNode]);
   };
 
-  const onNodeClick = (_: React.MouseEvent, node: Node) => {
-    setSelectedNode(node as WorkflowNodeType);
+  const onNodeClick = (_: React.MouseEvent, node: Node<WorkflowNodeData>) => {
+    setSelectedNode(node as Node<WorkflowNodeData> & { type: "start" | "end" | "task" | "decision" | "parallel" | "merge" });
   };
 
-  const updateNode = (updatedNode: WorkflowNodeType) => {
+  const updateNode = (updatedNode: Node<WorkflowNodeData>) => {
     setNodes((nds) =>
       nds.map((node) => (node.id === updatedNode.id ? updatedNode : node))
     );
     setSelectedNode(null);
-  };
-
-  const workflowData: Partial<Workflow> = {
-    name,
-    description,
-    nodes: nodes as WorkflowNodeType[],
-    edges,
   };
 
   return (
@@ -96,7 +112,10 @@ export function WorkflowDesigner({ name, description }: WorkflowDesignerProps) {
         </div>
         <div className="flex items-center gap-2">
           <WorkflowHelpDialog />
-          <WorkflowJson workflow={workflowData} />
+          <WorkflowJson workflow={{ 
+            nodes: nodes as unknown as WorkflowNodeType[], 
+            edges 
+          }} />
         </div>
       </div>
 

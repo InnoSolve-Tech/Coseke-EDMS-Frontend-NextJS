@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useWorkflow } from "@/lib/contexts/workflow-context";
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -25,18 +26,23 @@ const formSchema = z.object({
   }),
 });
 
-interface WorkflowFormProps {
-  onSubmit: (values: z.infer<typeof formSchema>) => void;
-}
+export function WorkflowForm() {
+  const { workflow, updateWorkflow } = useWorkflow();
 
-export function WorkflowForm({ onSubmit }: WorkflowFormProps) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: "",
-      description: "",
+      name: workflow?.name || "",
+      description: workflow?.description || "",
     },
   });
+
+  const onSubmit = (values: z.infer<typeof formSchema>) => {
+    updateWorkflow({
+      ...workflow,
+      ...values
+    });
+  };
 
   return (
     <Form {...form}>
