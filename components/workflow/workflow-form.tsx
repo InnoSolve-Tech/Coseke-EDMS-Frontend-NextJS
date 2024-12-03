@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useWorkflow } from "@/lib/contexts/workflow-context";
+import { AxiosInstance } from "../routes/api";
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -37,11 +38,23 @@ export function WorkflowForm() {
     },
   });
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
     updateWorkflow({
       ...workflow,
       ...values
     });
+    
+    // Remove id from nodes and edges before sending
+    const nodesWithoutId = workflow.nodes?.map(({ id, ...rest }) => rest);
+    const edgesWithoutId = workflow.edges?.map(({ id, ...rest }) => rest);
+    
+    await AxiosInstance.post('http://localhost:8787/workflows/api/v1/workflows', {
+      ...workflow,
+      nodes: nodesWithoutId,
+      edges: edgesWithoutId,
+      ...values
+    });
+    console.log(workflow);
   };
 
   return (

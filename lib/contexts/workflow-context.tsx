@@ -20,8 +20,6 @@ export function WorkflowProvider({ children }: { children: React.ReactNode }) {
 
   const updateWorkflow = async (data: Partial<Workflow>) => {
     setWorkflow(prev => ({ ...prev, ...data }));
-    await AxiosInstance.post('http://localhost:8787/workflows/api/v1/workflows', workflow);
-    console.log(workflow);
   };
 
   return (

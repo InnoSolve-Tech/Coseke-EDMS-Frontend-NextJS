@@ -289,7 +289,12 @@ export default function Sidebar({ children }: SidebarLayoutProps) {
           {!isCollapsed && (
             <button 
               className="hover:bg-gray-100 p-2 rounded-md"
-              onClick={() => router.push('/logout')}
+              onClick={() => {
+                // Clear local storage and redirect to login page
+                sessionStorage.clear()
+                router.push('/')
+              }
+              }
             >
               <LogOut className="w-5 h-5" />
             </button>
