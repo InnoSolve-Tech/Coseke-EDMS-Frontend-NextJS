@@ -94,31 +94,6 @@ export const addDocumentByFolderId = async (
   }
 };
 
-export const addDocumentsByFolderId = async (
-  files: File[],
-  folderId: number
-): Promise<void> => {
-  const token = getTokenFromSessionStorage();
-  const authorization = `Bearer ${JSON.parse(token!)}`;
-
-  const formData = new FormData();
-  files.forEach((file) => {
-    formData.append("files", file);
-  });
-
-  try {
-    const response = await axios.post<ApiResponse<void>>(`${ENDPOINT_URL}bulk/${folderId}`, formData, {
-      headers: {
-        Authorization: authorization,
-        "Content-Type": "multipart/form-data",
-      },
-    });
-    console.log(response);
-  } catch (error) {
-    console.error("Error uploading documents:", error);
-  }
-};
-
 export const getFiles = async (): Promise<ApiResponse<FileData[]>> => {
   const response = await AxiosInstance.get<ApiResponse<FileData[]>>(
     "file-management/api/v1/files/stored"
@@ -272,4 +247,54 @@ export const fetchChildFolders = async (parentFolderId: number) => {
     }
   };
 
+  export const getDocumentTypes = async () => {
+    try {
+      const response = await AxiosInstance.get("file-management/api/v1/document-types/all");
+      return response.data;
+    } catch (error) {
+      console.log(error);
+    }
+  };
   
+  export const addDocumentsByFolderId = async (
+    files: File[],
+    folderId: number,
+    documentData?: {
+      documentName: string;
+      documentType: string;
+      metadata: Record<string, any>;
+    }
+  ): Promise<void> => {
+    const token = getTokenFromSessionStorage();
+    const authorization = `Bearer ${JSON.parse(token!)}`;
+  
+    const formData = new FormData();
+    files.forEach((file) => {
+      formData.append("files", file);
+    });
+  
+    // Add document data if provided
+    if (documentData) {
+      formData.append(
+        "documentData",
+        new Blob([JSON.stringify(documentData)], { type: "application/json" })
+      );
+    }
+  
+    try {
+      const response = await axios.post<ApiResponse<void>>(
+        `${ENDPOINT_URL}bulk/${folderId}`,
+        formData,
+        {
+          headers: {
+            Authorization: authorization,
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+      console.log(response);
+    } catch (error) {
+      console.error("Error uploading documents:", error);
+      throw error;
+    }
+  };

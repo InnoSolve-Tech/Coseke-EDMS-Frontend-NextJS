@@ -17,12 +17,12 @@
     Checkbox,
     FormControl,
     Modal,
-    Input
+    Input,
   } from "@mui/joy";
   import { useRouter } from "next/navigation";
   import FileUploadDialog from "@/components/folder/FileUploadDialog";
   import SearchBar from "@/components/folder/SearchBar";
-  import { getFiles, getFolders, addDocumentsByFolderId, createFolders, deleteFile, deleteFolder, DirectoryData, createSubFolders, fetchChildFolders } from "@/components/files/api";
+  import { getFiles, getFolders, addDocumentsByFolderId, createFolders, deleteFile, deleteFolder, DirectoryData, createSubFolders, fetchChildFolders, getFilesByFolderID,getDocumentTypes } from "@/components/files/api";
   import { ChevronDown, ChevronRight, File, Folder } from 'lucide-react';
 
   interface FileNode {
@@ -45,6 +45,19 @@
     [key: string]: unknown;
   }
 
+  interface DocumentType {
+    id: number;
+    name: string;
+    metadata: MetadataField[];
+  }
+
+  interface MetadataField {
+    name: string;
+    type: 'string' | 'select' | 'number' | 'date';
+    value: string | null;
+    options?: string[];
+  }
+
   export default function FileExplorer() {
     const [currentPath, setCurrentPath] = useState<FileNode[]>([
       { id: "0", label: "Root", type: 'folder', folderID: 0 },
@@ -63,7 +76,9 @@
     const [currentFolderID, setCurrentFolderID] = useState<number | null>(null);
     const [isSubfolderMode, setIsSubfolderMode] = useState(false);
     const [folderStructure, setFolderStructure] = useState<FileNode[]>([]);
-
+    const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
+    const [selectedDocType, setSelectedDocType] = useState<string>("");
+    const [metadata, setMetadata] = useState<Record<string, any>>({});
 
     useEffect(() => {
       const loadInitialData = async () => {
@@ -130,6 +145,19 @@
       };
 
       fetchFileCount();
+    }, []);
+
+    useEffect(() => {
+      const fetchDocumentTypes = async () => {
+        try {
+          const types = await getDocumentTypes();
+          setDocumentTypes(types);
+        } catch (error) {
+          console.error("Error fetching document types:", error);
+        }
+      };
+
+      fetchDocumentTypes();
     }, []);
 
     const handleRightClick = (event: React.MouseEvent, node: FileNode) => {
@@ -297,29 +325,50 @@
     };
     
     
-    const handleUpload = async (file: File) => {
+    const handleUpload = async (file: File, documentType: string, metadata: Record<string, any>) => {
       try {
-        if (!currentFolderID) {
-          throw new Error("No parent folder selected.");
+        const currentFolder = currentPath[currentPath.length - 1];
+        if (!currentFolder?.folderID) {
+          throw new Error("No folder selected for upload");
         }
-    
-        await addDocumentsByFolderId([file], currentFolderID);
-    
-        const filesResponse = await getFiles();
+
+        // Create the document data
+        const documentData = {
+          documentName: file.name,
+          documentType,  // Use the documentType parameter directly
+          metadata
+        };
+
+        await addDocumentsByFolderId([file], currentFolder.folderID, documentData);
+
+        // Fetch and update the UI
+        const filesResponse = await getFilesByFolderID(currentFolder.folderID);
         const newFiles = filesResponse.data || [];
+
+        // Convert the new files to FileNode format
         const newFileNodes = newFiles.map((item: FileData): FileNode => ({
           id: item.id.toString(),
-          label: item.filename || "Unnamed",
+          label: item.name || "Unnamed",
           type: "file",
-          folderID: item.folderID,
-          fileId: item.fileId,
+          folderID: currentFolder.folderID,
+          fileId: item.id,
+          parentFolderID: currentFolder.folderID,
           metadata: item,
         }));
-    
-        setFileData((prev) => [...prev, ...newFileNodes]);
+
+        // Update the file data state to include the new files
+        setFileData((prev) => {
+          // Remove any existing files with the same IDs
+          const filteredData = prev.filter(
+            item => !newFileNodes.some(newFile => newFile.id === item.id)
+          );
+          return [...filteredData, ...newFileNodes];
+        });
+
         setUploadDialogOpen(false);
       } catch (error) {
         console.error("Failed to upload file:", error);
+        alert("Failed to upload file. Please try again.");
       }
     };
     
@@ -388,7 +437,7 @@
       const renderNode = (node: FileNode, level: number = 0) => {
         const isFolder = node.type === 'folder';
         const isOpen = expanded[node.id] || false;
-        const childFolders = nodes.filter(
+        const children = nodes.filter(
           child => child.parentFolderID === node.folderID
         );
 
@@ -398,12 +447,12 @@
             nested={isFolder} 
             sx={{ 
               my: 0.5,
-              ml: level * 2 // Indent based on nesting level
+              ml: level * 2
             }}
           >
             <div>
               <ListItemButton
-                onClick={() => isFolder && handleNodeClick(node)}
+                onClick={() => isFolder ? handleNodeClick(node) : handleAction("View")}
                 onContextMenu={(e) => handleRightClick(e, node)}
               >
                 <span className="mr-2">
@@ -422,15 +471,14 @@
                   )}
                 </span>
                 <span className="mr-2">
-                  <Folder />
+                  {isFolder ? <Folder /> : <File />}
                 </span>
                 <Typography>{node.label}</Typography>
               </ListItemButton>
 
-              {/* Nested folders */}
-              {isOpen && childFolders.length > 0 && (
+              {isFolder && isOpen && children.length > 0 && (
                 <List>
-                  {childFolders.map(childFolder => renderNode(childFolder, level + 1))}
+                  {children.map(child => renderNode(child, level + 1))}
                 </List>
               )}
             </div>
@@ -438,14 +486,19 @@
         );
       };
 
-      // Start with root-level folders
-      const rootFolders = nodes.filter(
+      // Filter based on showFoldersOnly checkbox
+      const filteredNodes = showFoldersOnly 
+        ? nodes.filter(node => node.type === 'folder')
+        : nodes;
+
+      // Start with root-level items
+      const rootItems = filteredNodes.filter(
         node => node.parentFolderID === 0 || node.parentFolderID === undefined
       );
 
       return (
         <List>
-          {rootFolders.map(node => renderNode(node))}
+          {rootItems.map(node => renderNode(node))}
         </List>
       );
     };
