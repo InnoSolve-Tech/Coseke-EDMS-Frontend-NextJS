@@ -1,18 +1,22 @@
 export interface Task {
     id: string
     name: string
+    title: string
+    assignee: string
     priority: 'low' | 'medium' | 'high'
     description: string
     createdDate: string
+    updatedAt: string
     startDate: string
     deadline: string
     weight: number
+    dueDate: string
     timelineReason: string
     assignees: string[]
     roles: string[]
     createdBy: string
     status: 'pending' | 'in-progress' | 'completed'
-  }
+}
   
   export interface TaskFormData {
     name: string

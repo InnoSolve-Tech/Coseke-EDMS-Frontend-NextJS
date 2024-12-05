@@ -5,7 +5,7 @@ import  Button from '@mui/joy/Button'
 import Checkbox  from '@mui/joy/Checkbox'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
-import type { Task } from '../components/task'
+import  Task  from '../components/task'
 
 interface TaskTableProps {
   tasks: Task[]

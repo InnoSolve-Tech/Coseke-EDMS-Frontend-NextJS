@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Modal, ModalDialog, Stepper, Step, StepIndicator, Button, Input, Select, Option, Textarea, Typography } from '@mui/joy'
 import type { TaskFormData } from '../components/task'
 import AssignmentIcon from '@mui/icons-material/Assignment'
@@ -45,12 +46,14 @@ export default function TaskForm({ open, onClose, onSubmit }: TaskFormProps) {
         return (
           <div className="space-y-4">
             <Input
+              name='Task Name'
               required
               placeholder="Task Name"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             />
             <Select
+              name='Priority'
               placeholder="Select Priority"
               value={formData.priority}
               onChange={(_, value) => setFormData({ ...formData, priority: value as string })}
@@ -71,18 +74,21 @@ export default function TaskForm({ open, onClose, onSubmit }: TaskFormProps) {
         return (
           <div className="space-y-4">
             <Input
+              name='Start Date'
               type="date"
               placeholder="Starting date"
               value={formData.startDate}
               onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
             />
             <Input
+              className='Deadline'
               type="date"
               placeholder="Deadline"
               value={formData.deadline}
               onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
             />
             <Input
+              name='task weight in (%)'
               type="number"
               placeholder="Task weight (%)"
               value={formData.weight}
