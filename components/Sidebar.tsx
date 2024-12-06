@@ -2,7 +2,6 @@ import React, { useState, ReactNode } from 'react';
 import { 
   Folder, 
   LayoutDashboard, 
-  ShoppingCart, 
   List as ListIcon, 
   Workflow, 
   Users, 
@@ -62,7 +61,7 @@ const NAVIGATION_ITEMS: NavigationItem[] = [
     label: 'Workflows',
     path: '/dashboard/workflows',
     subItems: [      
-      { label: 'Create Workflows', path: '/dashboard/workflows/all' },
+      { label: 'Create Workflows', path: '/dashboard/workflows/create' },
       { label: 'View Active', path: '/dashboard/workflows/active' },
     ]
   },
@@ -290,7 +289,12 @@ export default function Sidebar({ children }: SidebarLayoutProps) {
           {!isCollapsed && (
             <button 
               className="hover:bg-gray-100 p-2 rounded-md"
-              onClick={() => router.push('/logout')}
+              onClick={() => {
+                // Clear local storage and redirect to login page
+                sessionStorage.clear()
+                router.push('/')
+              }
+              }
             >
               <LogOut className="w-5 h-5" />
             </button>
