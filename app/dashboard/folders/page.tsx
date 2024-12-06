@@ -161,7 +161,7 @@
             const childFoldersResponse = await fetchChildFolders(node.folderID);
             
             // Convert child folders to FileNode format
-            const childFolderNodes = childFoldersResponse.data.map((item): FileNode => ({
+            const childFolderNodes = childFoldersResponse.data.map((item : any): FileNode => ({
               id: item.id?.toString() || "",
               label: item.name,
               type: 'folder',
@@ -336,7 +336,7 @@
         const childFoldersResponse = await fetchChildFolders(folderID);
         
         // Convert to FileNode format
-        const childFolderNodes = childFoldersResponse.data.map((item): FileNode => ({
+        const childFolderNodes = childFoldersResponse.data.map((item : any): FileNode => ({
           id: item.folderID?.toString() || "",
           label: item.name,
           type: 'folder',
@@ -367,7 +367,7 @@
           const updatedData = [
             ...filteredData, 
             ...childFolderNodes.filter(
-              newFolder => !prevData.some(existingFolder => existingFolder.id === newFolder.id)
+              (              newFolder: { id: string; }) => !prevData.some(existingFolder => existingFolder.id === newFolder.id)
             )
           ];
           return updatedData;
