@@ -60,9 +60,9 @@ const NAVIGATION_ITEMS: NavigationItem[] = [
     icon: Workflow,
     label: 'Workflows',
     path: '/dashboard/workflows',
-    subItems: [      
-      { label: 'Create Workflows', path: '/dashboard/workflows/create' },
-      { label: 'View Active', path: '/dashboard/workflows/active' },
+    subItems: [   
+      { label: 'All Workflows', path: '/dashboard/workflows' },   
+      { label: 'Create', path: '/dashboard/workflows/create' },
     ]
   },
   {

@@ -17,6 +17,7 @@ export interface WorkflowNode {
   data: {
     label: string;
     description?: string;
+    nodeId: string;
     conditions?: { field: string; operator: string; value: string }[];
     assignee?: { type: "role" | "user"; id: string };
     dueDate?: string;
