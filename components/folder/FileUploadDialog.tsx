@@ -201,42 +201,36 @@ export default function FileUploadDialog({ open, onClose, onUpload, folderID }: 
       setError("No file selected");
       return;
     }
-  
     try {
+      const arrayBuffer = await file.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const binaryString = uint8Array.reduce((data, byte) => 
+        data + String.fromCharCode(byte), '');
+      console.log('Binary string start:', binaryString.slice(0, 100));
+    
       const formData = new FormData();
-
-       // Append the file directly to FormData
-    formData.append('file', file);
-    console.log("File appended:", file);
-      
-      // Append metadata
-      const metadataString = JSON.stringify({
+      // Append blob with original filename
+      formData.append('file', binaryString);
+      // Prepare and append metadata
+      const metadataPayload = {
         author: metadata.author || '',
         version: metadata.version || '',
         description: metadata.description || '',
         tags: metadata.tags || '',
-        ...Object.fromEntries(
-          Object.entries(metadata).filter(([key]) => 
-            !['author', 'version', 'description', 'tags'].includes(key)
-          )
-        )
-      });
-      formData.append('metadata', metadataString);
-  
-      // Debugging: Log the formData entries
-      for (let pair of formData.entries()) {
-        console.log(`${pair[0]}:`, pair[1]);
-      }
-  
+        'company name': selectedDocType?.name || '',
+      };
+      formData.append('metadata', JSON.stringify(metadataPayload));
       // Perform upload
       await addDocument(formData);
+  
       console.log("Upload successful");
-      onClose(); // Close the modal
+      onClose();
     } catch (error) {
       console.error("Upload failed:", error);
       setError("Failed to upload file. Please try again.");
     }
   };
+
 
   const handleClose = () => {
     if (previewUrl) {
