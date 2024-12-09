@@ -187,15 +187,10 @@ export default function FileUploadDialog({ open, onClose, onUpload, folderID }: 
   }, []);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = event.target.files?.[0];
-    if (selectedFile) {
-      console.log("Selected file details:", selectedFile);
-      setFile(selectedFile); // Ensure the file is set to state directly
-    } else {
-      console.error("No file was selected");
+    if (event.target.files && event.target.files[0]) {
+      handleFile(event.target.files[0]);
     }
   };
-  
 
   const handleMetadataChange = (key: string, value: string) => {
     setMetadata(prev => ({ ...prev, [key]: value }));
@@ -209,18 +204,12 @@ export default function FileUploadDialog({ open, onClose, onUpload, folderID }: 
   
     try {
       const formData = new FormData();
-      
-      // Correctly append the file
-      formData.append('file', file);
 
-      // Append other form fields
-      formData.append('folderID', folderID?.toString() || '');
-      formData.append('filename', file.name);
-      formData.append('documentType', selectedDocType?.name || '');
-      formData.append('documentName', file.name);
-      formData.append('mimeType', file.type);
+       // Append the file directly to FormData
+    formData.append('file', file);
+    console.log("File appended:", file);
       
-      // Ensure metadata is correctly stringified
+      // Append metadata
       const metadataString = JSON.stringify({
         author: metadata.author || '',
         version: metadata.version || '',
@@ -248,7 +237,6 @@ export default function FileUploadDialog({ open, onClose, onUpload, folderID }: 
       setError("Failed to upload file. Please try again.");
     }
   };
-  
 
   const handleClose = () => {
     if (previewUrl) {
