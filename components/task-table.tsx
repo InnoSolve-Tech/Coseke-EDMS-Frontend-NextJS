@@ -5,7 +5,7 @@ import  Button from '@mui/joy/Button'
 import Checkbox  from '@mui/joy/Checkbox'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
-import  Task  from '../components/task'
+import  { Task }  from '../components/task'
 
 interface TaskTableProps {
   tasks: Task[]
@@ -29,9 +29,9 @@ export default function TaskTable({ tasks, onEdit, onDelete }: TaskTableProps) {
         {tasks.map((task) => (
           <tr key={task.id}>
             <td><Checkbox /></td>
-            <td>{task.name}</td>
+            {/*<td>{task.name}</td>
             <td>{task.priority}</td>
-            <td>{new Date(task.deadline).toLocaleDateString()}</td>
+            <td>{new Date(task.deadline).toLocaleDateString()}</td>*/}
             <td>
               <Button
                 size="sm"
