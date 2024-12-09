@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { createWorkflow } from "@/core/workflows/api";
 import { useWorkflow } from "@/lib/contexts/workflow-context";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 
@@ -29,6 +30,7 @@ const formSchema = z.object({
 
 export function WorkflowForm() {
   const { workflow, updateWorkflow } = useWorkflow();
+  const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -39,16 +41,22 @@ export function WorkflowForm() {
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    updateWorkflow({
+    try {
+      updateWorkflow({
       ...workflow,
       ...values
-    });
-    
-    await createWorkflow({
+      });
+
+      await createWorkflow({
       ...workflow,
       ...values
-    } as any)
-    console.log(workflow);
+      } as any);
+
+      // Navigate to dashboard/workflows
+      router.push("/dashboard/workflows");
+    } catch (error) {
+      console.error("Failed to create workflow:", error);
+    }
   };
 
   return (

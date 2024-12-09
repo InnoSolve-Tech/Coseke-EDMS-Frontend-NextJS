@@ -18,6 +18,8 @@ import { Workflow } from "@/lib/types/workflow";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
+import { useRouter } from "next/navigation";
+
 import * as z from "zod";
 
 const formSchema = z.object({
@@ -31,7 +33,8 @@ const formSchema = z.object({
 
 export function WorkflowForm() {
   const { workflow, updateWorkflow } = useWorkflow();
-  const initialWorkflowRef = useRef(workflow); // Track the initial workflow
+  const initialWorkflowRef = useRef(workflow);
+  const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -57,16 +60,22 @@ export function WorkflowForm() {
   
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    updateWorkflow({
+    try {
+      updateWorkflow({
       ...workflow,
       ...values,
-    });
+      });
 
-    await editWorkflow({
+      await editWorkflow({
       ...workflow,
       ...values,
-    } as Workflow)
-    console.log(workflow);
+      } as Workflow);
+
+      router.push("/dashboard/workflows");
+    } catch (error) {
+      console.error("Failed to update workflow:", error);
+    }
+    
   };
 
   return (
