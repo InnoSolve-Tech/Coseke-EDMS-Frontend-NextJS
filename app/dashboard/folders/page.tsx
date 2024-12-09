@@ -24,6 +24,7 @@
   import SearchBar from "@/components/folder/SearchBar";
   import { getFiles, getFolders, addDocumentsByFolderId, createFolders, deleteFile, deleteFolder, DirectoryData, createSubFolders, fetchChildFolders, getFilesByFolderID,getDocumentTypes } from "@/components/files/api";
   import { ChevronDown, ChevronRight, File, Folder } from 'lucide-react';
+  import axios from 'axios';
 
   interface FileNode {
     id: string;
@@ -231,6 +232,11 @@
           setIsSubfolderMode(true);
           setIsCreateFolderModalOpen(true);
           break;
+        case "UploadFile":
+          // Pass the current folder's ID when opening the upload dialog
+          setCurrentFolderID(menuTarget.folderID ?? null);
+          setUploadDialogOpen(true);
+          break;
         case "View":
           if (menuTarget.type === 'file' && menuTarget.fileId) {
             router.push(`/dashboard/folders/file/${menuTarget.fileId}`);
@@ -332,38 +338,54 @@
           throw new Error("No folder selected for upload");
         }
 
-        // Create the document data
-        const documentData = {
+        // Create the file data object
+        const fileData = {
           documentName: file.name,
-          documentType,  // Use the documentType parameter directly
-          metadata
+          documentType: documentType,
+          metadata: metadata,
+          folderID: currentFolder.folderID,
+          mimeType: file.type
         };
 
-        await addDocumentsByFolderId([file], currentFolder.folderID, documentData);
+        // Create form data
+        const formData = new FormData();
+        formData.append('fileData', new Blob([JSON.stringify(fileData)], { type: 'application/json' }));
+        formData.append('file', file);
 
-        // Fetch and update the UI
-        const filesResponse = await getFilesByFolderID(currentFolder.folderID);
-        const newFiles = filesResponse.data || [];
+        // Make the API call
+        const response = await axios.post(
+          `/api/v1/files/${currentFolder.folderID}`,
+          formData,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          }
+        );
 
-        // Convert the new files to FileNode format
-        const newFileNodes = newFiles.map((item: FileData): FileNode => ({
-          id: item.id.toString(),
-          label: item.name || "Unnamed",
-          type: "file",
-          folderID: currentFolder.folderID,
-          fileId: item.id,
-          parentFolderID: currentFolder.folderID,
-          metadata: item,
-        }));
+        if (response.status === 200) {
+          // Refresh the file list
+          const filesResponse = await getFilesByFolderID(currentFolder.folderID);
+          const newFiles = filesResponse.data || [];
 
-        // Update the file data state to include the new files
-        setFileData((prev) => {
-          // Remove any existing files with the same IDs
-          const filteredData = prev.filter(
-            item => !newFileNodes.some(newFile => newFile.id === item.id)
-          );
-          return [...filteredData, ...newFileNodes];
-        });
+          // Convert the new files to FileNode format
+          const newFileNodes = newFiles.map((item: FileData): FileNode => ({
+            id: item.id.toString(),
+            label: item.name || item.filename || "Unnamed",
+            type: "file",
+            folderID: currentFolder.folderID,
+            fileId: item.id,
+            metadata: item
+          }));
+
+          // Update the file data state
+          setFileData(prev => {
+            const filteredData = prev.filter(
+              item => !newFileNodes.some(newFile => newFile.id === item.id)
+            );
+            return [...filteredData, ...newFileNodes];
+          });
+        }
 
         setUploadDialogOpen(false);
       } catch (error) {
@@ -551,13 +573,6 @@
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <Button
-                  onClick={() => setUploadDialogOpen(true)}
-                  startDecorator={<FileUpload />}
-                  sx={{ mr: 1 }}
-                >
-                  Upload File
-                </Button>
-                <Button
                   onClick={() => setIsCreateFolderModalOpen(true)}
                   startDecorator={<CreateNewFolder />}
                 >
@@ -593,6 +608,9 @@
                 <MenuItem onClick={() => handleAction("CreateSubfolder")}>
                   Create Subfolder
                 </MenuItem>
+                <MenuItem onClick={() => handleAction("UploadFile")}>
+                  Upload File
+                </MenuItem>
                 <MenuItem onClick={() => handleAction("Edit")}>Edit</MenuItem>
                 <MenuItem onClick={() => handleAction("Delete")}>Delete</MenuItem>
               </>
@@ -609,6 +627,7 @@
               open={uploadDialogOpen}
               onClose={() => setUploadDialogOpen(false)}
               onUpload={handleUpload}
+              folderID={currentFolderID}
             />
 
             <Modal

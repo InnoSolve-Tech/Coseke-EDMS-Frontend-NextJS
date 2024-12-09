@@ -1,6 +1,5 @@
 "use client";
 
-import axios from "axios";
 import { getTokenFromSessionStorage } from "../routes/sessionStorage";
 import { AxiosInstance } from "../routes/api";
 
@@ -42,32 +41,45 @@ export interface DirectoryData {
   parentFolderID?: number;
 }
 
-export const addDocument = async (data: DocumentProps, file: File): Promise<void> => {
-  const token = getTokenFromSessionStorage();
-  const authorization = `Bearer ${JSON.parse(token!)}`;
+export interface FileManagerData {
+  folderID?: number | null;
+  filename: string;
+  documentType: string;
+  documentName: string;
+  hashName?: string;
+  fileLink?: string;
+  mimeType: string;
+  metadata?: Record<string, unknown>;
+  fileContent?: string;
+}
 
-  const formData = new FormData();
-  formData.append(
-    "fileData",
-    new Blob([JSON.stringify(data)], { type: "application/json" })
-  );
-  formData.append("file", file);
 
+export const addDocument = async (
+  formData: FormData
+): Promise<ApiResponse<void>> => {
   try {
-    const response = await AxiosInstance.post<ApiResponse<void>>(ENDPOINT_URL, formData, {
-      headers: {
-        Authorization: authorization,
-        "Content-Type": "multipart/form-data",
-      },
-    });
-    console.log(response);
+    const token = getTokenFromSessionStorage();
+    const authorization = `Bearer ${JSON.parse(token!)}`;
+
+    const response = await AxiosInstance.post<ApiResponse<void>>(
+      `/file-management/api/v1/files/upload`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Authorization': authorization,
+        },
+      }
+    );
+    return response.data;
   } catch (error) {
-    console.error("Error uploading document:", error);
+    console.error('Upload error details:', error);
+    throw error;
   }
 };
 
 export const addDocumentByFolderId = async (
-  data: { documentName: string },
+  data: DocumentProps,
   file: File,
   folderId: number
 ): Promise<void> => {
@@ -75,14 +87,18 @@ export const addDocumentByFolderId = async (
   const authorization = `Bearer ${JSON.parse(token!)}`;
 
   const formData = new FormData();
+  
+  // Properly stringify and append the fileData
   formData.append(
-    "fileData",
+    "fileData", 
     new Blob([JSON.stringify(data)], { type: "application/json" })
   );
-  formData.append("file", file);
+  
+  // Append the actual file
+  formData.append('file', file);
 
   try {
-    const response = await axios.post<ApiResponse<void>>(`${ENDPOINT_URL}${folderId}`, formData, {
+    const response = await AxiosInstance.post<ApiResponse<void>>(`/api/v1/files/${folderId}`, formData, {
       headers: {
         Authorization: authorization,
         "Content-Type": "multipart/form-data",
@@ -91,8 +107,10 @@ export const addDocumentByFolderId = async (
     console.log(response);
   } catch (error) {
     console.error("Error uploading document:", error);
+    throw error; // Re-throw to handle in the calling function
   }
 };
+
 
 export const getFiles = async (): Promise<ApiResponse<FileData[]>> => {
   const response = await AxiosInstance.get<ApiResponse<FileData[]>>(
@@ -263,27 +281,33 @@ export const fetchChildFolders = async (parentFolderId: number) => {
       documentName: string;
       documentType: string;
       metadata: Record<string, any>;
+      mimeType?: string;
     }
-  ): Promise<void> => {
+  ): Promise<ApiResponse<void>> => {
     const token = getTokenFromSessionStorage();
     const authorization = `Bearer ${JSON.parse(token!)}`;
   
     const formData = new FormData();
-    files.forEach((file) => {
-      formData.append("files", file);
-    });
   
     // Add document data if provided
     if (documentData) {
       formData.append(
-        "documentData",
-        new Blob([JSON.stringify(documentData)], { type: "application/json" })
+        "fileData",
+        new Blob([JSON.stringify({
+          ...documentData,
+          folderID: folderId
+        })], { type: "application/json" })
       );
     }
   
+    // Add files
+    files.forEach((file) => {
+      formData.append("file", file);
+    });
+  
     try {
-      const response = await axios.post<ApiResponse<void>>(
-        `${ENDPOINT_URL}bulk/${folderId}`,
+      const response = await AxiosInstance.post<ApiResponse<void>>(
+        `${ENDPOINT_URL}${folderId}`,
         formData,
         {
           headers: {
@@ -292,7 +316,7 @@ export const fetchChildFolders = async (parentFolderId: number) => {
           },
         }
       );
-      console.log(response);
+      return response.data;
     } catch (error) {
       console.error("Error uploading documents:", error);
       throw error;

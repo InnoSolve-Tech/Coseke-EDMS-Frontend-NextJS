@@ -23,12 +23,14 @@ import { useForm, Controller } from "react-hook-form";
 import { IDocumentType, IDocumentTypeForm, MetadataItem, getDocumentTypes } from './api';
 import { DocumentTypeCreation } from './DocumentTypes';
 import { addDocument, addDocumentByFolderId } from '../files/api';
+import { FileManagerData } from '../files/api';
+import { base64ToFile, fileToBase64 } from '../helpers';
 
 interface FileUploadDialogProps {
   open: boolean;
   onClose: () => void;
   onUpload: (file: File, documentType: string, metadata: Record<string, any>) => Promise<void>;
-  folderId?: number;
+  folderID?: number | null;
 }
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -46,10 +48,10 @@ interface MetadataPayload {
   version: string;
   description: string;
   tags: string[];
-  [key: string]: string | string[]; // This allows for dynamic fields
+  [key: string]: string | string[];
 }
 
-export default function FileUploadDialog({ open, onClose, onUpload, folderId }: FileUploadDialogProps) {
+export default function FileUploadDialog({ open, onClose, onUpload, folderID }: FileUploadDialogProps) {
   const [file, setFile] = useState<File | null>(null);
   const [documentTypes, setDocumentTypes] = useState<IDocumentType[]>([]);
   const [selectedDocType, setSelectedDocType] = useState<IDocumentType | null>(null);
@@ -130,25 +132,37 @@ export default function FileUploadDialog({ open, onClose, onUpload, folderId }: 
     return true;
   };
 
-  const handleFile = (file: File) => {
+  const handleFile = async (file: File) => {
     if (validateFile(file)) {
-      setFile(file);
-      // Create object URL for preview
-      if (file.type === 'application/pdf' || file.type.startsWith('text/')) {
-        const url = URL.createObjectURL(file);
-        setPreviewUrl(url);
+      try {
+        // Create a proper blob from the file
+        const fileBlob = await file.arrayBuffer().then(buffer => 
+          new Blob([buffer], { type: file.type })
+        );
+        const fileObject = new File([fileBlob], file.name, { type: file.type });
+        setFile(fileObject);
+
+        // Create preview if needed
+        if (file.type === 'application/pdf' || file.type.startsWith('text/')) {
+          const url = URL.createObjectURL(fileObject);
+          setPreviewUrl(url);
+        }
+        
+        // Progress simulation
+        setUploadProgress(0);
+        const interval = setInterval(() => {
+          setUploadProgress(prev => {
+            if (prev >= 100) {
+              clearInterval(interval);
+              return 100;
+            }
+            return prev + 10;
+          });
+        }, 200);
+      } catch (error) {
+        console.error('Error processing file:', error);
+        setError('Failed to process file. Please try again.');
       }
-      // Simulate upload progress
-      setUploadProgress(0);
-      const interval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev >= 100) {
-            clearInterval(interval);
-            return 100;
-          }
-          return prev + 10;
-        });
-      }, 200);
     }
   };
 
@@ -173,63 +187,68 @@ export default function FileUploadDialog({ open, onClose, onUpload, folderId }: 
   }, []);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      handleFile(event.target.files[0]);
+    const selectedFile = event.target.files?.[0];
+    if (selectedFile) {
+      console.log("Selected file details:", selectedFile);
+      setFile(selectedFile); // Ensure the file is set to state directly
+    } else {
+      console.error("No file was selected");
     }
   };
+  
 
   const handleMetadataChange = (key: string, value: string) => {
     setMetadata(prev => ({ ...prev, [key]: value }));
   };
 
   const handleUpload = async () => {
-    if (file && selectedDocType) {
-      try {
-        // Create metadata object including both standard and custom fields
-        const metadataPayload: MetadataPayload = {
-          author: metadata.author || '',
-          version: metadata.version || '',
-          description: metadata.description || '',
-          tags: metadata.tags ? metadata.tags.split(',').map(tag => tag.trim()) : [],
-        };
+    if (!file) {
+      setError("No file selected");
+      return;
+    }
+  
+    try {
+      const formData = new FormData();
+      
+      // Correctly append the file
+      formData.append('file', file);
 
-        // Add custom metadata fields from the selected document type
-        selectedDocType.metadata.forEach(field => {
-          metadataPayload[field.name] = metadata[field.name] || '';
-        });
-
-        // Structure the payload to match the expected format
-        const payload = {
-          fileData: {
-            documentName: file.name,
-            documentType: selectedDocType.name,
-            metadata: metadataPayload
-          },
-          file: file
-        };                
-
-        // Upload using the appropriate method
-        if (folderId) {
-          await addDocumentByFolderId(payload.fileData, payload.file, folderId);
-        } else {
-          await onUpload(file, selectedDocType.name, metadataPayload);
-        }
-
-        // Clean up
-        setFile(null);
-        setUploadProgress(0);
-        if (previewUrl) {
-          URL.revokeObjectURL(previewUrl);
-          setPreviewUrl(null);
-        }
-        setMetadata({});
-        onClose();
-      } catch (error) {
-        console.error('Error uploading file:', error);
-        setError('Failed to upload file. Please try again.');
+      // Append other form fields
+      formData.append('folderID', folderID?.toString() || '');
+      formData.append('filename', file.name);
+      formData.append('documentType', selectedDocType?.name || '');
+      formData.append('documentName', file.name);
+      formData.append('mimeType', file.type);
+      
+      // Ensure metadata is correctly stringified
+      const metadataString = JSON.stringify({
+        author: metadata.author || '',
+        version: metadata.version || '',
+        description: metadata.description || '',
+        tags: metadata.tags || '',
+        ...Object.fromEntries(
+          Object.entries(metadata).filter(([key]) => 
+            !['author', 'version', 'description', 'tags'].includes(key)
+          )
+        )
+      });
+      formData.append('metadata', metadataString);
+  
+      // Debugging: Log the formData entries
+      for (let pair of formData.entries()) {
+        console.log(`${pair[0]}:`, pair[1]);
       }
+  
+      // Perform upload
+      await addDocument(formData);
+      console.log("Upload successful");
+      onClose(); // Close the modal
+    } catch (error) {
+      console.error("Upload failed:", error);
+      setError("Failed to upload file. Please try again.");
     }
   };
+  
 
   const handleClose = () => {
     if (previewUrl) {
