@@ -1,6 +1,6 @@
 "use client"
 
-import { IUserDetails } from "../authentication/interface";
+import { IUserDetails } from "../../core/authentication/interface";
 
 const accessToken = "access-token";
 const user = "current-user";

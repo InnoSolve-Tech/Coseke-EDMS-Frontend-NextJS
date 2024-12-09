@@ -14,10 +14,10 @@ import Typography from "@mui/joy/Typography";
 import Stack from "@mui/joy/Stack";
 import { useRouter } from "next/navigation";
 import { useFormik } from "formik";
-import { loginSchema } from "@/components/authentication/schema";
-import { loginService } from "@/components/authentication/api";
+import { loginSchema } from "@/core/authentication/schema";
+import { loginService } from "@/core/authentication/api";
 import { updateSessionStorage } from "@/components/routes/sessionStorage";
-import { ILoginState } from "@/components/authentication/interface";
+import { ILoginState } from "@/core/authentication/interface";
 import axios from "axios";
 
 const customTheme = extendTheme({
