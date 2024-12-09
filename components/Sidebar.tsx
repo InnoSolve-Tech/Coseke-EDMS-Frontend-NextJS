@@ -60,9 +60,9 @@ const NAVIGATION_ITEMS: NavigationItem[] = [
     icon: Workflow,
     label: 'Workflows',
     path: '/dashboard/workflows',
-    subItems: [      
-      { label: 'Create Workflows', path: '/dashboard/workflows/all' },
-      { label: 'View Active', path: '/dashboard/workflows/active' },
+    subItems: [   
+      { label: 'All Workflows', path: '/dashboard/workflows' },   
+      { label: 'Create', path: '/dashboard/workflows/create' },
     ]
   },
   {
@@ -289,7 +289,12 @@ export default function Sidebar({ children }: SidebarLayoutProps) {
           {!isCollapsed && (
             <button 
               className="hover:bg-gray-100 p-2 rounded-md"
-              onClick={() => router.push('/logout')}
+              onClick={() => {
+                // Clear local storage and redirect to login page
+                sessionStorage.clear()
+                router.push('/')
+              }
+              }
             >
               <LogOut className="w-5 h-5" />
             </button>
