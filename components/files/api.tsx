@@ -2,6 +2,7 @@
 
 import { getTokenFromSessionStorage } from "../routes/sessionStorage";
 import { AxiosInstance } from "../routes/api";
+import axios from "axios";
 
 const ENDPOINT_URL = "file-management/api/v1/files/";
 
@@ -55,27 +56,34 @@ export interface FileManagerData {
 
 
 export const addDocument = async (
-  formData: FormData
-): Promise<ApiResponse<void>> => {
-  try {
-    const token = getTokenFromSessionStorage();
-    const authorization = `Bearer ${JSON.parse(token!)}`;
+  file: File,
+  data: any,
+  folderId: number
+): Promise<void> => {
 
-    const response = await AxiosInstance.post<ApiResponse<void>>(
-      `/file-management/api/v1/files/upload`,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          'Authorization': authorization,
-        },
-      }
-    );
-    return response.data;
+  let token = getTokenFromSessionStorage();
+  let authorization = `Bearer ${JSON.parse(token!)}`;
+
+  // Create FormData object
+  let formData = new FormData();
+  console.log(data);
+  formData.append(
+    "fileData",
+    new Blob([JSON.stringify(data)], { type: "application/json" }),
+  );
+  formData.append("file", file);
+
+  try {
+    let res = await axios.post(`${ENDPOINT_URL}${folderId}`, formData, {
+      headers: {
+        Authorization: authorization,
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    console.log(res);
   } catch (error) {
-    console.error('Upload error details:', error);
-    throw error;
-  }
+    console.error("Error uploading document:", error);
+  }
 };
 
 export const addDocumentByFolderId = async (
