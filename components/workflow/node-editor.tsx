@@ -12,6 +12,11 @@ import { WorkflowNode } from "@/lib/types/workflow";
 import { nodeTypes } from "./node-types";
 import { TaskForm, DecisionForm, ParallelForm } from "./node-forms";
 
+interface NodeAssigneeData {
+  type: "role" | "user";
+  id: string;
+}
+
 interface NodeEditorProps {
   node: WorkflowNode;
   isOpen: boolean;

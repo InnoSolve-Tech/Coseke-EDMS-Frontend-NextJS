@@ -17,6 +17,7 @@ export interface WorkflowNode {
   data: {
     label: string;
     description?: string;
+    nodeId: string;
     conditions?: { field: string; operator: string; value: string }[];
     assignee?: { type: "role" | "user"; id: string };
     dueDate?: string;
@@ -38,17 +39,3 @@ export interface Edge {
   source: string;
   target: string;
 }
-
-export interface Role {
-  id: string;
-  name: string;
-  description: string;
-}
-
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  roles: string[];
-}
-

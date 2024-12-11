@@ -12,11 +12,14 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { createWorkflow } from "@/core/workflows/api";
-import { useWorkflow } from "@/lib/contexts/workflow-context";
+import { editWorkflow } from "@/core/workflows/api";
+import { useWorkflow } from "@/lib/contexts/workflow-edit-context";
+import { Workflow } from "@/lib/types/workflow";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
+import { useRouter } from "next/navigation";
+
 import * as z from "zod";
 
 const formSchema = z.object({
@@ -30,6 +33,7 @@ const formSchema = z.object({
 
 export function WorkflowForm() {
   const { workflow, updateWorkflow } = useWorkflow();
+  const initialWorkflowRef = useRef(workflow);
   const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -40,23 +44,38 @@ export function WorkflowForm() {
     },
   });
 
+  useEffect(() => {
+    // Check if workflow has actually changed and if the form values need resetting
+    if (
+      workflow?.name !== initialWorkflowRef.current?.name ||
+      workflow?.description !== initialWorkflowRef.current?.description
+    ) {
+      initialWorkflowRef.current = workflow; // Update the ref
+      form.reset({
+        name: workflow?.name || "",
+        description: workflow?.description || "",
+      });
+    }
+  }, [workflow, form]);
+  
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       updateWorkflow({
       ...workflow,
-      ...values
+      ...values,
       });
 
-      await createWorkflow({
+      await editWorkflow({
       ...workflow,
-      ...values
-      } as any);
+      ...values,
+      } as Workflow);
 
-      // Navigate to dashboard/workflows
       router.push("/dashboard/workflows");
     } catch (error) {
-      console.error("Failed to create workflow:", error);
+      console.error("Failed to update workflow:", error);
     }
+    
   };
 
   return (

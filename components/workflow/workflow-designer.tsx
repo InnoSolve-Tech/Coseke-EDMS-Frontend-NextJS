@@ -22,6 +22,7 @@ import { WorkflowJson } from "./workflow-json";
 import { WorkflowHelpDialog } from "./workflow-help-dialog";
 import { Info } from "lucide-react";
 import { useWorkflow } from "@/lib/contexts/workflow-context";
+import { v4 as uuidv4 } from 'uuid';
 
 type NodeForm = {
   id: string;
@@ -36,6 +37,7 @@ type NodeForm = {
 type WorkflowNodeData = {
   label: string;
   description?: string;
+  nodeId: string;
   conditions?: { field: string; operator: string; value: string; }[];
   assignee?: { type: "role" | "user"; id: string; };
   dueDate?: string;
@@ -52,11 +54,6 @@ const nodeTypes = {
   merge: WorkflowNode,
 };
 
-interface WorkflowDesignerProps {
-  name?: string;
-  description?: string;
-  onSave?: (workflow: Partial<Workflow>) => void;
-}
 
 export function WorkflowDesigner() {
   const { updateWorkflow } = useWorkflow();
@@ -65,17 +62,28 @@ export function WorkflowDesigner() {
   const [selectedNode, setSelectedNode] = useState<Node<WorkflowNodeData> & { type: "start" | "end" | "task" | "decision" | "parallel" | "merge" } | null>(null);
 
   const onConnect = useCallback(
-    (params: Connection | Edge) => setEdges((eds) => addEdge(params, eds)),
-    [setEdges]
+    (params: Connection | Edge) => {
+      // Use nodeId instead of the node id for source and target
+      const newEdge:Edge = {
+        ...params,
+        id: uuidv4(),
+        source: nodes.find(node => node.id === params.source)!.data.nodeId,
+        target: nodes.find(node => node.id === params.target)!.data.nodeId,
+      };
+      setEdges((eds) => addEdge(newEdge, eds));
+    },
+    [nodes, setEdges]
   );
 
   const addNode = (type: keyof typeof nodeConfig) => {
+    const nodeId =  uuidv4();
     const newNode: Node<WorkflowNodeData> = {
-      id: `${type}-${Date.now()}`,
+      id: nodeId,
       type,
       position: { x: 250, y: 250 },
       data: {
         label: nodeConfig[type].label,
+        nodeId: nodeId,
         description: nodeConfig[type].description,
       },
     };
@@ -98,7 +106,8 @@ export function WorkflowDesigner() {
       updateWorkflow({ 
         nodes: nodes.map(node => ({
           ...node,
-          type: node.type as WorkflowNodeType['type']
+          type: node.type as WorkflowNodeType['type'],
+          nodeId: node.data.nodeId,
         })), 
         edges 
       });
@@ -162,7 +171,7 @@ export function WorkflowDesigner() {
 
       {selectedNode && (
         <NodeEditor
-          node={selectedNode}
+          node={{ ...selectedNode }}
           isOpen={true}
           onClose={() => setSelectedNode(null)}
           onUpdate={updateNode}

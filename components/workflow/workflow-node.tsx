@@ -1,15 +1,15 @@
 "use client";
 
-import { memo } from "react";
-import { Handle, Position, NodeProps } from "reactflow";
-import { nodeTypes } from "./node-types";
 import { cn } from "@/lib/utils";
-import { Users, Clock, ArrowRight, CheckSquare, GitMerge, Trash2, FileText, GitFork, LayoutGrid } from 'lucide-react';
-import { Button } from "@/components/ui/button";
+import { ArrowRight, CheckSquare, FileText, GitFork, GitMerge, LayoutGrid, Users } from 'lucide-react';
+import { memo } from "react";
+import { Handle, NodeProps, Position } from "reactflow";
+import { nodeTypes } from "./node-types";
 
 interface WorkflowNodeData {
   label: string;
   description?: string;
+  nodeId: string;
   assignee?: { type: "role" | "user"; id: string };
   form?: { fields: any[] };
   conditions?: any[];
