@@ -10,7 +10,7 @@ import  { Task }  from '../components/task'
 interface TaskTableProps {
   tasks: Task[]
   onEdit: (task: Task) => void
-  onDelete: (taskId: string) => void
+  onDelete: (taskId: number) => void
 }
 
 export default function TaskTable({ tasks, onEdit, onDelete }: TaskTableProps) {

@@ -5,15 +5,8 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Card, CardContent } from "@/components/ui/card"
 import { CurrencyIcon as AttachMoney, CalendarIcon as CalendarToday, TimerIcon as AccessTime } from 'lucide-react'
+import { Task } from "../../../components/task"
 
-interface Task {
-  id: string
-  title: string
-  amount: string
-  date: string
-  time: string
-  status: string
-}
 
 interface KanbanItemProps {
   task: Task
@@ -48,10 +41,6 @@ export function KanbanItem({ task }: KanbanItemProps) {
             <div className="flex items-center">
               <CalendarToday className="w-4 h-4 mr-1" />
               <span className="text-xs">{task.date}</span>
-            </div>
-            <div className="flex items-center">
-              <AccessTime className="w-4 h-4 mr-1" />
-              <span className="text-xs">{task.time}</span>
             </div>
           </div>
         </CardContent>

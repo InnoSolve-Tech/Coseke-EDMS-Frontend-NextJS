@@ -1,26 +1,17 @@
 export interface Task {
-    //id: string
-    //name: string
-    //title: string
-    //assignee: string
-    //priority: 'low' | 'medium' | 'high'
-    //description: string
-    //createdDate: string
-    //updatedAt: string
-    //startDate: string
-    //deadline: string
-    //weight: number
-    //dueDate: string
-    //timelineReason: string
-    //assignees: string[]
-    //roles: string[]
-    //createdBy: string
-    //status: 'contracted' | 'qualified' | 'Closed'
-    id: string;
-  title: string;
-  amount: string;
-  date: string;
-  status: string;
+    priority: string
+    description: string
+    startDate: string
+    deadline: string
+    dueDate: string
+    timelineReason: string
+    assignees: string[]
+    roles: string[]
+    status: 'contracted' | 'qualified' | 'Closed'
+    id: number;
+    title: string;
+    amount: number;
+    date: string;
 }
   
   export interface TaskFormData {

@@ -4,15 +4,7 @@ import React from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { KanbanItem } from '../Kanban/kanban-item'
-
-interface Task {
-  id: string
-  title: string
-  amount: string
-  date: string
-  time: string
-  status: string
-}
+import { Task } from "../../../components/task";
 
 interface KanbanColumnProps {
   column: { id: string; title: string }

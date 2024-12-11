@@ -1,54 +1,19 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { CssVarsProvider } from "@mui/joy/styles";
 import CssBaseline from "@mui/joy/CssBaseline";
-import { Box, IconButton, Avatar, Chip } from "@mui/joy";
+import { Box, Button, IconButton, Avatar } from "@mui/joy";
 import { Notifications, Add } from "@mui/icons-material";
 import TaskTable from "@/components/task-table";
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragOverlay,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  arrayMove,
-  horizontalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { useRouter } from "next/navigation";
-import { SortableItem } from "../../Kanban/sortable-item";
-import TaskForm from "@/components/task-form";
+import CalendarPage from "./CalendarPage";
+import ActivityPage from "./ActivityPage";
+import { DndContext, DragOverlay } from "@dnd-kit/core";
 import { KanbanColumn } from "../../Kanban/kanban-olumn";
 import { KanbanItem } from "../../Kanban/kanban-item";
-
-// Placeholder components for new pages
-const ActivitiesPage = () => (
-  <Box className="p-4">
-    <h2>Activities Page</h2>
-    {/* Add your activities page content here */}
-  </Box>
-);
-
-const CalendarPage = () => (
-  <Box className="p-4">
-    <h2>Calendar Page</h2>
-    {/* Add your calendar page content here */}
-  </Box>
-);
-
-interface Task {
-  id: string;
-  title: string;
-  amount: string;
-  date: string;
-  time: string;
-  status: string;
-}
+import TaskForm from "@/components/task-form";
+import { AxiosInstance } from "../../../../components/routes/api";
+import { Task } from "../../../../components/task";
 
 interface Column {
   id: string;
@@ -56,112 +21,40 @@ interface Column {
 }
 
 export default function Home() {
-  const router = useRouter();
   const [activePage, setActivePage] = useState<string>("kanban");
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: "1",
-      title: "Mobile Shelter Installation for Uganda Electricity Generation Company (UEGCL)",
-      amount: "USh1,915,720,546",
-      date: "July 1",
-      time: "2:00 PM",
-      status: "contacted",
-    },
-    {
-      id: "2",
-      title: "Hunger project - Digitization, EDMS, Hardware",
-      amount: "USh760,901,425",
-      date: "October 14",
-      time: "22 Minutes ago",
-      status: "qualified",
-    },
-    {
-      id: "3",
-      title: "Madini-Integrated system, Training Hardware",
-      amount: "USh0",
-      date: "October 14",
-      time: "1 Hour ago",
-      status: "closed",
-    },
-  ]);
-
+  const [tasks, setTasks] = useState<Task[]>([])
   const [columns] = useState<Column[]>([
     { id: "contacted", title: "Contacted" },
     { id: "qualified", title: "Qualified" },
     { id: "closed", title: "Closed" },
   ]);
 
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<number | null>(null);
   const [open, setOpen] = useState(false);
-  const [items] = useState(["kanban", "list", "activities", "calendar"]);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor)
-  );
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const response = await AxiosInstance.get('/api/v1/tasks/all');
+        setTasks(response.data);
 
-  const handlePageChange = (page: string) => {
-    setActivePage(page);
-    
-    // Add navigation logic for different pages
-    switch (page) {
-      case "list":
-        router.push("#task-table");
-        break;
-      case "activities":
-        router.push("#activities");
-        break;
-      case "calendar":
-        router.push("#calendar");
-        break;
-      case "kanban":
-        router.push("#kanban");
-        break;
-    }
-  };
-
-  const handleDragStart = (event: any) => {
-    setActiveId(event.active.id);
-  };
-
-  const handleDragEnd = (event: any) => {
-    const { active, over } = event;
-
-    if (!over) return;
-
-    if (active.id !== over.id) {
-      const destinationColumn = columns.find((column) => column.id === over.id)?.id;
-
-      if (destinationColumn) {
-        setTasks((prevTasks) =>
-          prevTasks.map((task) =>
-            task.id === active.id ? { ...task, status: destinationColumn } : task
-          )
-        );
+      } catch (error){
+        console.error('Error fetching tasks:', error);
       }
-    }
-    setActiveId(null);
-  };
+    };
+
+    fetchTasks();
+  }, []);
+
+  const handlePageChange = (page: string) => setActivePage(page);
 
   const handleOpenForm = () => setOpen(true);
   const handleCloseForm = () => setOpen(false);
 
-  const handleSubmitForm = (formData: any) => {
-    console.log(formData);
-    handleCloseForm();
-  };
-
-  const handleHeaderDragEnd = (event: { active: any; over: any }) => {
-    const { active, over } = event;
-
-    if (!over) return;
-
-    if (active.id !== over.id) {
-      const oldIndex = items.indexOf(active.id);
-      const newIndex = items.indexOf(over.id);
-      // Note: We're not modifying the state here, just simulating drag
-      console.log(`Moved ${active.id} from index ${oldIndex} to ${newIndex}`);
-    }
+  const handleSubmitForm = (newTask: Task) => {
+    setTasks(prevTasks => [...prevTasks, newTask]);
+    console.log(newTask);
+    //handleCloseForm();
   };
 
   return (
@@ -170,73 +63,76 @@ export default function Home() {
       <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
         {/* Header Section */}
         <Box sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider" }}>
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleHeaderDragEnd}
+          <Box
+            sx={{
+              display: "flex",
+              gap: 2,
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
           >
-            <Box
-              sx={{
-                display: "flex",
-                gap: 1,
-                alignItems: "center",
-                justifyContent: "space-between",
-                width: "100%",
-              }}
-            >
-              <Box sx={{ display: "flex", gap: 1 }}>
-                <SortableContext items={items} strategy={horizontalListSortingStrategy}>
-                  {items.map((item) => (
-                    <SortableItem key={item} id={item}>
-                      <Chip
-                        variant={activePage === item ? "soft" : "outlined"}
-                        color={activePage === item ? "primary" : "neutral"}
-                        onClick={() => handlePageChange(item)}
-                      >
-                        {item.charAt(0).toUpperCase() + item.slice(1)}
-                      </Chip>
-                    </SortableItem>
-                  ))}
-                </SortableContext>
-              </Box>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <IconButton size="sm" variant="solid" color="primary" onClick={handleOpenForm}>
-                  <Add />
-                </IconButton>
-                <IconButton size="sm" variant="outlined" color="neutral">
-                  <Notifications />
-                </IconButton>
-                <Avatar size="sm" src="/placeholder-user.jpg" />
-              </Box>
+            {/* Navigation Buttons */}
+            <Box sx={{ display: "flex", gap: 2 }}>
+              {["list", "activities", "calendar", "kanban"].map((page) => (
+                <Button
+                  key={page}
+                  onClick={() => handlePageChange(page)}
+                  variant={activePage === page ? "solid" : "outlined"}
+                  color={activePage === page ? "primary" : "neutral"}
+                  sx={{
+                    textTransform: "capitalize",
+                    fontWeight: activePage === page ? "bold" : "normal",
+                    backgroundColor: activePage === page
+                      ? "primary.softBg"
+                      : "transparent",
+                    color: activePage === page
+                      ? "primary.solidColor"
+                      : "neutral.plainColor",
+                    borderColor: activePage === page
+                      ? "primary.softColor"
+                      : "divider",
+                    "&:hover": {
+                      backgroundColor: activePage === page
+                        ? "primary.solidHoverBg"
+                        : "neutral.softBg",
+                      borderColor: activePage === page
+                        ? "primary.solidHoverColor"
+                        : "divider",
+                    },
+                    transition: "all 0.3s ease",
+                    borderRadius: "sm",
+                    padding: "6px 12px",
+                  }}
+                >
+                  {page.charAt(0).toUpperCase() + page.slice(1)}
+                </Button>
+              ))}
             </Box>
-          </DndContext>
+
+            {/* Action Icons */}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <IconButton
+                size="sm"
+                variant="solid"
+                color="primary"
+                onClick={handleOpenForm}
+              >
+                <Add />
+              </IconButton>
+              <IconButton size="sm" variant="outlined" color="neutral">
+                <Notifications />
+              </IconButton>
+              <Avatar size="sm" src="/file.svg" />
+            </Box>
+          </Box>
         </Box>
 
-        {/* Content Sections */}
-        {activePage === "list" && (
-          <TaskTable
-            tasks={tasks}
-            onEdit={(task) => {
-              console.log("Editing task:", task);
-            }}
-            onDelete={(taskId) => {
-              console.log("Deleting task with ID:", taskId);
-              setTasks((prevTasks) => prevTasks.filter((task) => task.id !== taskId));
-            }}
-          />
-        )}
-
-        {activePage === "activities" && <ActivitiesPage />}
-
+        {/* Content Section */}
+        {activePage === "list" && <ActivityPage/>}
+        {activePage === "activities" && <ActivityPage />}
         {activePage === "calendar" && <CalendarPage />}
-
         {activePage === "kanban" && (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-          >
+          <DndContext>
             <Box className="flex gap-4 p-4">
               {columns.map((column) => (
                 <KanbanColumn
