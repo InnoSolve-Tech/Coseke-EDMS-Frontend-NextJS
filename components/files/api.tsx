@@ -56,8 +56,8 @@ export interface FileManagerData {
 
 
 export const addDocument = async (
-  file: File,
   data: any,
+  file: File,
   folderId: number
 ): Promise<void> => {
 
@@ -74,9 +74,9 @@ export const addDocument = async (
   formData.append("file", file);
 
   try {
-    let res = await axios.post(`${ENDPOINT_URL}${folderId}`, formData, {
+    let res = await axios.post(`http://localhost:8081/${ENDPOINT_URL}${folderId}`, formData, {
       headers: {
-        Authorization: authorization,
+        "X-Proxy-Secret": "my-proxy-secret-key",
         "Content-Type": "multipart/form-data",
       },
     });

@@ -202,26 +202,21 @@ export default function FileUploadDialog({ open, onClose, onUpload, folderID }: 
       return;
     }
     try {
-      const arrayBuffer = await file.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      const binaryString = uint8Array.reduce((data, byte) => 
-        data + String.fromCharCode(byte), '');
-      console.log('Binary string start:', binaryString.slice(0, 100));
-    
-      const formData = new FormData();
-      // Append blob with original filename
-      formData.append('file', binaryString);
-      // Prepare and append metadata
-      const metadataPayload = {
-        author: metadata.author || '',
-        version: metadata.version || '',
-        description: metadata.description || '',
-        tags: metadata.tags || '',
-        'company name': selectedDocType?.name || '',
-      };
-      formData.append('metadata', JSON.stringify(metadataPayload));
+      const data = {
+        documentName: file.name,
+        mimeType: file.type,
+        documentType: selectedDocType?.name || '',
+        metadata:  {
+          author: metadata.author || '',
+          version: metadata.version || '',
+          description: metadata.description || '',
+          tags: metadata.tags ? metadata.tags.split(',') : [],
+          
+        }
+      }
+
       // Perform upload
-      await addDocument(formData);
+      await addDocument(data, file, folderID!);
   
       console.log("Upload successful");
       onClose();
