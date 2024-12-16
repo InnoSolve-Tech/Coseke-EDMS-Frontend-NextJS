@@ -1,30 +1,30 @@
 "use client";
 
-  import React, { useState, useEffect } from "react";
-  import { CreateNewFolder, FileUpload } from "@mui/icons-material";
-  import {
-    Breadcrumbs,
-    Typography,
-    Card,
-    CardContent,
-    Menu,
-    MenuItem,
-    IconButton,
-    List,
-    ListItem,
-    ListItemButton,
-    Button,
-    Checkbox,
-    FormControl,
-    Modal,
-    Input,
-  } from "@mui/joy";
-  import { useRouter } from "next/navigation";
-  import FileUploadDialog from "@/components/folder/FileUploadDialog";
-  import SearchBar from "@/components/folder/SearchBar";
-  import { getFiles, getFolders, addDocumentsByFolderId, createFolders, deleteFile, deleteFolder, DirectoryData, createSubFolders, fetchChildFolders, getFilesByFolderID,getDocumentTypes } from "@/components/files/api";
-  import { ChevronDown, ChevronRight, File, Folder } from 'lucide-react';
-  import axios from 'axios';
+  import { createFolders, createSubFolders, deleteFile, deleteFolder, DirectoryData, fetchChildFolders, getDocumentTypes, getFiles, getFilesByFolderID, getFolders } from "@/components/files/api";
+import FileUploadDialog from "@/components/folder/FileUploadDialog";
+import SearchBar from "@/components/folder/SearchBar";
+import { CreateNewFolder } from "@mui/icons-material";
+import {
+  Breadcrumbs,
+  Button,
+  Card,
+  CardContent,
+  Checkbox,
+  FormControl,
+  IconButton,
+  Input,
+  List,
+  ListItem,
+  ListItemButton,
+  Menu,
+  MenuItem,
+  Modal,
+  Typography,
+} from "@mui/joy";
+import axios from 'axios';
+import { ChevronDown, ChevronRight, File, Folder } from 'lucide-react';
+import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
 
   interface FileNode {
     id: string;
@@ -78,8 +78,6 @@
     const [isSubfolderMode, setIsSubfolderMode] = useState(false);
     const [folderStructure, setFolderStructure] = useState<FileNode[]>([]);
     const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
-    const [selectedDocType, setSelectedDocType] = useState<string>("");
-    const [metadata, setMetadata] = useState<Record<string, any>>({});
 
     useEffect(() => {
       const loadInitialData = async () => {
@@ -399,61 +397,6 @@
       // Implement search logic here
       console.log('Search:', { query, searchType, metadata });
     };
-
-    
-    const loadSubfolders = async (folderID: number) => {
-      try {
-        // Fetch child folders
-        const childFoldersResponse = await fetchChildFolders(folderID);
-        
-        // Convert to FileNode format
-        const childFolderNodes = childFoldersResponse.data.map((item): FileNode => ({
-          id: item.folderID?.toString() || "",
-          label: item.name,
-          type: 'folder',
-          folderID: item.folderID,
-          parentFolderID: item.parentFolderID,
-        }));
-    
-        // Update folder structure to include new subfolders
-        setFolderStructure((prevStructure) => {
-          return prevStructure.map(folder => 
-            folder.folderID === folderID 
-              ? { 
-                  ...folder, 
-                  children: childFolderNodes 
-                }
-              : folder
-          );
-        });
-    
-        // Update fileData to ensure rendering
-        setFileData((prevData) => {
-          // Remove existing child folders of the current folder
-          const filteredData = prevData.filter(
-            item => item.parentFolderID !== folderID
-          );
-          
-          // Add new child folders and ensure unique entries
-          const updatedData = [
-            ...filteredData, 
-            ...childFolderNodes.filter(
-              newFolder => !prevData.some(existingFolder => existingFolder.id === newFolder.id)
-            )
-          ];
-          return updatedData;
-        });
-    
-        // Ensure the folder is expanded
-        setExpanded((prev) => ({ 
-          ...prev, 
-          [folderID.toString()]: true 
-        }));
-    
-      } catch (error) {
-        console.error("Failed to load subfolders:", error);
-      }
-    };
     
     const renderTree = (nodes: FileNode[]) => {
       const renderNode = (node: FileNode, level: number = 0) => {
@@ -525,8 +468,15 @@
       );
     };
     return (
-      <div className="min-h-screen bg-gray-100 p-4">
-        <Card variant="outlined" sx={{ height: 'calc(100vh - 2rem)', display: 'flex', flexDirection: 'column' }}>
+      <div className="min-h-screen p-4">
+<div
+  style={{
+    height: 'calc(100vh - 2rem)', // Optional: Maintain the same height
+    display: 'flex', // Optional: Flex layout
+    flexDirection: 'column', // Optional: Column layout
+  }}
+>
+
           <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
             <Breadcrumbs
               size="lg"
@@ -682,7 +632,7 @@
             </Modal>
 
           </CardContent>
-        </Card>
+        </div>
       </div>
     );
   }

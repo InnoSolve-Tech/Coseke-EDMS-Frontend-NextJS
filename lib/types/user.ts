@@ -11,8 +11,8 @@ export interface Permission {
 
 export interface User {
     id: number;
-    firstName?: string;
-    lastName?: string;
+    first_name: string;
+    last_name: string;
     email: string;
     phone: string;
     address: string;

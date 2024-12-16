@@ -32,7 +32,7 @@ export function WorkflowJson({ workflow }: WorkflowJsonProps) {
       <DialogTrigger asChild>
         <Button variant="outline">Export JSON</Button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-3xl bg-opacity-100 bg-white text-black">
         <DialogHeader>
           <DialogTitle>Workflow JSON</DialogTitle>
         </DialogHeader>

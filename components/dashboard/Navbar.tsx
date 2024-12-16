@@ -10,8 +10,6 @@ interface AppbarProps {
       <div
         className={`
           fixed top-0 right-0 ml-10 z-10 h-16
-          bg-white dark:bg-gray-800
-          border-b border-gray-200 dark:border-gray-700
           shadow-sm
           transition-all duration-300
           ${isCollapsed ? 'left-20' : 'left-64'}

@@ -71,7 +71,12 @@ export function WorkflowForm() {
       ...values,
       } as Workflow);
 
-      router.push("/dashboard/workflows");
+      console.log({
+        ...workflow,
+        ...values,
+        })
+
+     // router.push("/dashboard/workflows");
     } catch (error) {
       console.error("Failed to update workflow:", error);
     }

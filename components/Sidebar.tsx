@@ -11,12 +11,14 @@ import {
   Sun,
   Moon,
   Menu,
+  File,
   X,
   ChevronRight,
   ChevronDown
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Navbar } from './dashboard/Navbar';
+import ThemeToggle from './ThemeToggle';
 
 // Define types for navigation and menu items
 type SubItem = {
@@ -62,7 +64,7 @@ const NAVIGATION_ITEMS: NavigationItem[] = [
     path: '/dashboard/workflows',
     subItems: [   
       { label: 'All Workflows', path: '/dashboard/workflows' },   
-      { label: 'Create', path: '/dashboard/workflows/create' },
+      { label: 'Create', path: '/dashboard/workflows/init' },
     ]
   },
   {
@@ -78,6 +80,16 @@ const NAVIGATION_ITEMS: NavigationItem[] = [
   },
   {
     icon: Users,
+    label: 'Users',
+    path: '/users',
+    subItems: [
+      { label: 'My Profile', path: '/dashboard/users/profile' },
+      { label: 'Create User', path: '/dashboard/users/create' },
+      { label: 'Roles & Permissions', path: '/dashboard/users/roles' }
+    ]
+  },
+  {
+    icon: File,
     label: 'Users',
     path: '/users',
     subItems: [
@@ -114,17 +126,11 @@ export default function Sidebar({ children }: SidebarLayoutProps) {
   const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [openSubmenus, setOpenSubmenus] = useState<{[key: string]: boolean}>({});
-  const [isDarkMode, setIsDarkMode] = useState(false);
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
   };
 
-  const toggleColorScheme = () => {
-    const newDarkMode = !isDarkMode;
-    setIsDarkMode(newDarkMode);
-    document.documentElement.classList.toggle('dark', newDarkMode);
-  };
 
   const toggleSubmenu = (label: string) => {
     if (!isCollapsed) {
@@ -200,7 +206,6 @@ export default function Sidebar({ children }: SidebarLayoutProps) {
           border-r border-gray-200 
           flex flex-col transition-all duration-300
           ${isCollapsed ? 'w-20' : 'w-64'}
-          ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-black'}
         `}
       >
         {/* Header */}
@@ -258,15 +263,7 @@ export default function Sidebar({ children }: SidebarLayoutProps) {
           
           {/* Color Scheme Toggle */}
           {!isCollapsed && (
-            <div 
-              className="flex items-center cursor-pointer hover:bg-gray-100 p-2 rounded-md"
-              onClick={toggleColorScheme}
-            >
-              {isDarkMode ? <Sun className="w-5 h-5 mr-2" /> : <Moon className="w-5 h-5 mr-2" />}
-              <span className="text-sm">
-                {isDarkMode ? 'Light Mode' : 'Dark Mode'}
-              </span>
-            </div>
+           <ThemeToggle/>
           )}
         </div>
 
