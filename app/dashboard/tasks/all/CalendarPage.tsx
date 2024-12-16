@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Box, IconButton, Typography, Button, Sheet } from "@mui/joy"
-import { ChevronLeft, ChevronRight, Today } from "@mui/icons-material"
-import dayjs from "dayjs"
-import { DayEvents } from "@/components/calender"
+import { useState } from "react";
+import { Box, IconButton, Typography, Button, Sheet } from "@mui/joy";
+import { ChevronLeft, ChevronRight, Today } from "@mui/icons-material";
+import dayjs from "dayjs";
+import { DayEvents } from "@/components/calender";
 
 // Sample events data
 const sampleEvents: DayEvents[] = [
@@ -41,65 +41,71 @@ const sampleEvents: DayEvents[] = [
       },
     ],
   },
-]
+];
 
-export default function CalendarPage() {
-  const [currentDate, setCurrentDate] = useState(dayjs())
+export default function CalendarPage(): JSX.Element {
+  const [currentDate, setCurrentDate] = useState(dayjs());
 
-  const navigateToToday = () => setCurrentDate(dayjs())
-  const navigatePreviousMonth = () => setCurrentDate(currentDate.subtract(1, "month"))
-  const navigateNextMonth = () => setCurrentDate(currentDate.add(1, "month"))
+  const navigateToToday = () => setCurrentDate(dayjs());
+  const navigatePreviousMonth = () => setCurrentDate(currentDate.subtract(1, "month"));
+  const navigateNextMonth = () => setCurrentDate(currentDate.add(1, "month"));
 
-  const startOfMonth = currentDate.startOf("month")
-  const endOfMonth = currentDate.endOf("month")
+  const startOfMonth = currentDate.startOf("month");
+  const endOfMonth = currentDate.endOf("month");
 
   // Calculate start and end dates for the calendar grid
-  const startDate = startOfMonth.startOf("week")
-  const endDate = endOfMonth.endOf("week")
+  const startDate = startOfMonth.startOf("week");
+  const endDate = endOfMonth.endOf("week");
 
   // Generate days for the calendar grid
-  const days = []
+  const days: dayjs.Dayjs[] = [];
   for (let date = startDate; date.isBefore(endDate); date = date.add(1, "day")) {
-    days.push(date)
+    days.push(date);
   }
 
   const getEventsForDate = (date: dayjs.Dayjs) => {
     return sampleEvents.find(
       (dayEvents) => dayEvents.date === date.format("YYYY-MM-DD")
-    )?.events || []
-  }
+    )?.events || [];
+  };
 
   return (
     <Box sx={{ p: 2, height: "100vh", display: "flex", flexDirection: "column" }}>
+      {/* Header Section */}
       <Box
         sx={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           mb: 2,
+          p: 2,
+          backgroundColor: "background.level1",
+          borderRadius: "sm",
+          boxShadow: "sm",
         }}
       >
-        <Typography level="h4">
+        <Typography level="h3" fontWeight="bold">
           {currentDate.format("MMMM, YYYY")}
         </Typography>
         <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
           <Button
-            variant="plain"
-            color="neutral"
+            variant="soft"
+            color="primary"
             startDecorator={<Today />}
             onClick={navigateToToday}
           >
             Today
           </Button>
-          <IconButton variant="plain" color="neutral" onClick={navigatePreviousMonth}>
+          <IconButton variant="soft" color="neutral" onClick={navigatePreviousMonth}>
             <ChevronLeft />
           </IconButton>
-          <IconButton variant="plain" color="neutral" onClick={navigateNextMonth}>
+          <IconButton variant="soft" color="neutral" onClick={navigateNextMonth}>
             <ChevronRight />
           </IconButton>
         </Box>
       </Box>
 
+      {/* Calendar Grid */}
       <Sheet
         variant="outlined"
         sx={{
@@ -108,6 +114,7 @@ export default function CalendarPage() {
           overflow: "hidden",
         }}
       >
+        {/* Weekday Headers */}
         <Box
           sx={{
             display: "grid",
@@ -124,6 +131,7 @@ export default function CalendarPage() {
                 textAlign: "center",
                 borderRight: "1px solid",
                 borderColor: "divider",
+                backgroundColor: "background.level2",
                 "&:last-child": {
                   borderRight: "none",
                 },
@@ -136,6 +144,7 @@ export default function CalendarPage() {
           ))}
         </Box>
 
+        {/* Calendar Days */}
         <Box
           sx={{
             display: "grid",
@@ -144,9 +153,9 @@ export default function CalendarPage() {
           }}
         >
           {days.map((date) => {
-            const isToday = date.isSame(dayjs(), "day")
-            const events = getEventsForDate(date)
-            const isCurrentMonth = date.isSame(currentDate, "month")
+            const isToday = date.isSame(dayjs(), "day");
+            const events = getEventsForDate(date);
+            const isCurrentMonth = date.isSame(currentDate, "month");
 
             return (
               <Box
@@ -156,8 +165,8 @@ export default function CalendarPage() {
                   borderRight: "1px solid",
                   borderBottom: "1px solid",
                   borderColor: "divider",
-                  backgroundColor: isToday ? "primary.softBg" : "transparent",
-                  color: isCurrentMonth ? "text.primary" : "text.secondary",
+                  backgroundColor: isToday ? "primary.softBg" : "background.body",
+                  color: isCurrentMonth ? "text.primary" : "text.tertiary",
                   "&:last-child": {
                     borderRight: "none",
                   },
@@ -170,7 +179,7 @@ export default function CalendarPage() {
                 >
                   {date.format("D")}
                 </Typography>
-                {events.map((event : any) => (
+                {events.map((event) => (
                   <Box
                     key={event.id}
                     sx={{
@@ -179,6 +188,7 @@ export default function CalendarPage() {
                       p: 1,
                       mb: 0.5,
                       cursor: "pointer",
+                      boxShadow: "xs",
                       "&:hover": {
                         opacity: 0.9,
                       },
@@ -193,10 +203,10 @@ export default function CalendarPage() {
                   </Box>
                 ))}
               </Box>
-            )
+            );
           })}
         </Box>
       </Sheet>
     </Box>
-  )
+  );
 }

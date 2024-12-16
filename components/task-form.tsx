@@ -1,4 +1,8 @@
 "use client";
+import { FormControl, FormLabel } from '@mui/joy';
+
+// Configure axios instance for backend API
+const API_URL = "http://localhost:8787";
 
 import { useState, useEffect } from 'react'
 import { Modal, ModalDialog, Stepper, Step, StepIndicator, Button, Input, Select, Option, Textarea, Typography } from '@mui/joy'
@@ -100,66 +104,81 @@ export default function TaskForm({ open, onClose, onSubmit }: TaskFormProps) {
       case 0:
         return (
           <div className="space-y-4">
-            <Input
-              name="title"
-              required
-              placeholder="Task Name"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-            />
-            <Select
-              name="priority"
-              placeholder="Select Priority"
-              value={formData.priority}
-              onChange={(_, value) => setFormData({ ...formData, priority: value as string })}
+            <FormControl>
+              <FormLabel>Task Name</FormLabel>
+              <Input
+                name="title"
+                required
+                placeholder="Task Name"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              />
+            </FormControl>
+            <FormControl>
+              <FormLabel>Priority</FormLabel>
+              <Select
+                name="priority"
+                placeholder="Select Priority"
+                value={formData.priority}
+                onChange={(_, value) => setFormData({ ...formData, priority: value as string })}
             >
               <Option value="low">Low</Option>
               <Option value="medium">Medium</Option>
               <Option value="high">High</Option>
-            </Select>
-            <Textarea
-              minRows={3}
-              placeholder="Add description for the task and the reason why you have to do the task"
+              </Select>
+            </FormControl>
+            <FormControl>
+              <FormLabel>Description</FormLabel>
+              <Textarea
+                minRows={3}
+                placeholder="Add description for the task and the reason why you have to do the task"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            />
-            <Input
-              name="amount"
-              placeholder="Task Amount"
-              value={formData.amount}
-              onChange={handleChange}
-            />
+              />
+            </FormControl>
+            
           </div>
         )
       case 1:
         return (
           <div className="space-y-4">
+            <FormControl>
+              <FormLabel>Starting Date</FormLabel>
+            
             <Input
               name="startDate"
               type="date"
               placeholder="Starting date"
               value={formData.startDate}
               onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-            />
-            <Input
-              name="deadline"
-              type="date"
+              />
+            </FormControl>
+            <FormControl>
+              <FormLabel>Deadline</FormLabel>
+              <Input
+                name="deadline"
+                type="date"
               placeholder="Deadline"
               value={formData.deadline}
-              onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
-            />
-            
+                onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
+              />
+            </FormControl>
+            <FormControl>
+              <FormLabel>Timeline Reason</FormLabel>
             <Textarea
               minRows={3}
               placeholder="Explain why the task is located at that timeline and given that specific weight"
               value={formData.timelineReason}
               onChange={(e) => setFormData({ ...formData, timelineReason: e.target.value })}
-            />
+              />
+            </FormControl>
           </div>
         )
       case 2:
         return (
           <div className="space-y-4">
+            <FormControl>
+              <FormLabel>Assignees</FormLabel>
             <Input
               name="assignees"
               placeholder="Add participants (comma-separated)"
@@ -169,6 +188,9 @@ export default function TaskForm({ open, onClose, onSubmit }: TaskFormProps) {
                 assignees: e.target.value.split(',').map(item => item.trim()) 
               })}
             />
+            </FormControl>
+            <FormControl>
+              <FormLabel>Roles</FormLabel>
             <Input
               name="roles"
               placeholder="Assign permissions to participants (comma-separated)"
@@ -178,6 +200,7 @@ export default function TaskForm({ open, onClose, onSubmit }: TaskFormProps) {
                 roles: e.target.value.split(',').map(item => item.trim()) 
               })}
             />
+            </FormControl>
           </div>
         )
       default:
