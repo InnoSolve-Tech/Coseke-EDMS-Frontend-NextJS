@@ -44,6 +44,7 @@ export default function WorkflowInstanceCreator() {
       try {
         let wfs = await getAllWorkflows();
         let wfI = await getAllWorkflowInstances();
+        console.log(wfs);
         setWorkflowInstances(wfI);
         setExistingWorkflows(wfs);
       } catch (error) {
@@ -66,10 +67,9 @@ export default function WorkflowInstanceCreator() {
 
   const onSubmit = async (data: z.infer<typeof formSchema>) => {
     const newInstance = {
-      workflow: selectedWorkflow!,
+      workflow: {id: data.workflowId} as any,
       name: data.name,
       status: 'Active',
-      startFormData: data.startFormData,
     }
     await createWorkflowInstance(newInstance)
     form.reset()
@@ -114,12 +114,6 @@ export default function WorkflowInstanceCreator() {
                             <SelectItem key={workflow.id} value={workflow.id.toString()}>
                               <div className="flex items-center">
                                 <span>{workflow.name}</span>
-                                {workflow.edges && (
-                                  <Badge variant="outline" className="ml-2">
-                                    <FileText className="w-3 h-3 mr-1" />
-                                    Has Form
-                                  </Badge>
-                                )}
                               </div>
                             </SelectItem>
                           ))}

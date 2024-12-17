@@ -10,7 +10,7 @@ import { AxiosInstance } from "../../components/routes/api"; // Adjust the path 
  */
 export const createWorkflowInstance = async (workflowInstance: WorkflowInstance) => {
   try {
-    const response = await AxiosInstance.post("/api/workflow-instances", workflowInstance);
+    const response = await AxiosInstance.post("/workflows/api/v1/workflow-instances", workflowInstance);
     return response.data; // Return the created workflow instance data
   } catch (error) {
     console.error("Error creating Workflow Instance:", error);
@@ -24,7 +24,7 @@ export const createWorkflowInstance = async (workflowInstance: WorkflowInstance)
  */
 export const getAllWorkflowInstances = async () => {
   try {
-    const response = await AxiosInstance.get("/workflows/api/v1/workflowss");
+    const response = await AxiosInstance.get("/workflows/api/v1/workflow-instances");
     return response.data; // Return the list of workflow instances
   } catch (error) {
     console.error("Error fetching Workflow Instances:", error);
