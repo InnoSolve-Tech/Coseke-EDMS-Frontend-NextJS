@@ -1,23 +1,35 @@
 "use client";
 
-import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
-import { CssVarsProvider } from '@mui/joy/styles';
-import CssBaseline from '@mui/joy/CssBaseline';
+import Sidebar from '@/components/Sidebar';
+import { ThemeProvider } from '@/components/ThemeProvider';
+import { Inter } from 'next/font/google';
+
+const inter = Inter({ subsets: ['latin'] });
 
 export default function DashboardLayout({
-    children, // will be a page or nested layout
+    children,
   }: {
     children: React.ReactNode
   }) {
     return (
-        <CssVarsProvider disableTransitionOnChange>
-      <CssBaseline />
-      <Header />
+      <html lang="en" suppressHydrationWarning>
+      <body className={inter.className}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+            <Header />
       <Sidebar>
 {children}
       </Sidebar>
-      
-      </CssVarsProvider>
+
+      </ThemeProvider>
+      </body>
+      </html>
+
     )
+      
   }

@@ -42,7 +42,7 @@ type WorkflowNodeData = {
   label: string
   description?: string
   conditions?: { field: string; operator: string; value: string }[]
-  assignee?: { type: "role" | "user"; id: string }
+  assignee?: { assignee_type: "role" | "user"; assignee_id: string }
   dueDate?: string
   form?: NodeForm
   branches?: string[]

@@ -12,11 +12,6 @@ import { WorkflowNode } from "@/lib/types/workflow";
 import { nodeTypes } from "./node-types";
 import { TaskForm, DecisionForm, ParallelForm } from "./node-forms";
 
-interface NodeAssigneeData {
-  type: "role" | "user";
-  id: string;
-}
-
 interface NodeEditorProps {
   node: WorkflowNode;
   isOpen: boolean;
@@ -35,7 +30,8 @@ export function NodeEditor({ node, isOpen, onClose, onUpdate }: NodeEditorProps)
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl bg-white bg-opacity-100 text-black">
+
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <nodeConfig.icon className="h-5 w-5" />

@@ -21,16 +21,17 @@ const WorkflowNode = memo(({ data, type }: NodeProps<WorkflowNodeData>) => {
   const nodeColor = nodeTypes[type as keyof typeof nodeTypes]?.color;
 
   return (
-    <div
-      className={cn(
-        "group shadow-lg rounded-lg bg-white border-2 transition-all duration-200",
-        "hover:shadow-xl hover:scale-105",
-        {
-          "min-w-[180px]": type !== "start" && type !== "end",
-          "min-w-[140px]": type === "start" || type === "end",
-        }
-      )}
-    >
+<div
+  className={cn(
+    "group shadow-lg rounded-lg bg-white bg-opacity-100 border-2 transition-all duration-200",
+    "hover:shadow-xl hover:scale-105",
+    {
+      "min-w-[180px]": type !== "start" && type !== "end",
+      "min-w-[140px]": type === "start" || type === "end",
+    }
+  )}
+>
+
       <Handle
         type="target"
         position={Position.Top}

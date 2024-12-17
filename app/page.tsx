@@ -20,31 +20,6 @@ import { updateSessionStorage } from "@/components/routes/sessionStorage";
 import { ILoginState } from "@/core/authentication/interface";
 import axios from "axios";
 
-const customTheme = extendTheme({
-  colorSchemes: {
-    light: {
-      palette: {
-        primary: {
-          500: "#FB0201",
-        },
-        background: {
-          body: "#0102FC",
-        },
-      },
-    },
-    dark: {
-      palette: {
-        primary: {
-          500: "#FB0201",
-        },
-        background: {
-          body: "#FEFF00",
-        },
-      },
-    },
-  },
-});
-
 export default function Home() {
   const router = useRouter();
   const [error, setError] = React.useState("");
@@ -71,17 +46,8 @@ export default function Home() {
   });
 
   return (
-    <CssVarsProvider theme={customTheme} defaultMode="dark" disableTransitionOnChange>
-      <CssBaseline />
-      <GlobalStyles
-        styles={{
-          ":root": {
-            "--Form-maxWidth": "400px",
-            "--Transition-duration": "0.4s",
-          },
-        }}
-      />
-      <Box
+  <main>
+   <Box
         sx={{
           display: "flex",
           justifyContent: "center",
@@ -100,7 +66,7 @@ export default function Home() {
             flexDirection: "column",
             gap: 2,
             width: "100%",
-            maxWidth: "var(--Form-maxWidth)",
+            maxWidth: "400px",
             padding: 4,
             backgroundColor: "rgba(255, 255, 255, 0.9)",
             borderRadius: "8px",
@@ -160,6 +126,6 @@ export default function Home() {
           </Typography>
         </Box>
       </Box>
-    </CssVarsProvider>
+  </main>
   );
 }

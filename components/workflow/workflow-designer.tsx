@@ -1,6 +1,9 @@
 "use client";
 
-import { useCallback, useState, useEffect } from "react";
+import { useWorkflow } from "@/lib/contexts/workflow-context";
+import { WorkflowNode as WorkflowNodeType } from "@/lib/types/workflow";
+import { Info } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import ReactFlow, {
   addEdge,
   Background,
@@ -8,21 +11,18 @@ import ReactFlow, {
   Controls,
   Edge,
   Node,
+  Panel,
   useEdgesState,
   useNodesState,
-  Panel,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import WorkflowNode from "./workflow-node";
-import { Button } from "../ui/button";
-import { nodeTypes as nodeConfig } from "./node-types";
-import { NodeEditor } from "./node-editor";
-import { WorkflowNode as WorkflowNodeType, Workflow } from "@/lib/types/workflow";
-import { WorkflowJson } from "./workflow-json";
-import { WorkflowHelpDialog } from "./workflow-help-dialog";
-import { Info } from "lucide-react";
-import { useWorkflow } from "@/lib/contexts/workflow-context";
 import { v4 as uuidv4 } from 'uuid';
+import { Button } from "../ui/button";
+import { NodeEditor } from "./node-editor";
+import { nodeTypes as nodeConfig } from "./node-types";
+import { WorkflowHelpDialog } from "./workflow-help-dialog";
+import { WorkflowJson } from "./workflow-json";
+import WorkflowNode from "./workflow-node";
 
 type NodeForm = {
   id: string;
@@ -39,7 +39,7 @@ type WorkflowNodeData = {
   description?: string;
   nodeId: string;
   conditions?: { field: string; operator: string; value: string; }[];
-  assignee?: { type: "role" | "user"; id: string; };
+  assignee?: { assignee_type: "role" | "user"; assignee_id: string; };
   dueDate?: string;
   form?: NodeForm;
   branches?: string[];
