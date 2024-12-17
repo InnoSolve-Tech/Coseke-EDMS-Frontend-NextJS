@@ -14,6 +14,7 @@ import { KanbanItem } from "../../Kanban/kanban-item";
 import TaskForm from "@/components/task-form";
 import { AxiosInstance } from "../../../../components/routes/api";
 import { Task } from "../../../../components/task";
+import { List } from "lucide-react";
 
 interface Column {
   id: string;
@@ -128,7 +129,7 @@ export default function Home() {
         </Box>
 
         {/* Content Section */}
-        {activePage === "list" && <ActivityPage/>}
+        {activePage === "list" && <List/>}
         {activePage === "activities" && <ActivityPage />}
         {activePage === "calendar" && <CalendarPage />}
         {activePage === "kanban" && (

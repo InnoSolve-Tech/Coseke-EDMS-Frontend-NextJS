@@ -1,8 +1,4 @@
 "use client";
-import { FormControl, FormLabel } from '@mui/joy';
-
-// Configure axios instance for backend API
-const API_URL = "http://localhost:8787";
 
 import { useState, useEffect } from 'react'
 import { Modal, ModalDialog, Stepper, Step, StepIndicator, Button, Input, Select, Option, Textarea, Typography } from '@mui/joy'
@@ -24,7 +20,6 @@ export default function TaskForm({ open, onClose, onSubmit }: TaskFormProps) {
   const [activeStep, setActiveStep] = useState(0)
   const [formData, setFormData] = useState<Task>({
     title: '',
-    amount: 0,
     date: new Date().toISOString().split('T')[0],
     priority: '',
     dueDate: '',
@@ -65,7 +60,6 @@ export default function TaskForm({ open, onClose, onSubmit }: TaskFormProps) {
       // Reset form
       setFormData({
         title: '',
-        amount: 0,
         dueDate: '',
         id: NaN,
         date: new Date().toISOString().split('T')[0],
@@ -104,81 +98,76 @@ export default function TaskForm({ open, onClose, onSubmit }: TaskFormProps) {
       case 0:
         return (
           <div className="space-y-4">
-            <FormControl>
-              <FormLabel>Task Name</FormLabel>
-              <Input
-                name="title"
-                required
-                placeholder="Task Name"
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              />
-            </FormControl>
-            <FormControl>
-              <FormLabel>Priority</FormLabel>
-              <Select
-                name="priority"
-                placeholder="Select Priority"
-                value={formData.priority}
-                onChange={(_, value) => setFormData({ ...formData, priority: value as string })}
+            <Input
+              name="title"
+              required
+              placeholder="Task Name"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            />
+            <Select
+              name="priority"
+              placeholder="Select Priority"
+              value={formData.priority}
+              onChange={(_, value) => setFormData({ ...formData, priority: value as string })}
             >
               <Option value="low">Low</Option>
               <Option value="medium">Medium</Option>
               <Option value="high">High</Option>
-              </Select>
-            </FormControl>
-            <FormControl>
-              <FormLabel>Description</FormLabel>
-              <Textarea
-                minRows={3}
-                placeholder="Add description for the task and the reason why you have to do the task"
+            </Select>
+            <Select
+              name="status"
+              placeholder="Select status"
+              value={formData.status}
+              onChange={(_, value) => setFormData({ ...formData, status: "qualified" })}
+            >
+              <Option value="contracted">Contracted</Option>
+              <Option value="qualified">Qualified</Option>
+              <Option value="Closed">Closed</Option>
+            </Select>
+            <Textarea
+              minRows={3}
+              placeholder="Add description for the task and the reason why you have to do the task"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              />
-            </FormControl>
-            
+            />
+            <Input
+              name="id"
+              placeholder="Task id"
+              value={formData.id}
+              onChange={handleChange}
+            />
           </div>
         )
       case 1:
         return (
           <div className="space-y-4">
-            <FormControl>
-              <FormLabel>Starting Date</FormLabel>
-            
             <Input
               name="startDate"
               type="date"
               placeholder="Starting date"
               value={formData.startDate}
               onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-              />
-            </FormControl>
-            <FormControl>
-              <FormLabel>Deadline</FormLabel>
-              <Input
-                name="deadline"
-                type="date"
+            />
+            <Input
+              name="deadline"
+              type="date"
               placeholder="Deadline"
               value={formData.deadline}
-                onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
-              />
-            </FormControl>
-            <FormControl>
-              <FormLabel>Timeline Reason</FormLabel>
+              onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
+            />
+            
             <Textarea
               minRows={3}
               placeholder="Explain why the task is located at that timeline and given that specific weight"
               value={formData.timelineReason}
               onChange={(e) => setFormData({ ...formData, timelineReason: e.target.value })}
-              />
-            </FormControl>
+            />
           </div>
         )
       case 2:
         return (
           <div className="space-y-4">
-            <FormControl>
-              <FormLabel>Assignees</FormLabel>
             <Input
               name="assignees"
               placeholder="Add participants (comma-separated)"
@@ -188,9 +177,6 @@ export default function TaskForm({ open, onClose, onSubmit }: TaskFormProps) {
                 assignees: e.target.value.split(',').map(item => item.trim()) 
               })}
             />
-            </FormControl>
-            <FormControl>
-              <FormLabel>Roles</FormLabel>
             <Input
               name="roles"
               placeholder="Assign permissions to participants (comma-separated)"
@@ -200,7 +186,6 @@ export default function TaskForm({ open, onClose, onSubmit }: TaskFormProps) {
                 roles: e.target.value.split(',').map(item => item.trim()) 
               })}
             />
-            </FormControl>
           </div>
         )
       default:

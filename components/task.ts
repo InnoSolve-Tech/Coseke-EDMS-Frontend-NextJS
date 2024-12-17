@@ -10,7 +10,6 @@ export interface Task {
     status: 'contracted' | 'qualified' | 'Closed'
     id: number;
     title: string;
-    amount: number;
     date: string;
 }
   

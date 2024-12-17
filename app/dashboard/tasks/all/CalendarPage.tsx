@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { Box, IconButton, Typography, Button, Sheet } from "@mui/joy";
+import { useState, useMemo } from "react";
+import { Box, IconButton, Typography, Button, Sheet, Grid } from "@mui/joy";
 import { ChevronLeft, ChevronRight, Today } from "@mui/icons-material";
 import dayjs from "dayjs";
 import { DayEvents } from "@/components/calender";
 
-// Sample events data
+// Sample events data (unchanged)
 const sampleEvents: DayEvents[] = [
   {
     date: "2024-12-04",
@@ -50,18 +50,18 @@ export default function CalendarPage(): JSX.Element {
   const navigatePreviousMonth = () => setCurrentDate(currentDate.subtract(1, "month"));
   const navigateNextMonth = () => setCurrentDate(currentDate.add(1, "month"));
 
-  const startOfMonth = currentDate.startOf("month");
-  const endOfMonth = currentDate.endOf("month");
+  const calendarDays = useMemo(() => {
+    const startOfMonth = currentDate.startOf("month");
+    const endOfMonth = currentDate.endOf("month");
+    const startDate = startOfMonth.startOf("week");
+    const endDate = endOfMonth.endOf("week");
 
-  // Calculate start and end dates for the calendar grid
-  const startDate = startOfMonth.startOf("week");
-  const endDate = endOfMonth.endOf("week");
-
-  // Generate days for the calendar grid
-  const days: dayjs.Dayjs[] = [];
-  for (let date = startDate; date.isBefore(endDate); date = date.add(1, "day")) {
-    days.push(date);
-  }
+    const days: dayjs.Dayjs[] = [];
+    for (let date = startDate; date.isBefore(endDate.add(1, "day")); date = date.add(1, "day")) {
+      days.push(date);
+    }
+    return days;
+  }, [currentDate]);
 
   const getEventsForDate = (date: dayjs.Dayjs) => {
     return sampleEvents.find(
@@ -85,7 +85,7 @@ export default function CalendarPage(): JSX.Element {
         }}
       >
         <Typography level="h3" fontWeight="bold">
-          {currentDate.format("MMMM, YYYY")}
+          {currentDate.format("MMMM YYYY")}
         </Typography>
         <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
           <Button
@@ -115,17 +115,18 @@ export default function CalendarPage(): JSX.Element {
         }}
       >
         {/* Weekday Headers */}
-        <Box
+        <Grid
+          container
+          columns={7}
           sx={{
-            display: "grid",
-            gridTemplateColumns: "repeat(7, 1fr)",
             borderBottom: "1px solid",
             borderColor: "divider",
           }}
         >
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-            <Box
+            <Grid
               key={day}
+              xs={1}
               sx={{
                 p: 1.5,
                 textAlign: "center",
@@ -140,26 +141,21 @@ export default function CalendarPage(): JSX.Element {
               <Typography level="body-sm" fontWeight="lg">
                 {day}
               </Typography>
-            </Box>
+            </Grid>
           ))}
-        </Box>
+        </Grid>
 
         {/* Calendar Days */}
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: "repeat(7, 1fr)",
-            gridAutoRows: "1fr",
-          }}
-        >
-          {days.map((date) => {
+        <Grid container columns={7} sx={{ flexGrow: 1 }}>
+          {calendarDays.map((date) => {
             const isToday = date.isSame(dayjs(), "day");
             const events = getEventsForDate(date);
             const isCurrentMonth = date.isSame(currentDate, "month");
 
             return (
-              <Box
+              <Grid
                 key={date.toString()}
+                xs={1}
                 sx={{
                   p: 1,
                   borderRight: "1px solid",
@@ -167,8 +163,14 @@ export default function CalendarPage(): JSX.Element {
                   borderColor: "divider",
                   backgroundColor: isToday ? "primary.softBg" : "background.body",
                   color: isCurrentMonth ? "text.primary" : "text.tertiary",
-                  "&:last-child": {
+                  minHeight: "120px",
+                  display: "flex",
+                  flexDirection: "column",
+                  "&:nth-of-type(7n)": {
                     borderRight: "none",
+                  },
+                  "&:last-child": {
+                    borderBottom: "none",
                   },
                 }}
               >
@@ -179,34 +181,37 @@ export default function CalendarPage(): JSX.Element {
                 >
                   {date.format("D")}
                 </Typography>
-                {events.map((event) => (
-                  <Box
-                    key={event.id}
-                    sx={{
-                      backgroundColor: event.color || "primary.softBg",
-                      borderRadius: "sm",
-                      p: 1,
-                      mb: 0.5,
-                      cursor: "pointer",
-                      boxShadow: "xs",
-                      "&:hover": {
-                        opacity: 0.9,
-                      },
-                    }}
-                  >
-                    <Typography level="body-xs" sx={{ color: "primary.softColor" }}>
-                      {event.startTime}
-                    </Typography>
-                    <Typography level="body-sm" noWrap>
-                      {event.title}
-                    </Typography>
-                  </Box>
-                ))}
-              </Box>
+                <Box sx={{ overflow: "auto", flexGrow: 1 }}>
+                  {events.map((event) => (
+                    <Box
+                      key={event.id}
+                      sx={{
+                        backgroundColor: event.color || "primary.softBg",
+                        borderRadius: "sm",
+                        p: 1,
+                        mb: 0.5,
+                        cursor: "pointer",
+                        boxShadow: "xs",
+                        "&:hover": {
+                          opacity: 0.9,
+                        },
+                      }}
+                    >
+                      <Typography level="body-xs" sx={{ color: "primary.softColor" }}>
+                        {event.startTime}
+                      </Typography>
+                      <Typography level="body-sm" noWrap>
+                        {event.title}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              </Grid>
             );
           })}
-        </Box>
+        </Grid>
       </Sheet>
     </Box>
   );
 }
+

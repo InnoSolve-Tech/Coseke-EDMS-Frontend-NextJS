@@ -33,11 +33,7 @@ export function KanbanItem({ task }: KanbanItemProps) {
       <Card className="mb-2 cursor-grab">
         <CardContent className="p-4">
           <h3 className="text-sm font-semibold">{task.title}</h3>
-          <div className="flex items-center mt-2 text-gray-500">
-            <AttachMoney className="w-4 h-4 mr-1" />
-            <span className="text-xs">{task.amount}</span>
-          </div>
-          <div className="flex justify-between mt-2 text-gray-500">
+            <div className="flex justify-between mt-2 text-gray-500">
             <div className="flex items-center">
               <CalendarToday className="w-4 h-4 mr-1" />
               <span className="text-xs">{task.date}</span>
