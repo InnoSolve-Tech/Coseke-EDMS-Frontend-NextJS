@@ -218,47 +218,40 @@ export default function FileExplorer() {
   };
 
   const handleAction = async (action: string) => {
-    if (!menuTarget || !menuTarget.metadata) return;
+    if (!menuTarget) return;
   
-    const fileMetadata = menuTarget.metadata as FileData;
-  
-    if (!fileMetadata.hashName) {
-      alert('File cannot be processed. Hash name is missing.');
-      return;
-    }
-  
-    try {
-      const blob = await getFilesByHash(fileMetadata.hashName);
-      const mimeType = fileMetadata.mimeType || blob.type || 'application/octet-stream';
-      const url = window.URL.createObjectURL(blob);
-  
-      if (action === "View") {
-        // View logic based on MIME type
-        if (mimeType === 'application/pdf') {
-          window.open(url, '_blank');
-        } else if (mimeType.startsWith('image/')) {
-          const img = new Image();
-          img.src = url;
-          img.style.maxWidth = '100%';
-          document.body.appendChild(img);
-        } else {
-          alert(`Unsupported file type for viewing: ${mimeType}`);
+    switch (action) {
+      case "CreateSubfolder":
+        // Set the context for subfolder creation
+        setCurrentFolderID(menuTarget.folderID ?? null);
+        setIsSubfolderMode(true);
+        setIsCreateFolderModalOpen(true);
+        break;
+      case "UploadFile":
+        // Pass the current folder's ID when opening the upload dialog
+        setCurrentFolderID(menuTarget.folderID ?? null);
+        setUploadDialogOpen(true);
+        break;
+      case "View":
+        if (menuTarget.type === 'file' && menuTarget.fileId) {
+          router.push(`/dashboard/folders/file/${menuTarget.fileId}`);
         }
-      } else if (action === "Download") {
-        // Download logic
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = fileMetadata.filename || fileMetadata.name || 'downloaded-file';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
-  
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Failed to retrieve file:', error);
-      alert('Unable to retrieve file. Please try again.');
+        break;
+      case "Delete":
+        try {
+          if (menuTarget.type === 'folder' && menuTarget.folderID) {
+            await deleteFolder(menuTarget.folderID);
+            setFileData((prev) => prev.filter((item) => item.id !== menuTarget.id));
+          } else if (menuTarget.type === 'file' && menuTarget.fileId) {
+            await deleteFile(menuTarget.fileId);
+            setFileData((prev) => prev.filter((item) => item.id !== menuTarget.id));
+          }
+        } catch (error) {
+          console.error('Failed to delete item:', error);
+        }
+        break;
     }
+    handleCloseMenu();
   };
   
   
