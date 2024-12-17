@@ -44,7 +44,7 @@ export default function WorkflowInstanceCreator() {
       try {
         let wfs = await getAllWorkflows();
         let wfI = await getAllWorkflowInstances();
-        console.log(wfs);
+        console.log(wfI);
         setWorkflowInstances(wfI);
         setExistingWorkflows(wfs);
       } catch (error) {
@@ -144,7 +144,6 @@ export default function WorkflowInstanceCreator() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>ID</TableHead>
                   <TableHead>Workflow</TableHead>
                   <TableHead>Instance Name</TableHead>
                   <TableHead>Status</TableHead>
@@ -154,8 +153,7 @@ export default function WorkflowInstanceCreator() {
               <TableBody>
                 {workflowInstances.map((instance) => (
                   <TableRow key={instance.id}>
-                    <TableCell>{instance.id}</TableCell>
-                    <TableCell>{existingWorkflows.find(w => parseInt(w.id) === instance.workflowId)?.name}</TableCell>
+                    <TableCell>{(instance as any).workflow?.name}</TableCell>
                     <TableCell>{instance.name}</TableCell>
                     <TableCell>
                       <Badge variant={instance.status === 'Active' ? 'default' : instance.status === 'Completed' ? 'secondary' : 'destructive'}>
@@ -177,7 +175,7 @@ export default function WorkflowInstanceCreator() {
                           <div className="space-y-4">
                             <div>
                               <h4 className="font-semibold">Workflow</h4>
-                              <p>{existingWorkflows.find(w => parseInt(w.id) === instance.workflowId)?.name}</p>
+                              <p>{existingWorkflows.find(w => parseInt(w.id) === (instance as any).workflow.id)?.name}</p>
                             </div>
                             <div>
                               <h4 className="font-semibold">Instance Name</h4>

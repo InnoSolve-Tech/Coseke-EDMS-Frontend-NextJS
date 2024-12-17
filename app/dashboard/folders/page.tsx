@@ -718,7 +718,3 @@ export default function FileExplorer() {
     </div>
   );
 }
-
-function setNodes(arg0: (prevNodes: any) => any[]) {
-  throw new Error("Function not implemented.");
-}
