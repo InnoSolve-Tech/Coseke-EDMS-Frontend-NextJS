@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { AxiosInstance } from "../routes/api";
 
@@ -23,20 +23,33 @@ export interface MetadataItem {
 }
 
 export async function getDocumentTypes(): Promise<IDocumentType[]> {
-  const { data } = await AxiosInstance.get('file-management/api/v1/document-types/all');
+  const { data } = await AxiosInstance.get(
+    "file-management/api/v1/document-types/all",
+  );
   return data;
 }
 
-export async function createDocumentType(data: IDocumentTypeForm): Promise<IDocumentType> {
-  const { data: response } = await AxiosInstance.post('file-management/api/v1/document-types/create', data);
+export async function createDocumentType(
+  data: IDocumentTypeForm,
+): Promise<IDocumentType> {
+  const { data: response } = await AxiosInstance.post(
+    "file-management/api/v1/document-types/create",
+    data,
+  );
   return response;
 }
 
-export async function updateDocumentType(id: number, data: IDocumentTypeForm): Promise<IDocumentType> {
-  const { data: response } = await AxiosInstance.put(`file-management/api/v1/document-types/${id}`, data);
+export async function updateDocumentType(
+  id: number,
+  data: IDocumentTypeForm,
+): Promise<IDocumentType> {
+  const { data: response } = await AxiosInstance.put(
+    `file-management/api/v1/document-types/${id}`,
+    data,
+  );
   return response;
 }
 
 export async function deleteDocumentType(id: number): Promise<void> {
   await AxiosInstance.delete(`file-management/api/v1/document-types/${id}`);
-} 
+}

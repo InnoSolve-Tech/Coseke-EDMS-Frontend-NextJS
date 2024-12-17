@@ -1,17 +1,16 @@
-"use client"
+"use client";
 
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
-import { ChartContainer, ChartTooltip } from "@/components/ui/chart"
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
+import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 
 const data = [
   { status: "Completed", count: 45 },
   { status: "In Progress", count: 30 },
   { status: "Pending", count: 15 },
   { status: "Rejected", count: 5 },
-]
+];
 
 export function WorkflowStatusChart() {
-
   const config = {
     storage: {
       label: "Storage (GB)",
@@ -21,8 +20,7 @@ export function WorkflowStatusChart() {
       label: "Bandwidth (GB)",
       color: "hsl(var(--chart-2))",
     },
-  }
-
+  };
 
   return (
     <ChartContainer
@@ -43,6 +41,5 @@ export function WorkflowStatusChart() {
         </BarChart>
       </ResponsiveContainer>
     </ChartContainer>
-  )
+  );
 }
-

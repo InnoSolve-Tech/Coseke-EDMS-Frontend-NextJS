@@ -57,30 +57,28 @@ export function WorkflowForm() {
       });
     }
   }, [workflow, form]);
-  
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       updateWorkflow({
-      ...workflow,
-      ...values,
+        ...workflow,
+        ...values,
       });
 
       await editWorkflow({
-      ...workflow,
-      ...values,
+        ...workflow,
+        ...values,
       } as Workflow);
 
       console.log({
         ...workflow,
         ...values,
-        })
+      });
 
-     // router.push("/dashboard/workflows");
+      // router.push("/dashboard/workflows");
     } catch (error) {
       console.error("Failed to update workflow:", error);
     }
-    
   };
 
   return (

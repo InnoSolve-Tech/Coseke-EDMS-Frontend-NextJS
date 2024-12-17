@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { Role, User } from "@/lib/types/user";
 import { AxiosInstance } from "../../components/routes/api";
@@ -13,7 +13,6 @@ export const loginService = async (body: ILoginState) => {
   }
 };
 
-
 export const getAllUsers = async (): Promise<User[]> => {
   try {
     const response = await AxiosInstance.get("api/v1/users");
@@ -22,7 +21,7 @@ export const getAllUsers = async (): Promise<User[]> => {
     console.log(error, "error response");
     return [];
   }
-}
+};
 
 export const getAllRoles = async (): Promise<Role[]> => {
   try {
@@ -32,4 +31,4 @@ export const getAllRoles = async (): Promise<Role[]> => {
     console.log(error, "error response");
     return [];
   }
-}
+};

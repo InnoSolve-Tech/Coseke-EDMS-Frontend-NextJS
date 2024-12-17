@@ -47,7 +47,8 @@ export default function CalendarPage(): JSX.Element {
   const [currentDate, setCurrentDate] = useState(dayjs());
 
   const navigateToToday = () => setCurrentDate(dayjs());
-  const navigatePreviousMonth = () => setCurrentDate(currentDate.subtract(1, "month"));
+  const navigatePreviousMonth = () =>
+    setCurrentDate(currentDate.subtract(1, "month"));
   const navigateNextMonth = () => setCurrentDate(currentDate.add(1, "month"));
 
   const calendarDays = useMemo(() => {
@@ -57,20 +58,28 @@ export default function CalendarPage(): JSX.Element {
     const endDate = endOfMonth.endOf("week");
 
     const days: dayjs.Dayjs[] = [];
-    for (let date = startDate; date.isBefore(endDate.add(1, "day")); date = date.add(1, "day")) {
+    for (
+      let date = startDate;
+      date.isBefore(endDate.add(1, "day"));
+      date = date.add(1, "day")
+    ) {
       days.push(date);
     }
     return days;
   }, [currentDate]);
 
   const getEventsForDate = (date: dayjs.Dayjs) => {
-    return sampleEvents.find(
-      (dayEvents) => dayEvents.date === date.format("YYYY-MM-DD")
-    )?.events || [];
+    return (
+      sampleEvents.find(
+        (dayEvents) => dayEvents.date === date.format("YYYY-MM-DD"),
+      )?.events || []
+    );
   };
 
   return (
-    <Box sx={{ p: 2, height: "100vh", display: "flex", flexDirection: "column" }}>
+    <Box
+      sx={{ p: 2, height: "100vh", display: "flex", flexDirection: "column" }}
+    >
       {/* Header Section */}
       <Box
         sx={{
@@ -96,10 +105,18 @@ export default function CalendarPage(): JSX.Element {
           >
             Today
           </Button>
-          <IconButton variant="soft" color="neutral" onClick={navigatePreviousMonth}>
+          <IconButton
+            variant="soft"
+            color="neutral"
+            onClick={navigatePreviousMonth}
+          >
             <ChevronLeft />
           </IconButton>
-          <IconButton variant="soft" color="neutral" onClick={navigateNextMonth}>
+          <IconButton
+            variant="soft"
+            color="neutral"
+            onClick={navigateNextMonth}
+          >
             <ChevronRight />
           </IconButton>
         </Box>
@@ -161,7 +178,9 @@ export default function CalendarPage(): JSX.Element {
                   borderRight: "1px solid",
                   borderBottom: "1px solid",
                   borderColor: "divider",
-                  backgroundColor: isToday ? "primary.softBg" : "background.body",
+                  backgroundColor: isToday
+                    ? "primary.softBg"
+                    : "background.body",
                   color: isCurrentMonth ? "text.primary" : "text.tertiary",
                   minHeight: "120px",
                   display: "flex",
@@ -197,7 +216,10 @@ export default function CalendarPage(): JSX.Element {
                         },
                       }}
                     >
-                      <Typography level="body-xs" sx={{ color: "primary.softColor" }}>
+                      <Typography
+                        level="body-xs"
+                        sx={{ color: "primary.softColor" }}
+                      >
                         {event.startTime}
                       </Typography>
                       <Typography level="body-sm" noWrap>
@@ -214,4 +236,3 @@ export default function CalendarPage(): JSX.Element {
     </Box>
   );
 }
-

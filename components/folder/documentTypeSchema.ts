@@ -7,6 +7,6 @@ export const documentTypeSchema = yup.object({
       name: yup.string().required(),
       type: yup.string().required(),
       value: yup.string(),
-    })
+    }),
   ),
-}); 
+});

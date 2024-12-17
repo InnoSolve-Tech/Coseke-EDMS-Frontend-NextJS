@@ -1,50 +1,57 @@
-'use client'
+"use client";
 
-import { EditFormDialog } from '@/components/forms/EditFormDialog'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { EditIcon } from 'lucide-react'
-import { useState } from 'react'
+import { EditFormDialog } from "@/components/forms/EditFormDialog";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { EditIcon } from "lucide-react";
+import { useState } from "react";
 
 const fieldTypes = [
-    'text',
-    'number',
-    'email',
-    'password',
-    'date',
-    'time',
-    'textarea',
-    'select',
-  ] as const
+  "text",
+  "number",
+  "email",
+  "password",
+  "date",
+  "time",
+  "textarea",
+  "select",
+] as const;
 
-  interface SelectOptions {
-    options: string[]
-  }
+interface SelectOptions {
+  options: string[];
+}
 interface FieldDefinition {
-    type: typeof fieldTypes[number]
-    value: string
-    selectOptions?: SelectOptions
-  }
+  type: (typeof fieldTypes)[number];
+  selectOptions?: SelectOptions;
+}
 
 export interface Form {
-  id?: number
-  name: string
-  description: string
-  fieldDefinitions: Record<string, FieldDefinition>
+  id?: number;
+  name: string;
+  description: string;
+  fieldDefinitions: Record<string, FieldDefinition>;
 }
 
 interface FormListProps {
-  forms: Form[]
+  forms: Form[];
 }
 
 export function FormList({ forms: initialForms }: FormListProps) {
-  const [forms, setForms] = useState(initialForms)
-  const [editingForm, setEditingForm] = useState<Form | null>(null)
+  const [forms, setForms] = useState(initialForms);
+  const [editingForm, setEditingForm] = useState<Form | null>(null);
 
   const handleSave = (updatedForm: Form) => {
-    setForms(forms.map(form => form.id === updatedForm.id ? updatedForm : form))
-    setEditingForm(null)
-  }
+    setForms(
+      forms.map((form) => (form.id === updatedForm.id ? updatedForm : form)),
+    );
+    setEditingForm(null);
+  };
 
   return (
     <>
@@ -57,7 +64,11 @@ export function FormList({ forms: initialForms }: FormListProps) {
                   <CardTitle>{form.name}</CardTitle>
                   <CardDescription>{form.description}</CardDescription>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => setEditingForm(form)}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setEditingForm(form)}
+                >
                   <EditIcon className="h-4 w-4" />
                 </Button>
               </div>
@@ -65,11 +76,14 @@ export function FormList({ forms: initialForms }: FormListProps) {
             <CardContent>
               <p className="text-sm text-muted-foreground mb-2">Fields:</p>
               <ul className="list-disc list-inside">
-                {Object.entries(form.fieldDefinitions).map(([fieldName, fieldType]) => (
-                  <li key={fieldName} className="text-sm">
-                    {fieldName}: <span className="font-mono">{fieldType.type} - {fieldType.value}</span>
-                  </li>
-                ))}
+                {Object.entries(form.fieldDefinitions).map(
+                  ([fieldName, fieldType]) => (
+                    <li key={fieldName} className="text-sm">
+                      {fieldName}:{" "}
+                      <span className="font-mono">{fieldType.type}</span>
+                    </li>
+                  ),
+                )}
               </ul>
             </CardContent>
           </Card>
@@ -84,6 +98,5 @@ export function FormList({ forms: initialForms }: FormListProps) {
         />
       )}
     </>
-  )
+  );
 }
-

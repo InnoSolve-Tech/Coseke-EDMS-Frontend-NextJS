@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { IUserDetails } from "../../core/authentication/interface";
 

@@ -1,14 +1,14 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { AxisBottom, AxisLeft } from "@visx/axis"
-import { Grid } from "@visx/grid"
-import { Group } from "@visx/group"
-import { scaleBand, scaleLinear } from "@visx/scale"
-import { Bar } from "@visx/shape"
-import { useTooltip, useTooltipInPortal, defaultStyles } from "@visx/tooltip"
+import * as React from "react";
+import { AxisBottom, AxisLeft } from "@visx/axis";
+import { Grid } from "@visx/grid";
+import { Group } from "@visx/group";
+import { scaleBand, scaleLinear } from "@visx/scale";
+import { Bar } from "@visx/shape";
+import { useTooltip, useTooltipInPortal, defaultStyles } from "@visx/tooltip";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 const tooltipStyles = {
   ...defaultStyles,
@@ -16,34 +16,34 @@ const tooltipStyles = {
   border: "1px solid var(--border)",
   color: "var(--foreground)",
   padding: "0.5rem",
-}
+};
 
 interface ChartProps extends React.HTMLAttributes<HTMLDivElement> {
-  data: { name: string; value: number }[]
+  data: { name: string; value: number }[];
 }
 
 export function Chart({ className, data, ...props }: ChartProps) {
-  const width = 350
-  const height = 300
-  const margin = { top: 20, right: 20, bottom: 40, left: 40 }
+  const width = 350;
+  const height = 300;
+  const margin = { top: 20, right: 20, bottom: 40, left: 40 };
 
-  const xMax = width - margin.left - margin.right
-  const yMax = height - margin.top - margin.bottom
+  const xMax = width - margin.left - margin.right;
+  const yMax = height - margin.top - margin.bottom;
 
-  const x = (d: { name: string }) => d.name
-  const y = (d: { value: number }) => d.value
+  const x = (d: { name: string }) => d.name;
+  const y = (d: { value: number }) => d.value;
 
   const xScale = scaleBand<string>({
     range: [0, xMax],
     round: true,
     domain: data.map(x),
     padding: 0.4,
-  })
+  });
   const yScale = scaleLinear<number>({
     range: [yMax, 0],
     round: true,
     domain: [0, Math.max(...data.map(y))],
-  })
+  });
 
   const {
     tooltipData,
@@ -52,11 +52,11 @@ export function Chart({ className, data, ...props }: ChartProps) {
     tooltipOpen,
     showTooltip,
     hideTooltip,
-  } = useTooltip<{ name: string; value: number }>()
+  } = useTooltip<{ name: string; value: number }>();
 
   const { TooltipInPortal } = useTooltipInPortal({
     scroll: true,
-  })
+  });
 
   return (
     <div className={cn("", className)} {...props}>
@@ -90,10 +90,10 @@ export function Chart({ className, data, ...props }: ChartProps) {
             tickFormat={(value) => `$${value}`}
           />
           {data.map((d) => {
-            const barWidth = xScale.bandwidth()
-            const barHeight = yMax - (yScale(y(d)) ?? 0)
-            const barX = xScale(x(d))
-            const barY = yMax - barHeight
+            const barWidth = xScale.bandwidth();
+            const barHeight = yMax - (yScale(y(d)) ?? 0);
+            const barX = xScale(x(d));
+            const barY = yMax - barHeight;
             return (
               <Bar
                 key={`bar-${x(d)}`}
@@ -104,16 +104,16 @@ export function Chart({ className, data, ...props }: ChartProps) {
                 fill="var(--primary)"
                 onMouseLeave={() => hideTooltip()}
                 onMouseMove={() => {
-                  const top = barY + margin.top
-                  const left = (barX ?? 0) + barWidth / 2 + margin.left
+                  const top = barY + margin.top;
+                  const left = (barX ?? 0) + barWidth / 2 + margin.left;
                   showTooltip({
                     tooltipData: d,
                     tooltipTop: top,
                     tooltipLeft: left,
-                  })
+                  });
                 }}
               />
-            )
+            );
           })}
         </Group>
       </svg>
@@ -130,36 +130,46 @@ export function Chart({ className, data, ...props }: ChartProps) {
         </TooltipInPortal>
       )}
     </div>
-  )
+  );
 }
 
 interface ChartContainerProps extends React.HTMLAttributes<HTMLDivElement> {
-  config: Record<string, { label: string; color: string }>
+  config: Record<string, { label: string; color: string }>;
 }
 
-export function ChartContainer({ config, className, children, ...props }: ChartContainerProps) {
+export function ChartContainer({
+  config,
+  className,
+  children,
+  ...props
+}: ChartContainerProps) {
   return (
     <div className={cn("", className)} {...props}>
       <style jsx>{`
         :root {
           ${Object.entries(config)
             .map(([key, value]) => `--color-${key}: ${value.color};`)
-            .join('\n')}
+            .join("\n")}
         }
       `}</style>
       {children}
     </div>
-  )
+  );
 }
 
 interface ChartTooltipProps {
-  active?: boolean
-  payload?: Array<{ value: number; name: string; dataKey: string }>
-  label?: string
-  config: Record<string, { label: string; color: string }>
+  active?: boolean;
+  payload?: Array<{ value: number; name: string; dataKey: string }>;
+  label?: string;
+  config: Record<string, { label: string; color: string }>;
 }
 
-export function ChartTooltip({ active, payload, label, config }: ChartTooltipProps) {
+export function ChartTooltip({
+  active,
+  payload,
+  label,
+  config,
+}: ChartTooltipProps) {
   if (active && payload && payload.length) {
     return (
       <div className="bg-background border border-border p-2 shadow-md">
@@ -170,19 +180,23 @@ export function ChartTooltip({ active, payload, label, config }: ChartTooltipPro
           </p>
         ))}
       </div>
-    )
+    );
   }
-  return null
+  return null;
 }
 
 interface ChartTooltipContentProps {
-  payload?: Array<{ value: number; name: string; dataKey: string }>
-  label?: string
-  config: Record<string, { label: string; color: string }>
+  payload?: Array<{ value: number; name: string; dataKey: string }>;
+  label?: string;
+  config: Record<string, { label: string; color: string }>;
 }
 
-export function ChartTooltipContent({ payload, label, config }: ChartTooltipContentProps) {
-  if (!payload || payload.length === 0) return null
+export function ChartTooltipContent({
+  payload,
+  label,
+  config,
+}: ChartTooltipContentProps) {
+  if (!payload || payload.length === 0) return null;
 
   return (
     <div className="bg-background border border-border p-2 shadow-md">
@@ -193,5 +207,5 @@ export function ChartTooltipContent({ payload, label, config }: ChartTooltipCont
         </p>
       ))}
     </div>
-  )
+  );
 }

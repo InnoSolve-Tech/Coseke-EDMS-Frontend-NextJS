@@ -1,28 +1,28 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Box, Button, Card, IconButton, Input, Typography } from "@mui/joy"
-import { Add, Close } from "@mui/icons-material"
-import { useDroppable } from "@dnd-kit/core"
+import { useState } from "react";
+import { Box, Button, Card, IconButton, Input, Typography } from "@mui/joy";
+import { Add, Close } from "@mui/icons-material";
+import { useDroppable } from "@dnd-kit/core";
 import {
   SortableContext,
   verticalListSortingStrategy,
-} from "@dnd-kit/sortable"
-import { ActivityCard } from "./activity-card"
+} from "@dnd-kit/sortable";
+import { ActivityCard } from "./activity-card";
 
 interface Activity {
-  id: string
-  title: string
-  company?: string
-  responsible?: string
-  dueDate: string
+  id: string;
+  title: string;
+  company?: string;
+  responsible?: string;
+  dueDate: string;
 }
 
 interface ActivityColumnProps {
-  id: string
-  title: string
-  activities: Activity[]
-  onAddActivity: (columnId: string, activity: Omit<Activity, "id">) => void
+  id: string;
+  title: string;
+  activities: Activity[];
+  onAddActivity: (columnId: string, activity: Omit<Activity, "id">) => void;
 }
 
 export function ActivityColumn({
@@ -31,21 +31,21 @@ export function ActivityColumn({
   activities,
   onAddActivity,
 }: ActivityColumnProps) {
-  const [isAdding, setIsAdding] = useState(false)
-  const [newActivity, setNewActivity] = useState("")
-  const { setNodeRef } = useDroppable({ id })
+  const [isAdding, setIsAdding] = useState(false);
+  const [newActivity, setNewActivity] = useState("");
+  const { setNodeRef } = useDroppable({ id });
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     if (newActivity.trim()) {
       onAddActivity(id, {
         title: newActivity,
         dueDate: new Date().toISOString(),
-      })
-      setNewActivity("")
-      setIsAdding(false)
+      });
+      setNewActivity("");
+      setIsAdding(false);
     }
-  }
+  };
 
   return (
     <Card
@@ -62,7 +62,14 @@ export function ActivityColumn({
         height: "fit-content",
       }}
     >
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          mb: 1,
+        }}
+      >
         <Typography level="title-lg">{title}</Typography>
         <Button
           startDecorator={<Add />}
@@ -99,12 +106,14 @@ export function ActivityColumn({
         </Card>
       )}
 
-      <SortableContext items={activities} strategy={verticalListSortingStrategy}>
+      <SortableContext
+        items={activities}
+        strategy={verticalListSortingStrategy}
+      >
         {activities.map((activity) => (
           <ActivityCard key={activity.id} {...activity} />
         ))}
       </SortableContext>
     </Card>
-  )
+  );
 }
-

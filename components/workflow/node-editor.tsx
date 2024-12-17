@@ -19,7 +19,12 @@ interface NodeEditorProps {
   onUpdate: (node: WorkflowNode) => void;
 }
 
-export function NodeEditor({ node, isOpen, onClose, onUpdate }: NodeEditorProps) {
+export function NodeEditor({
+  node,
+  isOpen,
+  onClose,
+  onUpdate,
+}: NodeEditorProps) {
   const [editedNode, setEditedNode] = useState<WorkflowNode>(node);
   const nodeConfig = nodeTypes[node.type as keyof typeof nodeTypes];
 
@@ -31,7 +36,6 @@ export function NodeEditor({ node, isOpen, onClose, onUpdate }: NodeEditorProps)
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl bg-white bg-opacity-100 text-black">
-
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <nodeConfig.icon className="h-5 w-5" />
@@ -42,8 +46,12 @@ export function NodeEditor({ node, isOpen, onClose, onUpdate }: NodeEditorProps)
         <Tabs defaultValue="details" className="w-full">
           <TabsList>
             <TabsTrigger value="details">Details</TabsTrigger>
-            {node.type === "task" && <TabsTrigger value="form">Form</TabsTrigger>}
-            {node.type === "decision" && <TabsTrigger value="conditions">Conditions</TabsTrigger>}
+            {node.type === "task" && (
+              <TabsTrigger value="form">Form</TabsTrigger>
+            )}
+            {node.type === "decision" && (
+              <TabsTrigger value="conditions">Conditions</TabsTrigger>
+            )}
             <TabsTrigger value="assignment">Assignment</TabsTrigger>
           </TabsList>
 
@@ -88,14 +96,19 @@ export function NodeEditor({ node, isOpen, onClose, onUpdate }: NodeEditorProps)
                     ...editedNode,
                     data: {
                       ...editedNode.data,
-                      form: { 
-                        ...editedNode.data.form, 
+                      form: {
+                        ...editedNode.data.form,
                         id: editedNode.data.form?.id || crypto.randomUUID(),
-                        fields: fields.map(field => ({
+                        fields: fields.map((field) => ({
                           ...field,
-                          type: field.type as "number" | "checkbox" | "date" | "text" | "select",
-                          id: crypto.randomUUID()
-                        }))
+                          type: field.type as
+                            | "number"
+                            | "checkbox"
+                            | "date"
+                            | "text"
+                            | "select",
+                          id: crypto.randomUUID(),
+                        })),
                       },
                     },
                   })
@@ -104,18 +117,25 @@ export function NodeEditor({ node, isOpen, onClose, onUpdate }: NodeEditorProps)
             </TabsContent>
           )}
 
-{node.type === "parallel" && (
+          {node.type === "parallel" && (
             <TabsContent value="branches">
               <ParallelForm
-                branches={editedNode.data.branches?.map((branch: string | { id: string; label: string }) => ({
-                  id: typeof branch === 'string' ? branch : branch.id,
-                  label: typeof branch === 'string' ? branch : branch.label,
-                  name: typeof branch === 'string' ? branch : branch.label
-                })) || []}
+                branches={
+                  editedNode.data.branches?.map(
+                    (branch: string | { id: string; label: string }) => ({
+                      id: typeof branch === "string" ? branch : branch.id,
+                      label: typeof branch === "string" ? branch : branch.label,
+                      name: typeof branch === "string" ? branch : branch.label,
+                    }),
+                  ) || []
+                }
                 onUpdate={(branches) =>
                   setEditedNode({
                     ...editedNode,
-                    data: { ...editedNode.data, branches: branches.map(branch => branch.id) },
+                    data: {
+                      ...editedNode.data,
+                      branches: branches.map((branch) => branch.id),
+                    },
                   })
                 }
               />
@@ -125,20 +145,23 @@ export function NodeEditor({ node, isOpen, onClose, onUpdate }: NodeEditorProps)
           {node.type === "decision" && (
             <TabsContent value="conditions">
               <DecisionForm
-                conditions={(editedNode.data.conditions || []).map(c => ({
+                conditions={(editedNode.data.conditions || []).map((c) => ({
                   field: c.field,
                   operator: c.operator,
                   value: c.value,
-                  id: crypto.randomUUID()
+                  id: crypto.randomUUID(),
                 }))}
                 fields={editedNode.data.form?.fields || []}
                 onUpdate={(conditions) =>
                   setEditedNode({
                     ...editedNode,
-                    data: { ...editedNode.data, conditions: conditions.map(c => ({
-                      ...c,
-                      id: crypto.randomUUID()
-                    })) },
+                    data: {
+                      ...editedNode.data,
+                      conditions: conditions.map((c) => ({
+                        ...c,
+                        id: crypto.randomUUID(),
+                      })),
+                    },
                   })
                 }
               />

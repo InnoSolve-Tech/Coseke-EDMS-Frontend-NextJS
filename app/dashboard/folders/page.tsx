@@ -22,14 +22,27 @@ import {
 import { useRouter } from "next/navigation";
 import FileUploadDialog from "@/components/folder/FileUploadDialog";
 import SearchBar from "@/components/folder/SearchBar";
-import { getFiles, getFolders, addDocumentsByFolderId, createFolders, deleteFile, deleteFolder, DirectoryData, createSubFolders, fetchChildFolders, getFilesByFolderID, getDocumentTypes, getFilesByHash } from "@/components/files/api";
-import { ChevronDown, ChevronRight, File, Folder } from 'lucide-react';
-import axios from 'axios';
+import {
+  getFiles,
+  getFolders,
+  addDocumentsByFolderId,
+  createFolders,
+  deleteFile,
+  deleteFolder,
+  DirectoryData,
+  createSubFolders,
+  fetchChildFolders,
+  getFilesByFolderID,
+  getDocumentTypes,
+  getFilesByHash,
+} from "@/components/files/api";
+import { ChevronDown, ChevronRight, File, Folder } from "lucide-react";
+import axios from "axios";
 
 interface FileNode {
   id: string;
   label: string;
-  type: 'file' | 'folder';
+  type: "file" | "folder";
   metadata?: Record<string, unknown>;
   children?: FileNode[];
   folderID?: number;
@@ -70,14 +83,14 @@ interface DocumentType {
 
 interface MetadataField {
   name: string;
-  type: 'string' | 'select' | 'number' | 'date';
+  type: "string" | "select" | "number" | "date";
   value: string | null;
   options?: string[];
 }
 
 export default function FileExplorer() {
   const [currentPath, setCurrentPath] = useState<FileNode[]>([
-    { id: "0", label: "Root", type: 'folder', folderID: 0 },
+    { id: "0", label: "Root", type: "folder", folderID: 0 },
   ]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [menuTarget, setMenuTarget] = useState<FileNode | null>(null);
@@ -86,7 +99,7 @@ export default function FileExplorer() {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [showFoldersOnly, setShowFoldersOnly] = useState(false);
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
-  const [newFolderName, setNewFolderName] = useState('');
+  const [newFolderName, setNewFolderName] = useState("");
   const router = useRouter();
   const [folderCount, setFolderCount] = useState<string>("...");
   const [currentFolderID, setCurrentFolderID] = useState<number | null>(null);
@@ -96,7 +109,6 @@ export default function FileExplorer() {
   const [selectedDocType, setSelectedDocType] = useState<string>("");
   const [metadata, setMetadata] = useState<Record<string, any>>({});
   const [fileCount, setFileCount] = useState<string>("...");
-
 
   useEffect(() => {
     const loadFoldersAndFiles = async () => {
@@ -114,21 +126,23 @@ export default function FileExplorer() {
           const folderNode: FileNode = {
             id: folder.folderID?.toString() || "",
             label: folder.name,
-            type: 'folder',
+            type: "folder",
             folderID: folder.folderID,
             parentFolderID: folder.parentFolderID || 0,
           };
 
           // Add files directly from the folder
-          const fileNodes = (folder.files || []).map((file: FileData): FileNode => ({
-            id: file.id.toString(),
-            label: file.filename || "Unnamed File",
-            type: "file",
-            folderID: folder.folderID,
-            fileId: file.id,
-            parentFolderID: folder.folderID,
-            metadata: file
-          }));
+          const fileNodes = (folder.files || []).map(
+            (file: FileData): FileNode => ({
+              id: file.id.toString(),
+              label: file.filename || "Unnamed File",
+              type: "file",
+              folderID: folder.folderID,
+              fileId: file.id,
+              parentFolderID: folder.folderID,
+              metadata: file,
+            }),
+          );
 
           // Add folder and its files to the list
           folderNodesWithFiles.push(folderNode, ...fileNodes);
@@ -166,8 +180,6 @@ export default function FileExplorer() {
 
     fetchFolderCount();
   }, []);
-
-
 
   useEffect(() => {
     const fetchFileCount = async () => {
@@ -212,14 +224,13 @@ export default function FileExplorer() {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-
   const handleBreadcrumbClick = (index: number) => {
     setCurrentPath((prev) => prev.slice(0, index + 1));
   };
 
   const handleAction = async (action: string) => {
     if (!menuTarget) return;
-  
+
     switch (action) {
       case "CreateSubfolder":
         // Set the context for subfolder creation
@@ -233,34 +244,37 @@ export default function FileExplorer() {
         setUploadDialogOpen(true);
         break;
       case "View":
-        if (menuTarget.type === 'file' && menuTarget.fileId) {
+        if (menuTarget.type === "file" && menuTarget.fileId) {
           router.push(`/dashboard/folders/file/${menuTarget.fileId}`);
         }
         break;
       case "Delete":
         try {
-          if (menuTarget.type === 'folder' && menuTarget.folderID) {
+          if (menuTarget.type === "folder" && menuTarget.folderID) {
             await deleteFolder(menuTarget.folderID);
-            setFileData((prev) => prev.filter((item) => item.id !== menuTarget.id));
-          } else if (menuTarget.type === 'file' && menuTarget.fileId) {
+            setFileData((prev) =>
+              prev.filter((item) => item.id !== menuTarget.id),
+            );
+          } else if (menuTarget.type === "file" && menuTarget.fileId) {
             await deleteFile(menuTarget.fileId);
-            setFileData((prev) => prev.filter((item) => item.id !== menuTarget.id));
+            setFileData((prev) =>
+              prev.filter((item) => item.id !== menuTarget.id),
+            );
           }
         } catch (error) {
-          console.error('Failed to delete item:', error);
+          console.error("Failed to delete item:", error);
         }
         break;
     }
     handleCloseMenu();
   };
-  
-  
+
   const handleCreateFolder = async () => {
     try {
       // For root-level folder creation
       const parentFolderID = currentPath[currentPath.length - 1]?.folderID || 0;
 
-      const newFolder: Omit<DirectoryData, 'id'> = {
+      const newFolder: Omit<DirectoryData, "id"> = {
         name: newFolderName,
         folderID: parentFolderID,
       };
@@ -272,7 +286,7 @@ export default function FileExplorer() {
         const folderData: FileNode = {
           id: folderId,
           label: createdFolder.data.name,
-          type: 'folder',
+          type: "folder",
           folderID: createdFolder.data.folderID,
         };
 
@@ -280,10 +294,10 @@ export default function FileExplorer() {
       }
 
       setIsCreateFolderModalOpen(false);
-      setNewFolderName('');
+      setNewFolderName("");
       setIsSubfolderMode(false);
     } catch (error) {
-      console.error('Failed to create folder:', error);
+      console.error("Failed to create folder:", error);
     }
   };
 
@@ -326,8 +340,11 @@ export default function FileExplorer() {
     }
   };
 
-
-  const handleUpload = async (file: File, documentType: string, metadata: Record<string, any>) => {
+  const handleUpload = async (
+    file: File,
+    documentType: string,
+    metadata: Record<string, any>,
+  ) => {
     try {
       const currentFolder = currentPath[currentPath.length - 1];
       if (!currentFolder?.folderID) {
@@ -340,13 +357,16 @@ export default function FileExplorer() {
         documentType: documentType,
         metadata: metadata,
         folderID: currentFolder.folderID,
-        mimeType: file.type
+        mimeType: file.type,
       };
 
       // Create form data
       const formData = new FormData();
-      formData.append('fileData', new Blob([JSON.stringify(fileData)], { type: 'application/json' }));
-      formData.append('file', file);
+      formData.append(
+        "fileData",
+        new Blob([JSON.stringify(fileData)], { type: "application/json" }),
+      );
+      formData.append("file", file);
 
       // Make the API call
       const response = await axios.post(
@@ -354,9 +374,9 @@ export default function FileExplorer() {
         formData,
         {
           headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        }
+            "Content-Type": "multipart/form-data",
+          },
+        },
       );
 
       if (response.status === 200) {
@@ -365,28 +385,32 @@ export default function FileExplorer() {
         const newFiles = filesResponse.data || [];
 
         // Convert the new files to FileNode format
-        const newFileNodes = newFiles.map((item: FileData): FileNode => ({
-          id: item.id.toString(),
-          label: item.name || item.filename || "Unnamed",
-          type: "file",
-          folderID: currentFolder.folderID,
-          fileId: item.id,
-          metadata: item
-        }));
+        const newFileNodes = newFiles.map(
+          (item: FileData): FileNode => ({
+            id: item.id.toString(),
+            label: item.name || item.filename || "Unnamed",
+            type: "file",
+            folderID: currentFolder.folderID,
+            fileId: item.id,
+            metadata: item,
+          }),
+        );
 
         // Update the file data state
-        setFileData(prev => {
+        setFileData((prev) => {
           // Remove previous files from this folder and add newly fetched files
           const filteredData = prev.filter(
-            item => item.type === 'folder' || item.folderID !== currentFolder.folderID
+            (item) =>
+              item.type === "folder" ||
+              item.folderID !== currentFolder.folderID,
           );
           return [...filteredData, ...newFileNodes];
         });
 
         // Ensure the current folder is expanded to show new files
-        setExpanded(prev => ({
+        setExpanded((prev) => ({
           ...prev,
-          [currentFolder.id]: true
+          [currentFolder.id]: true,
         }));
       }
 
@@ -397,48 +421,51 @@ export default function FileExplorer() {
     }
   };
 
-
-  const handleSearch = (query: string, searchType: string, metadata: Record<string, unknown>) => {
+  const handleSearch = (
+    query: string,
+    searchType: string,
+    metadata: Record<string, unknown>,
+  ) => {
     // Implement search logic here
-    console.log('Search:', { query, searchType, metadata });
+    console.log("Search:", { query, searchType, metadata });
   };
 
   const handleNodeClick = (node: FileNode) => {
-    if (node.type === 'folder') {
+    if (node.type === "folder") {
       // Toggle folder expansion
       setExpanded((prev) => ({
         ...prev,
-        [node.id]: !prev[node.id]
+        [node.id]: !prev[node.id],
       }));
-    } else if (node.type === 'file') {
+    } else if (node.type === "file") {
       // Navigate to file view
       router.push(`/dashboard/folders/file/${node.fileId}`);
     }
   };
 
-
   const renderTree = (nodes: FileNode[]) => {
     const renderNode = (node: FileNode, level: number = 0) => {
-      const isFolder = node.type === 'folder';
-      const isFile = node.type === 'file';
+      const isFolder = node.type === "folder";
+      const isFile = node.type === "file";
       const isOpen = expanded[node.id] || false;
 
       // Find direct children (sub-folders and files)
-      const subFolders = nodes.filter(child =>
-        child.type === 'folder' && child.parentFolderID === node.folderID
+      const subFolders = nodes.filter(
+        (child) =>
+          child.type === "folder" && child.parentFolderID === node.folderID,
       );
-      console.log('subfolders', subFolders)
+      console.log("subfolders", subFolders);
 
-      const directFiles = nodes.filter(child =>
-        child.type === 'file' && child.folderID === node.folderID
+      const directFiles = nodes.filter(
+        (child) => child.type === "file" && child.folderID === node.folderID,
       );
-      console.log('files', directFiles)
+      console.log("files", directFiles);
 
       const handleToggleExpand = (e: React.MouseEvent) => {
         e.stopPropagation();
         setExpanded((prev) => ({
           ...prev,
-          [node.id]: !prev[node.id]
+          [node.id]: !prev[node.id],
         }));
       };
 
@@ -455,16 +482,19 @@ export default function FileExplorer() {
             onClick={() => handleNodeClick(node)}
             onContextMenu={(e) => handleRightClick(e, node)}
             sx={{
-              display: 'flex',
-              alignItems: 'center',
-              padding: '8px',
-              '&:hover': {
-                backgroundColor: 'action.hover',
+              display: "flex",
+              alignItems: "center",
+              padding: "8px",
+              "&:hover": {
+                backgroundColor: "action.hover",
               },
             }}
           >
             {/* Node Icon and Expansion Logic */}
-            <span className="mr-2" style={{ display: 'flex', alignItems: 'center' }}>
+            <span
+              className="mr-2"
+              style={{ display: "flex", alignItems: "center" }}
+            >
               {isFolder && (
                 <IconButton
                   size="sm"
@@ -476,9 +506,7 @@ export default function FileExplorer() {
                 </IconButton>
               )}
 
-              <span className="mr-2">
-                {isFolder ? <Folder /> : <File />}
-              </span>
+              <span className="mr-2">{isFolder ? <Folder /> : <File />}</span>
             </span>
 
             <Typography>{node.label}</Typography>
@@ -488,12 +516,10 @@ export default function FileExplorer() {
           {isFolder && isOpen && (
             <List>
               {/* Render sub-folders */}
-              {subFolders.map(folder => renderNode(folder, level + 1))}
+              {subFolders.map((folder) => renderNode(folder, level + 1))}
 
               {/* Render direct files */}
-              {directFiles.map(file => renderNode(file, level + 1))}
-
-
+              {directFiles.map((file) => renderNode(file, level + 1))}
             </List>
           )}
         </ListItem>
@@ -501,24 +527,26 @@ export default function FileExplorer() {
     };
 
     // Find root-level folders (no parent or parent is 0/null)
-    const rootFolders = nodes.filter(node =>
-      node.type === 'folder' &&
-      (node.parentFolderID === 0 || node.parentFolderID == null)
+    const rootFolders = nodes.filter(
+      (node) =>
+        node.type === "folder" &&
+        (node.parentFolderID === 0 || node.parentFolderID == null),
     );
 
     // Find root-level files (no parent or parent is 0/null)
-    const rootFiles = nodes.filter(node =>
-      node.type === 'file' &&
-      (node.parentFolderID === 0 || node.parentFolderID == null)
+    const rootFiles = nodes.filter(
+      (node) =>
+        node.type === "file" &&
+        (node.parentFolderID === 0 || node.parentFolderID == null),
     );
 
     return (
       <List>
         {/* Render root folders */}
-        {rootFolders.map(folder => renderNode(folder))}
+        {rootFolders.map((folder) => renderNode(folder))}
 
         {/* Render root files separately */}
-        {rootFiles.map(file => (
+        {rootFiles.map((file) => (
           <ListItem
             key={file.id}
             sx={{
@@ -529,11 +557,11 @@ export default function FileExplorer() {
               onClick={() => handleNodeClick(file)}
               onContextMenu={(e) => handleRightClick(e, file)}
               sx={{
-                display: 'flex',
-                alignItems: 'center',
-                padding: '8px',
-                '&:hover': {
-                  backgroundColor: 'action.hover',
+                display: "flex",
+                alignItems: "center",
+                padding: "8px",
+                "&:hover": {
+                  backgroundColor: "action.hover",
                 },
               }}
             >
@@ -548,16 +576,24 @@ export default function FileExplorer() {
     );
   };
 
-
   return (
     <div className="min-h-screen bg-gray-100 p-4">
-      <Card variant="outlined" sx={{ height: 'calc(100vh - 2rem)', display: 'flex', flexDirection: 'column' }}>
-        <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <Card
+        variant="outlined"
+        sx={{
+          height: "calc(100vh - 2rem)",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <CardContent
+          sx={{ flexGrow: 1, display: "flex", flexDirection: "column", gap: 2 }}
+        >
           <Breadcrumbs
             size="lg"
             sx={{
-              '--Breadcrumbs-gap': '8px',
-              '--Icon-fontSize': 'var(--joy-fontSize-xl2)',
+              "--Breadcrumbs-gap": "8px",
+              "--Icon-fontSize": "var(--joy-fontSize-xl2)",
             }}
           >
             {currentPath.map((crumb, index) => (
@@ -567,8 +603,8 @@ export default function FileExplorer() {
                 color={index === currentPath.length - 1 ? "primary" : "neutral"}
                 onClick={() => handleBreadcrumbClick(index)}
                 sx={{
-                  cursor: 'pointer',
-                  '&:hover': { textDecoration: 'underline' },
+                  cursor: "pointer",
+                  "&:hover": { textDecoration: "underline" },
                 }}
               >
                 {crumb.label}
@@ -576,7 +612,7 @@ export default function FileExplorer() {
             ))}
           </Breadcrumbs>
 
-          <div style={{ display: 'flex', gap: '16px' }}>
+          <div style={{ display: "flex", gap: "16px" }}>
             <Card variant="soft" color="primary" sx={{ flexGrow: 1 }}>
               <CardContent>
                 <Typography level="h4" fontWeight="lg">
@@ -595,7 +631,13 @@ export default function FileExplorer() {
             </Card>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
             <div>
               <Button
                 onClick={() => setIsCreateFolderModalOpen(true)}
@@ -615,10 +657,8 @@ export default function FileExplorer() {
 
           <SearchBar onSearch={handleSearch} />
 
-          <Card variant="outlined" sx={{ flexGrow: 1, overflow: 'auto' }}>
-            <CardContent>
-              {renderTree(fileData)}
-            </CardContent>
+          <Card variant="outlined" sx={{ flexGrow: 1, overflow: "auto" }}>
+            <CardContent>{renderTree(fileData)}</CardContent>
           </Card>
 
           <Menu
@@ -628,7 +668,7 @@ export default function FileExplorer() {
             size="sm"
             placement="bottom-start"
           >
-            {menuTarget && menuTarget.type === 'folder' ? (
+            {menuTarget && menuTarget.type === "folder" ? (
               <>
                 <MenuItem onClick={() => handleAction("CreateSubfolder")}>
                   Create Subfolder
@@ -637,13 +677,19 @@ export default function FileExplorer() {
                   Upload File
                 </MenuItem>
                 <MenuItem onClick={() => handleAction("Edit")}>Edit</MenuItem>
-                <MenuItem onClick={() => handleAction("Delete")}>Delete</MenuItem>
+                <MenuItem onClick={() => handleAction("Delete")}>
+                  Delete
+                </MenuItem>
               </>
             ) : (
               <>
                 <MenuItem onClick={() => handleAction("View")}>View</MenuItem>
-                <MenuItem onClick={() => handleAction("Download")}>Download</MenuItem>
-                <MenuItem onClick={() => handleAction("Delete")}>Delete</MenuItem>
+                <MenuItem onClick={() => handleAction("Download")}>
+                  Download
+                </MenuItem>
+                <MenuItem onClick={() => handleAction("Delete")}>
+                  Delete
+                </MenuItem>
               </>
             )}
           </Menu>
@@ -659,21 +705,21 @@ export default function FileExplorer() {
             open={isCreateFolderModalOpen}
             onClose={() => {
               setIsCreateFolderModalOpen(false);
-              setNewFolderName('');
+              setNewFolderName("");
               setIsSubfolderMode(false);
               setMenuTarget(null);
             }}
             slotProps={{
               backdrop: {
-                ref: undefined
-              }
+                ref: undefined,
+              },
             }}
           >
-            <Card sx={{ maxWidth: 400, margin: 'auto', mt: 8 }}>
+            <Card sx={{ maxWidth: 400, margin: "auto", mt: 8 }}>
               <CardContent>
                 <Typography level="h4">
                   {isSubfolderMode
-                    ? `Create Subfolder in ${menuTarget?.label || 'Current Folder'}`
+                    ? `Create Subfolder in ${menuTarget?.label || "Current Folder"}`
                     : "Create New Folder"}
                 </Typography>
                 <Input
@@ -682,11 +728,17 @@ export default function FileExplorer() {
                   placeholder="Folder Name"
                   sx={{ mt: 2, mb: 2 }}
                 />
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    gap: 8,
+                  }}
+                >
                   <Button
                     onClick={() => {
                       setIsCreateFolderModalOpen(false);
-                      setNewFolderName('');
+                      setNewFolderName("");
                       setIsSubfolderMode(false);
                       setMenuTarget(null);
                     }}
@@ -696,7 +748,11 @@ export default function FileExplorer() {
                     Cancel
                   </Button>
                   <Button
-                    onClick={isSubfolderMode ? handleCreateSubFolder : handleCreateFolder}
+                    onClick={
+                      isSubfolderMode
+                        ? handleCreateSubFolder
+                        : handleCreateFolder
+                    }
                     disabled={!newFolderName.trim()}
                   >
                     Create
@@ -705,7 +761,6 @@ export default function FileExplorer() {
               </CardContent>
             </Card>
           </Modal>
-
         </CardContent>
       </Card>
     </div>

@@ -39,17 +39,20 @@ const nodeInstructions = [
   {
     icon: ArrowUpRight,
     title: "Connect Nodes",
-    description: "Drag from the bottom dot of one node to the top dot of another to create connections",
+    description:
+      "Drag from the bottom dot of one node to the top dot of another to create connections",
   },
   {
     icon: UserCircle2,
     title: "Assign Tasks",
-    description: "Click any node to assign users or roles responsible for that step",
+    description:
+      "Click any node to assign users or roles responsible for that step",
   },
   {
     icon: FormInput,
     title: "Create Forms",
-    description: "Build custom forms for each node to collect necessary information",
+    description:
+      "Build custom forms for each node to collect necessary information",
   },
 ];
 
@@ -68,8 +71,9 @@ export function WorkflowHelpDialog() {
         <ScrollArea className="h-[calc(90vh-8rem)] pr-4">
           <div className="space-y-6 py-4">
             <p className="text-muted-foreground">
-              Design your workflow by adding and connecting nodes. Each node represents
-              a step in your process and can be customized with forms and assignments.
+              Design your workflow by adding and connecting nodes. Each node
+              represents a step in your process and can be customized with forms
+              and assignments.
             </p>
 
             <div className="grid gap-4">
@@ -79,7 +83,9 @@ export function WorkflowHelpDialog() {
                     <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
                       <instruction.icon className="h-5 w-5" />
                     </div>
-                    <CardTitle className="text-lg">{instruction.title}</CardTitle>
+                    <CardTitle className="text-lg">
+                      {instruction.title}
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <CardDescription className="text-sm mt-0">
@@ -93,9 +99,18 @@ export function WorkflowHelpDialog() {
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Tips</h3>
               <ul className="list-disc list-inside space-y-2 text-muted-foreground">
-                <li>Start with a "Start Process" node and end with an "End Process" node</li>
-                <li>Use decision nodes to create conditional branches in your workflow</li>
-                <li>Parallel tasks can be used for steps that can happen simultaneously</li>
+                <li>
+                  Start with a "Start Process" node and end with an "End
+                  Process" node
+                </li>
+                <li>
+                  Use decision nodes to create conditional branches in your
+                  workflow
+                </li>
+                <li>
+                  Parallel tasks can be used for steps that can happen
+                  simultaneously
+                </li>
                 <li>Always merge parallel branches using a merge node</li>
                 <li>Save your workflow regularly by exporting the JSON</li>
               </ul>

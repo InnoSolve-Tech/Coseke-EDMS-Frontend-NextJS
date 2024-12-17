@@ -1,26 +1,22 @@
 // components/ui/breadcrumb.tsx
 
-import * as React from "react"
-import { ChevronRight } from "lucide-react"
-import { cn } from "@/lib/utils"
+import * as React from "react";
+import { ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const Breadcrumb = React.forwardRef<
   HTMLElement,
   React.ComponentPropsWithoutRef<"nav"> & {
-    separator?: React.ReactNode
+    separator?: React.ReactNode;
   }
 >(({ ...props }, ref) => (
-  <nav
-    ref={ref}
-    aria-label="breadcrumb"
-    {...props}
-  >
+  <nav ref={ref} aria-label="breadcrumb" {...props}>
     <ol className="flex flex-wrap items-center gap-1.5 break-words text-sm text-slate-500 sm:gap-2.5">
       {props.children}
     </ol>
   </nav>
-))
-Breadcrumb.displayName = "Breadcrumb"
+));
+Breadcrumb.displayName = "Breadcrumb";
 
 const BreadcrumbItem = React.forwardRef<
   HTMLLIElement,
@@ -34,8 +30,8 @@ const BreadcrumbItem = React.forwardRef<
     {props.children}
     <ChevronRight className="h-4 w-4" />
   </li>
-))
-BreadcrumbItem.displayName = "BreadcrumbItem"
+));
+BreadcrumbItem.displayName = "BreadcrumbItem";
 
 const BreadcrumbLink = React.forwardRef<
   HTMLAnchorElement,
@@ -45,12 +41,12 @@ const BreadcrumbLink = React.forwardRef<
     ref={ref}
     className={cn(
       "transition-colors hover:text-slate-700 hover:underline",
-      className
+      className,
     )}
     {...props}
   />
-))
-BreadcrumbLink.displayName = "BreadcrumbLink"
+));
+BreadcrumbLink.displayName = "BreadcrumbLink";
 
 const BreadcrumbPage = React.forwardRef<
   HTMLSpanElement,
@@ -64,12 +60,7 @@ const BreadcrumbPage = React.forwardRef<
     className={cn("font-normal text-slate-900", className)}
     {...props}
   />
-))
-BreadcrumbPage.displayName = "BreadcrumbPage"
+));
+BreadcrumbPage.displayName = "BreadcrumbPage";
 
-export {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbPage,
-}
+export { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbPage };

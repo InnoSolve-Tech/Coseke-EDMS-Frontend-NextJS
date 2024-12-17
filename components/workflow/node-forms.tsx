@@ -4,9 +4,15 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { PlusCircle, Trash2 } from 'lucide-react';
+import { PlusCircle, Trash2 } from "lucide-react";
 
 interface FormField {
   id: string;
@@ -32,7 +38,7 @@ export function TaskForm({ fields, onUpdate }: NodeFormProps) {
 
   const updateField = (index: number, updates: Partial<FormField>) => {
     const updatedFields = fields.map((field, i) =>
-      i === index ? { ...field, ...updates } : field
+      i === index ? { ...field, ...updates } : field,
     );
     onUpdate(updatedFields);
   };
@@ -114,7 +120,11 @@ interface DecisionFormProps {
   onUpdate: (conditions: Condition[]) => void;
 }
 
-export function DecisionForm({ conditions, fields, onUpdate }: DecisionFormProps) {
+export function DecisionForm({
+  conditions,
+  fields,
+  onUpdate,
+}: DecisionFormProps) {
   const addCondition = () => {
     const newCondition: Condition = {
       id: `condition-${Date.now()}`,
@@ -127,7 +137,7 @@ export function DecisionForm({ conditions, fields, onUpdate }: DecisionFormProps
 
   const updateCondition = (index: number, updates: Partial<Condition>) => {
     const updatedConditions = conditions.map((condition, i) =>
-      i === index ? { ...condition, ...updates } : condition
+      i === index ? { ...condition, ...updates } : condition,
     );
     onUpdate(updatedConditions);
   };
@@ -169,7 +179,9 @@ export function DecisionForm({ conditions, fields, onUpdate }: DecisionFormProps
           </Select>
           <Select
             value={condition.operator}
-            onValueChange={(value) => updateCondition(index, { operator: value })}
+            onValueChange={(value) =>
+              updateCondition(index, { operator: value })
+            }
           >
             <SelectTrigger>
               <SelectValue placeholder="Select operator" />
@@ -217,7 +229,7 @@ export function ParallelForm({ branches, onUpdate }: ParallelFormProps) {
 
   const updateBranch = (index: number, name: string) => {
     const updatedBranches = branches.map((branch, i) =>
-      i === index ? { ...branch, name } : branch
+      i === index ? { ...branch, name } : branch,
     );
     onUpdate(updatedBranches);
   };
@@ -237,11 +249,7 @@ export function ParallelForm({ branches, onUpdate }: ParallelFormProps) {
             onChange={(e) => updateBranch(index, e.target.value)}
             placeholder="Enter branch name"
           />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => removeBranch(index)}
-          >
+          <Button variant="ghost" size="sm" onClick={() => removeBranch(index)}>
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>

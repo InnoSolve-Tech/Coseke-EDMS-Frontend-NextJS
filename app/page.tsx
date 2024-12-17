@@ -42,12 +42,12 @@ export default function Home() {
           setError("An unexpected error occurred. Please try again.");
         }
       }
-    },    
+    },
   });
 
   return (
-  <main>
-   <Box
+    <main>
+      <Box
         sx={{
           display: "flex",
           justifyContent: "center",
@@ -79,7 +79,10 @@ export default function Home() {
             </Typography>
           </Stack>
           <form onSubmit={formik.handleSubmit}>
-            <FormControl required error={Boolean(formik.errors.email && formik.touched.email)}>
+            <FormControl
+              required
+              error={Boolean(formik.errors.email && formik.touched.email)}
+            >
               <FormLabel>Email</FormLabel>
               <Input
                 type="email"
@@ -94,7 +97,10 @@ export default function Home() {
                 </Typography>
               )}
             </FormControl>
-            <FormControl required error={Boolean(formik.errors.password && formik.touched.password)}>
+            <FormControl
+              required
+              error={Boolean(formik.errors.password && formik.touched.password)}
+            >
               <FormLabel>Password</FormLabel>
               <Input
                 type="password"
@@ -110,7 +116,11 @@ export default function Home() {
               )}
             </FormControl>
             {error && (
-              <Typography level="body-sm" color="danger" sx={{ textAlign: "center" }}>
+              <Typography
+                level="body-sm"
+                color="danger"
+                sx={{ textAlign: "center" }}
+              >
                 {error}
               </Typography>
             )}
@@ -126,6 +136,6 @@ export default function Home() {
           </Typography>
         </Box>
       </Box>
-  </main>
+    </main>
   );
 }

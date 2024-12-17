@@ -1,11 +1,11 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import ReactFlow, { Background, Controls } from "reactflow"
-import "reactflow/dist/style.css"
-import { Workflow } from "@/lib/types/workflow"
-import WorkflowNode from "./workflow-node"
-import { getWorkflow } from "@/core/workflows/api"
+import { useEffect, useState } from "react";
+import ReactFlow, { Background, Controls } from "reactflow";
+import "reactflow/dist/style.css";
+import { Workflow } from "@/lib/types/workflow";
+import WorkflowNode from "./workflow-node";
+import { getWorkflow } from "@/core/workflows/api";
 
 const nodeTypes = {
   start: WorkflowNode,
@@ -14,26 +14,26 @@ const nodeTypes = {
   decision: WorkflowNode,
   parallel: WorkflowNode,
   merge: WorkflowNode,
-}
+};
 
 export function WorkflowViewer({ id }: { id: string }) {
-  const [workflow, setWorkflow] = useState<Workflow | null>(null)
+  const [workflow, setWorkflow] = useState<Workflow | null>(null);
 
   const fetchWorkflow = async (id: string) => {
     try {
-      const response = await getWorkflow(parseInt(id))
-      setWorkflow(response)
+      const response = await getWorkflow(parseInt(id));
+      setWorkflow(response);
     } catch (error) {
-      console.error(error)
+      console.error(error);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchWorkflow(id)
-  }, [id])
+    fetchWorkflow(id);
+  }, [id]);
 
   if (!workflow) {
-    return <div>Loading...</div>
+    return <div>Loading...</div>;
   }
 
   return (
@@ -48,6 +48,5 @@ export function WorkflowViewer({ id }: { id: string }) {
         <Controls />
       </ReactFlow>
     </div>
-  )
+  );
 }
-

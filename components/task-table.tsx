@@ -1,16 +1,16 @@
 "use client";
 
-import Table  from '@mui/joy/Table'
-import  Button from '@mui/joy/Button'
-import Checkbox  from '@mui/joy/Checkbox'
-import EditIcon from '@mui/icons-material/Edit'
-import DeleteIcon from '@mui/icons-material/Delete'
-import  { Task }  from '../components/task'
+import Table from "@mui/joy/Table";
+import Button from "@mui/joy/Button";
+import Checkbox from "@mui/joy/Checkbox";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import { Task } from "../components/task";
 
 interface TaskTableProps {
-  tasks: Task[]
-  onEdit: (task: Task) => void
-  onDelete: (taskId: number) => void
+  tasks: Task[];
+  onEdit: (task: Task) => void;
+  onDelete: (taskId: number) => void;
 }
 
 export default function TaskTable({ tasks, onEdit, onDelete }: TaskTableProps) {
@@ -18,7 +18,9 @@ export default function TaskTable({ tasks, onEdit, onDelete }: TaskTableProps) {
     <Table aria-label="Tasks table">
       <thead>
         <tr>
-          <th style={{ width: 40 }}><Checkbox /></th>
+          <th style={{ width: 40 }}>
+            <Checkbox />
+          </th>
           <th>Task Name</th>
           <th>Priority</th>
           <th>Deadline</th>
@@ -28,7 +30,9 @@ export default function TaskTable({ tasks, onEdit, onDelete }: TaskTableProps) {
       <tbody>
         {tasks.map((task) => (
           <tr key={task.id}>
-            <td><Checkbox /></td>
+            <td>
+              <Checkbox />
+            </td>
             {/*<td>{task.name}</td>
             <td>{task.priority}</td>
             <td>{new Date(task.deadline).toLocaleDateString()}</td>*/}
@@ -56,6 +60,5 @@ export default function TaskTable({ tasks, onEdit, onDelete }: TaskTableProps) {
         ))}
       </tbody>
     </Table>
-  )
+  );
 }
-

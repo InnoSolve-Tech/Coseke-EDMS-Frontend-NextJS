@@ -19,5 +19,5 @@ export interface INode {
   selected?: boolean;
   positionAbsolute?: Position;
   dragging?: boolean;
-  workflowId?: number;  // Foreign key reference
-} 
+  workflowId?: number; // Foreign key reference
+}

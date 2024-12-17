@@ -1,4 +1,4 @@
-import WorkflowInstanceCreator from '@/components/workflow/workflow-instance-creator'
+import WorkflowInstanceCreator from "@/components/workflow/workflow-instance-creator";
 
 export default function WorkflowInstancesPage() {
   return (
@@ -6,6 +6,5 @@ export default function WorkflowInstancesPage() {
       <h1 className="text-3xl font-bold mb-6">Workflow Instances</h1>
       <WorkflowInstanceCreator />
     </div>
-  )
+  );
 }
-

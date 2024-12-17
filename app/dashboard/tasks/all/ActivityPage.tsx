@@ -1,12 +1,10 @@
 "use client";
 
-import React, { useState } from 'react';
-import { KanbanColumn } from '../../Kanban/kanban-olumn';
-import { Task } from '../../../../components/task';
-import { Box, Typography, Input, Button } from '@mui/joy';
-import { Search, Add } from '@mui/icons-material';
-
-
+import React, { useState } from "react";
+import { KanbanColumn } from "../../Kanban/kanban-olumn";
+import { Task } from "../../../../components/task";
+import { Box, Typography, Input, Button } from "@mui/joy";
+import { Search, Add } from "@mui/icons-material";
 
 const ActivitiesPage: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([
@@ -18,12 +16,11 @@ const ActivitiesPage: React.FC = () => {
       date: "16/09/2022",
       assignees: ["Samuel Nalwebc"],
       priority: "low",
-      dueDate:"17/08/2023",
+      dueDate: "17/08/2023",
       deadline: "17/08/2023",
       startDate: "16/08/2022",
       timelineReason: "many reasons",
       roles: ["manager"],
-
     },
     {
       id: 2,
@@ -33,7 +30,7 @@ const ActivitiesPage: React.FC = () => {
       date: "17/01/2023",
       assignees: ["Fredrick Rwakiguma"],
       priority: "low",
-      dueDate:"17/08/2023",
+      dueDate: "17/08/2023",
       deadline: "17/08/2023",
       startDate: "16/08/2022",
       timelineReason: "many reasons",
@@ -47,7 +44,7 @@ const ActivitiesPage: React.FC = () => {
       date: "",
       assignees: ["Untitled"],
       priority: "low",
-      dueDate:"17/08/2023",
+      dueDate: "17/08/2023",
       deadline: "17/08/2023",
       startDate: "16/08/2022",
       timelineReason: "many reasons",
@@ -56,10 +53,10 @@ const ActivitiesPage: React.FC = () => {
   ]);
 
   const columns = [
-    { id: 'due-today', title: 'Due today' },
-    { id: 'due-this-week', title: 'Due this week' },
-    { id: 'due-next-week', title: 'Due next week' },
-    { id: 'idle', title: 'Idle' },
+    { id: "due-today", title: "Due today" },
+    { id: "due-this-week", title: "Due this week" },
+    { id: "due-next-week", title: "Due next week" },
+    { id: "idle", title: "Idle" },
   ];
 
   return (
@@ -89,12 +86,23 @@ const ActivitiesPage: React.FC = () => {
       </Box>
 
       {/* Kanban Board */}
-      <Box sx={{ flex: 1, overflow: "auto", display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, p: 4 }}>
+      <Box
+        sx={{
+          flex: 1,
+          overflow: "auto",
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: 4,
+          p: 4,
+        }}
+      >
         {columns.map((column) => (
           <KanbanColumn
             key={column.id}
             column={column}
-            tasks={tasks.filter((task) => task.status === column.id.replace('-', ' '))}
+            tasks={tasks.filter(
+              (task) => task.status === column.id.replace("-", " "),
+            )}
           />
         ))}
       </Box>

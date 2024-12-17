@@ -1,30 +1,30 @@
-"use client"
+"use client";
 
-import { Card, Typography, IconButton } from "@mui/joy"
-import { DragHandle } from "@mui/icons-material"
-import { useSortable } from "@dnd-kit/sortable"
-import { CSS } from "@dnd-kit/utilities"
+import { Card, Typography, IconButton } from "@mui/joy";
+import { DragHandle } from "@mui/icons-material";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface ActivityCardProps {
-  id: string
-  title: string
-  company?: string
-  responsible?: string
+  id: string;
+  title: string;
+  company?: string;
+  responsible?: string;
 }
 
-export function ActivityCard({ id, title, company, responsible }: ActivityCardProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-  } = useSortable({ id })
+export function ActivityCard({
+  id,
+  title,
+  company,
+  responsible,
+}: ActivityCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-  }
+  };
 
   return (
     <Card
@@ -64,6 +64,5 @@ export function ActivityCard({ id, title, company, responsible }: ActivityCardPr
         </IconButton>
       </div>
     </Card>
-  )
+  );
 }
-

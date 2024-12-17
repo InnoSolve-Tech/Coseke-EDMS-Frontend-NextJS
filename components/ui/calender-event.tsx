@@ -1,8 +1,8 @@
-import { Box, Typography } from "@mui/joy"
-import { CalendarEvent } from "../../components/calender"
+import { Box, Typography } from "@mui/joy";
+import { CalendarEvent } from "../../components/calender";
 
 interface CalendarEventProps {
-  event: CalendarEvent
+  event: CalendarEvent;
 }
 
 export function CalendarEventItem({ event }: CalendarEventProps) {
@@ -26,6 +26,5 @@ export function CalendarEventItem({ event }: CalendarEventProps) {
         {event.title}
       </Typography>
     </Box>
-  )
+  );
 }
-

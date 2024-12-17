@@ -43,13 +43,13 @@ export function WorkflowForm() {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       updateWorkflow({
-      ...workflow,
-      ...values
+        ...workflow,
+        ...values,
       });
 
       await createWorkflow({
-      ...workflow,
-      ...values
+        ...workflow,
+        ...values,
       } as any);
 
       // Navigate to dashboard/workflows

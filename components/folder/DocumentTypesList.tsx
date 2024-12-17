@@ -1,11 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { DocumentTypeCreation } from './DocumentTypes';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { IDocumentType, getDocumentTypes } from './api';
-import { Plus } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { DocumentTypeCreation } from "./DocumentTypes";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { IDocumentType, getDocumentTypes } from "./api";
+import { Plus } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 interface DocumentTypesListProps {
@@ -26,12 +32,12 @@ export function DocumentTypesList({ value, onChange }: DocumentTypesListProps) {
       const types = await getDocumentTypes();
       setDocumentTypes(types);
     } catch (error) {
-      console.error('Failed to fetch document types:', error);
+      console.error("Failed to fetch document types:", error);
     }
   };
 
   const handleCreateDocType = async (newDocType: IDocumentType) => {
-    setDocumentTypes(prev => [...prev, newDocType]);
+    setDocumentTypes((prev) => [...prev, newDocType]);
     setShowCreation(false);
     await fetchDocumentTypes();
     onChange?.(newDocType);
@@ -43,7 +49,9 @@ export function DocumentTypesList({ value, onChange }: DocumentTypesListProps) {
         <Select
           value={value?.toString()}
           onValueChange={(selectedValue) => {
-            const docType = documentTypes.find(dt => dt.id.toString() === selectedValue);
+            const docType = documentTypes.find(
+              (dt) => dt.id.toString() === selectedValue,
+            );
             if (docType && onChange) {
               onChange(docType);
             }
@@ -53,7 +61,7 @@ export function DocumentTypesList({ value, onChange }: DocumentTypesListProps) {
             <SelectValue placeholder="Select document type" />
           </SelectTrigger>
           <SelectContent>
-            {documentTypes.map(type => (
+            {documentTypes.map((type) => (
               <SelectItem key={type.id} value={type.id.toString()}>
                 {type.name}
               </SelectItem>
@@ -81,4 +89,4 @@ export function DocumentTypesList({ value, onChange }: DocumentTypesListProps) {
       )}
     </div>
   );
-} 
+}

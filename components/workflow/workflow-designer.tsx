@@ -16,7 +16,7 @@ import ReactFlow, {
   useNodesState,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from "uuid";
 import { Button } from "../ui/button";
 import { NodeEditor } from "./node-editor";
 import { nodeTypes as nodeConfig } from "./node-types";
@@ -38,8 +38,8 @@ type WorkflowNodeData = {
   label: string;
   description?: string;
   nodeId: string;
-  conditions?: { field: string; operator: string; value: string; }[];
-  assignee?: { assignee_type: "role" | "user"; assignee_id: string; };
+  conditions?: { field: string; operator: string; value: string }[];
+  assignee?: { assignee_type: "role" | "user"; assignee_id: string };
   dueDate?: string;
   form?: NodeForm;
   branches?: string[];
@@ -54,29 +54,33 @@ const nodeTypes = {
   merge: WorkflowNode,
 };
 
-
 export function WorkflowDesigner() {
   const { updateWorkflow } = useWorkflow();
   const [nodes, setNodes, onNodesChange] = useNodesState<WorkflowNodeData>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [selectedNode, setSelectedNode] = useState<Node<WorkflowNodeData> & { type: "start" | "end" | "task" | "decision" | "parallel" | "merge" } | null>(null);
+  const [selectedNode, setSelectedNode] = useState<
+    | (Node<WorkflowNodeData> & {
+        type: "start" | "end" | "task" | "decision" | "parallel" | "merge";
+      })
+    | null
+  >(null);
 
   const onConnect = useCallback(
     (params: Connection | Edge) => {
       // Use nodeId instead of the node id for source and target
-      const newEdge:Edge = {
+      const newEdge: Edge = {
         ...params,
         id: uuidv4(),
-        source: nodes.find(node => node.id === params.source)!.data.nodeId,
-        target: nodes.find(node => node.id === params.target)!.data.nodeId,
+        source: nodes.find((node) => node.id === params.source)!.data.nodeId,
+        target: nodes.find((node) => node.id === params.target)!.data.nodeId,
       };
       setEdges((eds) => addEdge(newEdge, eds));
     },
-    [nodes, setEdges]
+    [nodes, setEdges],
   );
 
   const addNode = (type: keyof typeof nodeConfig) => {
-    const nodeId =  uuidv4();
+    const nodeId = uuidv4();
     const newNode: Node<WorkflowNodeData> = {
       id: nodeId,
       type,
@@ -91,25 +95,29 @@ export function WorkflowDesigner() {
   };
 
   const onNodeClick = (_: React.MouseEvent, node: Node<WorkflowNodeData>) => {
-    setSelectedNode(node as Node<WorkflowNodeData> & { type: "start" | "end" | "task" | "decision" | "parallel" | "merge" });
+    setSelectedNode(
+      node as Node<WorkflowNodeData> & {
+        type: "start" | "end" | "task" | "decision" | "parallel" | "merge";
+      },
+    );
   };
 
   const updateNode = (updatedNode: Node<WorkflowNodeData>) => {
     setNodes((nds) =>
-      nds.map((node) => (node.id === updatedNode.id ? updatedNode : node))
+      nds.map((node) => (node.id === updatedNode.id ? updatedNode : node)),
     );
     setSelectedNode(null);
   };
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      updateWorkflow({ 
-        nodes: nodes.map(node => ({
+      updateWorkflow({
+        nodes: nodes.map((node) => ({
           ...node,
-          type: node.type as WorkflowNodeType['type'],
+          type: node.type as WorkflowNodeType["type"],
           nodeId: node.data.nodeId,
-        })), 
-        edges 
+        })),
+        edges,
       });
     }, 100);
 
@@ -135,10 +143,12 @@ export function WorkflowDesigner() {
         </div>
         <div className="flex items-center gap-2">
           <WorkflowHelpDialog />
-          <WorkflowJson workflow={{ 
-            nodes: nodes as unknown as WorkflowNodeType[], 
-            edges 
-          }} />
+          <WorkflowJson
+            workflow={{
+              nodes: nodes as unknown as WorkflowNodeType[],
+              edges,
+            }}
+          />
         </div>
       </div>
 
@@ -152,7 +162,7 @@ export function WorkflowDesigner() {
           onNodeClick={onNodeClick}
           nodeTypes={nodeTypes}
           defaultEdgeOptions={{
-            type: 'smoothstep',
+            type: "smoothstep",
             style: { strokeWidth: 2 },
             animated: true,
           }}
@@ -160,10 +170,15 @@ export function WorkflowDesigner() {
         >
           <Background color="#94a3b8" gap={16} size={1} />
           <Controls />
-          <Panel position="bottom-center" className="bg-white p-2 rounded-t-lg shadow-lg">
+          <Panel
+            position="bottom-center"
+            className="bg-white p-2 rounded-t-lg shadow-lg"
+          >
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Info className="h-4 w-4" />
-              <span>Click nodes to edit details, drag between dots to connect</span>
+              <span>
+                Click nodes to edit details, drag between dots to connect
+              </span>
             </div>
           </Panel>
         </ReactFlow>

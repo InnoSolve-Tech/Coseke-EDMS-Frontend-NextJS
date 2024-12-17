@@ -1,14 +1,14 @@
-import { FormList } from '@/components/forms/FormList'
-import { CreateFormButton } from '@/components/forms/CreateFormButton'
-import { Form } from '@/components/forms/FormList'
+import { FormList } from "@/components/forms/FormList";
+import { CreateFormButton } from "@/components/forms/CreateFormButton";
+import { Form } from "@/components/forms/FormList";
 
 export const metadata = {
-  title: 'Form List',
-  description: 'List of all created forms',
-}
+  title: "Form List",
+  description: "List of all created forms",
+};
 
 export default async function FormsPage() {
-  const forms = await fetchForms()
+  const forms = await fetchForms();
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -18,7 +18,7 @@ export default async function FormsPage() {
       </div>
       <FormList forms={forms} />
     </div>
-  )
+  );
 }
 
 async function fetchForms(): Promise<Form[]> {
@@ -27,42 +27,41 @@ async function fetchForms(): Promise<Form[]> {
   return [
     {
       id: 1,
-      name: 'Customer Feedback',
-      description: 'A form to collect customer feedback',
+      name: "Customer Feedback",
+      description: "A form to collect customer feedback",
       fieldDefinitions: {
-        name: { type: 'text', value: '' },
-        email: { type: 'email', value: '' },
-        rating: { type: 'number', value: '0' },
-        comments: { type: 'textarea', value: '' },
+        name: { type: "text" },
+        email: { type: "email" },
+        rating: { type: "number" },
+        comments: { type: "textarea" },
       },
     },
     {
       id: 2,
-      name: 'Employee Survey',
-      description: 'Annual employee satisfaction survey',
+      name: "Employee Survey",
+      description: "Annual employee satisfaction survey",
       fieldDefinitions: {
         department: {
-          type: 'select',
-          value: '',
-          selectOptions: { options: ['HR', 'Engineering', 'Sales', 'Marketing'] },
+          type: "select",
+          selectOptions: {
+            options: ["HR", "Engineering", "Sales", "Marketing"],
+          },
         },
-        yearsOfService: { type: 'number', value: '0' },
-        satisfactionLevel: { type: 'number', value: '5' },
-        suggestions: { type: 'textarea', value: '' },
+        yearsOfService: { type: "number" },
+        satisfactionLevel: { type: "number" },
+        suggestions: { type: "textarea" },
       },
     },
     {
       id: 3,
-      name: 'Event Registration',
-      description: 'A form to register for company events',
+      name: "Event Registration",
+      description: "A form to register for company events",
       fieldDefinitions: {
-        name: { type: 'text', value: '' },
-        email: { type: 'email', value: '' },
-        eventDate: { type: 'date', value: '' },
-        dietaryPreferences: { type: 'textarea', value: '' },
+        name: { type: "text" },
+        email: { type: "email" },
+        eventDate: { type: "date" },
+        dietaryPreferences: { type: "textarea" },
       },
     },
   ];
 }
-
-

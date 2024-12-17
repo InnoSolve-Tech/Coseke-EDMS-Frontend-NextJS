@@ -23,7 +23,7 @@ interface Column {
 
 export default function Home() {
   const [activePage, setActivePage] = useState<string>("kanban");
-  const [tasks, setTasks] = useState<Task[]>([])
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [columns] = useState<Column[]>([
     { id: "contacted", title: "Contacted" },
     { id: "qualified", title: "Qualified" },
@@ -36,11 +36,10 @@ export default function Home() {
   useEffect(() => {
     const fetchTasks = async () => {
       try {
-        const response = await AxiosInstance.get('/api/v1/tasks/all');
+        const response = await AxiosInstance.get("/api/v1/tasks/all");
         setTasks(response.data);
-
-      } catch (error){
-        console.error('Error fetching tasks:', error);
+      } catch (error) {
+        console.error("Error fetching tasks:", error);
       }
     };
 
@@ -53,7 +52,7 @@ export default function Home() {
   const handleCloseForm = () => setOpen(false);
 
   const handleSubmitForm = (newTask: Task) => {
-    setTasks(prevTasks => [...prevTasks, newTask]);
+    setTasks((prevTasks) => [...prevTasks, newTask]);
     console.log(newTask);
     //handleCloseForm();
   };
@@ -83,22 +82,23 @@ export default function Home() {
                   sx={{
                     textTransform: "capitalize",
                     fontWeight: activePage === page ? "bold" : "normal",
-                    backgroundColor: activePage === page
-                      ? "primary.softBg"
-                      : "transparent",
-                    color: activePage === page
-                      ? "primary.solidColor"
-                      : "neutral.plainColor",
-                    borderColor: activePage === page
-                      ? "primary.softColor"
-                      : "divider",
+                    backgroundColor:
+                      activePage === page ? "primary.softBg" : "transparent",
+                    color:
+                      activePage === page
+                        ? "primary.solidColor"
+                        : "neutral.plainColor",
+                    borderColor:
+                      activePage === page ? "primary.softColor" : "divider",
                     "&:hover": {
-                      backgroundColor: activePage === page
-                        ? "primary.solidHoverBg"
-                        : "neutral.softBg",
-                      borderColor: activePage === page
-                        ? "primary.solidHoverColor"
-                        : "divider",
+                      backgroundColor:
+                        activePage === page
+                          ? "primary.solidHoverBg"
+                          : "neutral.softBg",
+                      borderColor:
+                        activePage === page
+                          ? "primary.solidHoverColor"
+                          : "divider",
                     },
                     transition: "all 0.3s ease",
                     borderRadius: "sm",
@@ -129,7 +129,7 @@ export default function Home() {
         </Box>
 
         {/* Content Section */}
-        {activePage === "list" && <List/>}
+        {activePage === "list" && <List />}
         {activePage === "activities" && <ActivityPage />}
         {activePage === "calendar" && <CalendarPage />}
         {activePage === "kanban" && (
@@ -145,14 +145,20 @@ export default function Home() {
             </Box>
             <DragOverlay>
               {activeId ? (
-                <KanbanItem task={tasks.find((task) => task.id === activeId)!} />
+                <KanbanItem
+                  task={tasks.find((task) => task.id === activeId)!}
+                />
               ) : null}
             </DragOverlay>
           </DndContext>
         )}
 
         {/* Task Form */}
-        <TaskForm open={open} onClose={handleCloseForm} onSubmit={handleSubmitForm} />
+        <TaskForm
+          open={open}
+          onClose={handleCloseForm}
+          onSubmit={handleSubmitForm}
+        />
       </Box>
     </CssVarsProvider>
   );

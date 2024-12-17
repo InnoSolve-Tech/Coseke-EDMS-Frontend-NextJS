@@ -13,5 +13,5 @@ export interface IEdge {
   target: string;
   targetHandle?: string;
   style?: EdgeStyle;
-  workflowId?: number;  // Foreign key reference
-} 
+  workflowId?: number; // Foreign key reference
+}

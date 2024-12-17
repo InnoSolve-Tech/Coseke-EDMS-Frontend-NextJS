@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import * as yup from "yup";
 

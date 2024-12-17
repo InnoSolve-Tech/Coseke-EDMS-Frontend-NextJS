@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface CheckboxProps extends React.InputHTMLAttributes<HTMLInputElement> {
   checked: boolean;
@@ -6,7 +6,12 @@ interface CheckboxProps extends React.InputHTMLAttributes<HTMLInputElement> {
   id: string;
 }
 
-export const Checkbox: React.FC<CheckboxProps> = ({ checked, onCheckedChange, id, ...props }) => {
+export const Checkbox: React.FC<CheckboxProps> = ({
+  checked,
+  onCheckedChange,
+  id,
+  ...props
+}) => {
   return (
     <input
       type="checkbox"
@@ -16,4 +21,4 @@ export const Checkbox: React.FC<CheckboxProps> = ({ checked, onCheckedChange, id
       {...props}
     />
   );
-}; 
+};

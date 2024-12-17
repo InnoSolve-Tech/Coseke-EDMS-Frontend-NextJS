@@ -51,4 +51,3 @@ export const nodeTypes = {
 } as const;
 
 export type NodeTypes = typeof nodeTypes;
-

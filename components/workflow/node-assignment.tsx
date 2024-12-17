@@ -14,22 +14,29 @@ import { getAllRoles, getAllUsers } from "@/core/authentication/api";
 
 interface NodeAssignmentProps {
   value?: { assignee_type: "user" | "role"; assignee_id: string };
-  onChange: (value: { assignee_type: "user" | "role"; assignee_id: string } | undefined) => void;
+  onChange: (
+    value: { assignee_type: "user" | "role"; assignee_id: string } | undefined,
+  ) => void;
 }
 
 export function NodeAssignment({ value, onChange }: NodeAssignmentProps) {
   const [assignmentType, setAssignmentType] = useState<"user" | "role">(
-    value?.assignee_type || "role"
+    value?.assignee_type || "role",
   );
   const [roles, setRoles] = useState<Role[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [selectedId, setSelectedId] = useState<string | undefined>(value?.assignee_id);
+  const [selectedId, setSelectedId] = useState<string | undefined>(
+    value?.assignee_id,
+  );
 
   // Fetch roles and users
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [roles, users] = await Promise.all([getAllRoles(), getAllUsers()]);
+        const [roles, users] = await Promise.all([
+          getAllRoles(),
+          getAllUsers(),
+        ]);
         setRoles(roles);
         setUsers(users);
         console.log("Users:", users);
@@ -86,17 +93,33 @@ export function NodeAssignment({ value, onChange }: NodeAssignmentProps) {
         </SelectTrigger>
         <SelectContent>
           {assignmentType === "role"
-            ?roles && roles.map((role) => (
-                <SelectItem className="text-black" key={role.id} value={role.id.toString()}>
+            ? roles &&
+              roles.map((role) => (
+                <SelectItem
+                  className="text-black"
+                  key={role.id}
+                  value={role.id.toString()}
+                >
                   {role?.name
                     .split(" ")
-                    .map((word) => word.toLowerCase().split("_").map(v => v.charAt(0).toUpperCase() + v.slice(1)).join(" "))
+                    .map((word) =>
+                      word
+                        .toLowerCase()
+                        .split("_")
+                        .map((v) => v.charAt(0).toUpperCase() + v.slice(1))
+                        .join(" "),
+                    )
                     .join(" ")}
                 </SelectItem>
               ))
-            :users && users.map((user) => (
-                <SelectItem key={user.id} className="text-black" value={user.id.toString()}>
-                  {`${user.last_name?.toLowerCase().charAt(0).toUpperCase() + user.last_name?.slice(1) } ${user.first_name?.toLowerCase().charAt(0).toUpperCase() + user.first_name.slice(1)}`}
+            : users &&
+              users.map((user) => (
+                <SelectItem
+                  key={user.id}
+                  className="text-black"
+                  value={user.id.toString()}
+                >
+                  {`${user.last_name?.toLowerCase().charAt(0).toUpperCase() + user.last_name?.slice(1)} ${user.first_name?.toLowerCase().charAt(0).toUpperCase() + user.first_name.slice(1)}`}
                 </SelectItem>
               ))}
         </SelectContent>

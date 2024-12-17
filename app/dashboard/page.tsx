@@ -8,7 +8,7 @@ import { FileTypeChart } from "@/components/FileTypeChart";
 import { WorkflowStatusChart } from "@/components/WorkflowStatusChart";
 import { RecentActivities } from "@/components/RecentActivities";
 import { RecentFilesCard } from "@/components/RecentFilesCard";
-import { getFiles,getFolders } from "@/components/files/api"; // Assuming this API is available
+import { getFiles, getFolders } from "@/components/files/api"; // Assuming this API is available
 
 export default function Page() {
   const [fileCount, setFileCount] = useState<string>("...");
@@ -33,20 +33,20 @@ export default function Page() {
     const fetchFolderCount = async () => {
       try {
         const foldersResponse = await getFolders();
-        console.log("Raw response:", foldersResponse); 
-  
+        console.log("Raw response:", foldersResponse);
+
         const folders = Array.isArray(foldersResponse)
-          ? foldersResponse 
+          ? foldersResponse
           : foldersResponse.data || [];
-  
-        console.log("Parsed folders:", folders); 
+
+        console.log("Parsed folders:", folders);
         setFolderCount(folders.length > 0 ? folders.length.toString() : "0");
       } catch (error) {
         console.error("Error fetching folder data:", error);
         setFolderCount("---");
       }
     };
-  
+
     fetchFolderCount();
   }, []);
 
@@ -115,7 +115,15 @@ export default function Page() {
   );
 }
 
-function StatCard({ icon, title, value }: { icon: React.ReactNode; title: string; value: string }) {
+function StatCard({
+  icon,
+  title,
+  value,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  value: string;
+}) {
   return (
     <Card>
       <CardContent className="flex items-center p-6">

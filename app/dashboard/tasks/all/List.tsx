@@ -1,33 +1,31 @@
-import { Search, Plus, Settings2, ChevronDown } from 'lucide-react'
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { LeadsTable } from "../../../../components/activity/leads-table"
+import { Search, Plus, Settings2, ChevronDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { LeadsTable } from "../../../../components/activity/leads-table";
 interface Lead {
-    id: string
-    title: string
-    status: string
-    activity: {
-      text: string
-      date: string
-      time: string
-    }
-    assignedTo: string
-    createdAt: string
-  }
+  id: string;
+  title: string;
+  status: string;
+  activity: {
+    text: string;
+    date: string;
+    time: string;
+  };
+  assignedTo: string;
+  createdAt: string;
+}
 
 export default function LeadsPage() {
-    function handleEdit(lead: Lead): void {
-        console.log("Editing lead:", lead)
-    }
+  function handleEdit(lead: Lead): void {
+    console.log("Editing lead:", lead);
+  }
 
-    function handleDelete(leadId: string): void {
-        throw new Error('Function not implemented.')
-    }
+  function handleDelete(leadId: string): void {
+    throw new Error("Function not implemented.");
+  }
 
   return (
-    
     <div className="flex h-screen bg-background">
-      
       {/* Main content */}
       <main className="flex-1">
         {/* Top navigation */}
@@ -55,13 +53,11 @@ export default function LeadsPage() {
           </div>
         </div>
 
-
         {/* Table */}
         <div className="p-4">
-            <LeadsTable onEdit={handleEdit} onDelete={handleDelete} leads={[]}/>
+          <LeadsTable onEdit={handleEdit} onDelete={handleDelete} leads={[]} />
         </div>
       </main>
     </div>
-  )
+  );
 }
-

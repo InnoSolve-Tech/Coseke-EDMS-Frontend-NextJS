@@ -1,16 +1,20 @@
-"use client"
+"use client";
 
-import React, { useState } from 'react';
-import { Input, Select, Option, Button, Stack } from '@mui/joy';
-import { Search, Clear } from '@mui/icons-material';
+import React, { useState } from "react";
+import { Input, Select, Option, Button, Stack } from "@mui/joy";
+import { Search, Clear } from "@mui/icons-material";
 
 interface SearchBarProps {
-  onSearch: (query: string, searchType: string, metadata: Record<string, string>) => void;
+  onSearch: (
+    query: string,
+    searchType: string,
+    metadata: Record<string, string>,
+  ) => void;
 }
 
-export default function SearchBar ({ onSearch }:SearchBarProps) {
-  const [query, setQuery] = useState('');
-  const [searchType, setSearchType] = useState('simple');
+export default function SearchBar({ onSearch }: SearchBarProps) {
+  const [query, setQuery] = useState("");
+  const [searchType, setSearchType] = useState("simple");
   const [metadata, setMetadata] = useState<Record<string, string>>({});
 
   const handleSearch = () => {
@@ -18,14 +22,14 @@ export default function SearchBar ({ onSearch }:SearchBarProps) {
   };
 
   const handleClear = () => {
-    setQuery('');
-    setSearchType('simple');
+    setQuery("");
+    setSearchType("simple");
     setMetadata({});
-    onSearch('', 'simple', {});
+    onSearch("", "simple", {});
   };
 
   const handleMetadataChange = (key: string, value: string) => {
-    setMetadata(prev => ({ ...prev, [key]: value }));
+    setMetadata((prev) => ({ ...prev, [key]: value }));
   };
 
   return (
@@ -36,30 +40,36 @@ export default function SearchBar ({ onSearch }:SearchBarProps) {
         onChange={(e) => setQuery(e.target.value)}
         endDecorator={<Search />}
       />
-      <Select value={searchType} onChange={(_, value) => setSearchType(value || 'simple')}>
+      <Select
+        value={searchType}
+        onChange={(_, value) => setSearchType(value || "simple")}
+      >
         <Option value="simple">Simple</Option>
         <Option value="fullText">Full Text</Option>
         <Option value="metadata">Metadata</Option>
       </Select>
-      {searchType === 'metadata' && (
+      {searchType === "metadata" && (
         <>
           <Input
             placeholder="Author"
-            value={metadata.author || ''}
-            onChange={(e) => handleMetadataChange('author', e.target.value)}
+            value={metadata.author || ""}
+            onChange={(e) => handleMetadataChange("author", e.target.value)}
           />
           <Input
             placeholder="Version"
-            value={metadata.version || ''}
-            onChange={(e) => handleMetadataChange('version', e.target.value)}
+            value={metadata.version || ""}
+            onChange={(e) => handleMetadataChange("version", e.target.value)}
           />
         </>
       )}
       <Button onClick={handleSearch}>Search</Button>
-      <Button variant="outlined" onClick={handleClear} startDecorator={<Clear />}>
+      <Button
+        variant="outlined"
+        onClick={handleClear}
+        startDecorator={<Clear />}
+      >
         Clear
       </Button>
     </Stack>
   );
-};
-
+}

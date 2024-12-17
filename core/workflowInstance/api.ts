@@ -8,9 +8,14 @@ import { AxiosInstance } from "../../components/routes/api"; // Adjust the path 
  * @param workflowInstance The data of the workflow instance to be created
  * @returns The created workflow instance data
  */
-export const createWorkflowInstance = async (workflowInstance: WorkflowInstance) => {
+export const createWorkflowInstance = async (
+  workflowInstance: WorkflowInstance,
+) => {
   try {
-    const response = await AxiosInstance.post("/workflows/api/v1/workflow-instances", workflowInstance);
+    const response = await AxiosInstance.post(
+      "/workflows/api/v1/workflow-instances",
+      workflowInstance,
+    );
     return response.data; // Return the created workflow instance data
   } catch (error) {
     console.error("Error creating Workflow Instance:", error);
@@ -24,7 +29,9 @@ export const createWorkflowInstance = async (workflowInstance: WorkflowInstance)
  */
 export const getAllWorkflowInstances = async () => {
   try {
-    const response = await AxiosInstance.get("/workflows/api/v1/workflow-instances");
+    const response = await AxiosInstance.get(
+      "/workflows/api/v1/workflow-instances",
+    );
     return response.data; // Return the list of workflow instances
   } catch (error) {
     console.error("Error fetching Workflow Instances:", error);
@@ -54,7 +61,9 @@ export const getWorkflowInstanceById = async (id: string) => {
  */
 export const deleteWorkflowInstanceById = async (id: string) => {
   try {
-    const response = await AxiosInstance.delete(`/api/workflow-instances/${id}`);
+    const response = await AxiosInstance.delete(
+      `/api/workflow-instances/${id}`,
+    );
     return response.data; // Return the confirmation of deletion
   } catch (error) {
     console.error(`Error deleting Workflow Instance with ID ${id}:`, error);
@@ -68,9 +77,15 @@ export const deleteWorkflowInstanceById = async (id: string) => {
  * @param updatedWorkflowInstance The updated data of the workflow instance
  * @returns The updated workflow instance data
  */
-export const updateWorkflowInstance = async (id: string, updatedWorkflowInstance: WorkflowInstance) => {
+export const updateWorkflowInstance = async (
+  id: string,
+  updatedWorkflowInstance: WorkflowInstance,
+) => {
   try {
-    const response = await AxiosInstance.put(`/api/workflow-instances/${id}`, updatedWorkflowInstance);
+    const response = await AxiosInstance.put(
+      `/api/workflow-instances/${id}`,
+      updatedWorkflowInstance,
+    );
     return response.data; // Return the updated workflow instance data
   } catch (error) {
     console.error(`Error updating Workflow Instance with ID ${id}:`, error);

@@ -28,7 +28,8 @@ export function WorkflowHelp({ type = "designer" }: WorkflowHelpProps) {
     { icon: FormInput, text: "Build custom forms for each node" },
   ];
 
-  const processHelp = "Design your workflow by adding and connecting nodes. Each node represents a step in your process and can be customized with forms and assignments.";
+  const processHelp =
+    "Design your workflow by adding and connecting nodes. Each node represents a step in your process and can be customized with forms and assignments.";
 
   return (
     <TooltipProvider>

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WorkflowDesigner } from "@/components/workflow/workflow-designer";
 import { WorkflowForm } from "@/components/workflow/workflow-form";
 import { WorkflowHelpDialog } from "@/components/workflow/workflow-help-dialog";
-import { WorkflowProvider } from '@/lib/contexts/workflow-context';
+import { WorkflowProvider } from "@/lib/contexts/workflow-context";
 
 export default function CreateWorkflowPage() {
   return (
@@ -14,7 +14,7 @@ export default function CreateWorkflowPage() {
           <h1 className="text-4xl font-bold">Create Workflow</h1>
           <WorkflowHelpDialog />
         </div>
-        
+
         <div className="grid gap-8">
           <Card>
             <CardHeader>

@@ -1,4 +1,5 @@
-{/*"use client";
+{
+  /*"use client";
 
 import React, { useState } from 'react';
 import { Draggable, DragDropContext } from 'react-beautiful-dnd';
@@ -68,4 +69,5 @@ const DroppableColumn: React.FC<ColumnProps> = ({ column, tasks }) => {
 };
 
 export default DroppableColumn;
-*/}
+*/
+}

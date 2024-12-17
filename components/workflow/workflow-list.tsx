@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -10,39 +10,39 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Workflow } from "@/lib/types/workflow"
-import { Edit, Eye, Plus, Trash2 } from 'lucide-react'
-import { useToast } from "@/hooks/use-toast"
-import { get } from "http"
-import { deleteWorkflow, getAllWorkflows } from "@/core/workflows/api"
+} from "@/components/ui/table";
+import { Workflow } from "@/lib/types/workflow";
+import { Edit, Eye, Plus, Trash2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { get } from "http";
+import { deleteWorkflow, getAllWorkflows } from "@/core/workflows/api";
 
 export function WorkflowList() {
-  const [workflows, setWorkflows] = useState<Workflow[]>([])
-  const { toast } = useToast()
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const { toast } = useToast();
 
   const fetchWorkflows = async () => {
     try {
       const response = await getAllWorkflows();
-      setWorkflows(response)
+      setWorkflows(response);
     } catch (error) {
-      console.error(error)
+      console.error(error);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchWorkflows()
-  }, [])
+    fetchWorkflows();
+  }, []);
 
   const handleDelete = async (id: string) => {
     // In a real application, you would call an API to delete the workflow
-    setWorkflows(workflows.filter(workflow => workflow.id !== id))
+    setWorkflows(workflows.filter((workflow) => workflow.id !== id));
     await deleteWorkflow(parseInt(id));
     toast({
       title: "Workflow deleted",
       description: "The workflow has been successfully deleted.",
-    })
-  }
+    });
+  };
 
   return (
     <div>
@@ -71,7 +71,11 @@ export function WorkflowList() {
                       <Edit className="mr-2 h-4 w-4" /> Edit
                     </Link>
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleDelete(workflow.id)}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDelete(workflow.id)}
+                  >
                     <Trash2 className="mr-2 h-4 w-4" /> Delete
                   </Button>
                 </div>
@@ -81,6 +85,5 @@ export function WorkflowList() {
         </TableBody>
       </Table>
     </div>
-  )
+  );
 }
-

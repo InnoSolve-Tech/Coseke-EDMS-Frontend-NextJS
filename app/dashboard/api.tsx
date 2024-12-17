@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { AxiosInstance } from "@/components/routes/api";
 

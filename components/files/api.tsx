@@ -18,23 +18,23 @@ type DocumentType = {
 };
 
 type FileData = {
-  id: number
-  folderID: number
-  filename: string
-  documentType: string
-  documentName: string
-  hashName: string
-  fileLink: string | null
-  mimeType: string
-  metadata: Metadata
-  createdDate: string
-  lastModifiedDateTime: string
-  lastModifiedBy: number
-  createdBy: number
+  id: number;
+  folderID: number;
+  filename: string;
+  documentType: string;
+  documentName: string;
+  hashName: string;
+  fileLink: string | null;
+  mimeType: string;
+  metadata: Metadata;
+  createdDate: string;
+  lastModifiedDateTime: string;
+  lastModifiedBy: number;
+  createdBy: number;
 };
 
 interface Metadata {
-  [key: string]: string | string[]
+  [key: string]: string | string[];
 }
 
 type ApiResponse<T> = {
@@ -65,13 +65,11 @@ export interface FileManagerData {
   fileContent?: string;
 }
 
-
 export const addDocument = async (
   data: any,
   file: File,
-  folderId: number
+  folderId: number,
 ): Promise<void> => {
-
   let token = getTokenFromSessionStorage();
   let authorization = `Bearer ${JSON.parse(token!)}`;
 
@@ -85,44 +83,52 @@ export const addDocument = async (
   formData.append("file", file);
 
   try {
-    let res = await axios.post(`http://localhost:8081/${ENDPOINT_URL}${folderId}`, formData, {
-      headers: {
-        "X-Proxy-Secret": "my-proxy-secret-key",
-        "Content-Type": "multipart/form-data",
+    let res = await axios.post(
+      `http://localhost:8081/${ENDPOINT_URL}${folderId}`,
+      formData,
+      {
+        headers: {
+          "X-Proxy-Secret": "my-proxy-secret-key",
+          "Content-Type": "multipart/form-data",
+        },
       },
-    });
+    );
     console.log(res);
   } catch (error) {
-    console.error("Error uploading document:", error);
-  }
+    console.error("Error uploading document:", error);
+  }
 };
 
 export const addDocumentByFolderId = async (
   data: DocumentProps,
   file: File,
-  folderId: number
+  folderId: number,
 ): Promise<void> => {
   const token = getTokenFromSessionStorage();
   const authorization = `Bearer ${JSON.parse(token!)}`;
 
   const formData = new FormData();
-  
+
   // Properly stringify and append the fileData
   formData.append(
-    "fileData", 
-    new Blob([JSON.stringify(data)], { type: "application/json" })
+    "fileData",
+    new Blob([JSON.stringify(data)], { type: "application/json" }),
   );
-  
+
   // Append the actual file
-  formData.append('file', file);
+  formData.append("file", file);
 
   try {
-    const response = await AxiosInstance.post<ApiResponse<void>>(`/api/v1/files/${folderId}`, formData, {
-      headers: {
-        Authorization: authorization,
-        "Content-Type": "multipart/form-data",
+    const response = await AxiosInstance.post<ApiResponse<void>>(
+      `/api/v1/files/${folderId}`,
+      formData,
+      {
+        headers: {
+          Authorization: authorization,
+          "Content-Type": "multipart/form-data",
+        },
       },
-    });
+    );
     console.log(response);
   } catch (error) {
     console.error("Error uploading document:", error);
@@ -130,17 +136,16 @@ export const addDocumentByFolderId = async (
   }
 };
 
-
 export const getFiles = async (): Promise<ApiResponse<FileData[]>> => {
   const response = await AxiosInstance.get<ApiResponse<FileData[]>>(
-    "file-management/api/v1/files/stored"
+    "file-management/api/v1/files/stored",
   );
   return response.data;
 };
 
 export const getFilesById = async (fileId: number): Promise<FileData> => {
   const response = await AxiosInstance.get<FileData>(
-    `file-management/api/v1/files/file/${fileId}`
+    `file-management/api/v1/files/file/${fileId}`,
   );
   return response.data;
 };
@@ -148,63 +153,69 @@ export const getFilesById = async (fileId: number): Promise<FileData> => {
 export const getFilesByHash = async (hashName: string): Promise<Blob> => {
   const response = await axios.get(
     `http://localhost:8081/file-management/api/v1/files/download/${hashName}`,
-    { responseType: 'blob',
+    {
+      responseType: "blob",
       headers: {
-        "X-Proxy-Secret": "my-proxy-secret-key"
-      }
-     }
+        "X-Proxy-Secret": "my-proxy-secret-key",
+      },
+    },
   );
 
   // Return the blob with the correct MIME type
-  const mimeType = response.headers['content-type'] || 'application/octet-stream';
+  const mimeType =
+    response.headers["content-type"] || "application/octet-stream";
   return new Blob([response.data], { type: mimeType });
 };
 
-
-
 export const getFilesByFolderID = async (
-  folderId: number
+  folderId: number,
 ): Promise<ApiResponse<FileData[]>> => {
   const response = await AxiosInstance.get<ApiResponse<FileData[]>>(
-    `file-management/api/v1/files/folder/${folderId}`
+    `file-management/api/v1/files/folder/${folderId}`,
   );
   return response.data;
 };
 
-export const editDocument = async (data: Record<string, unknown>): Promise<void> => {
+export const editDocument = async (
+  data: Record<string, unknown>,
+): Promise<void> => {
   await AxiosInstance.post<ApiResponse<void>>(`/files/file-update`, data);
 };
 
-export const searchFiles = async (keyword: string): Promise<ApiResponse<FileData[]>> => {
+export const searchFiles = async (
+  keyword: string,
+): Promise<ApiResponse<FileData[]>> => {
   const response = await AxiosInstance.get<ApiResponse<FileData[]>>(
-    `/files/search?keyword=${encodeURIComponent(keyword)}`
+    `/files/search?keyword=${encodeURIComponent(keyword)}`,
   );
   return response.data;
 };
 
-export const getDocumentType = async (): Promise<ApiResponse<DocumentType[]>> => {
+export const getDocumentType = async (): Promise<
+  ApiResponse<DocumentType[]>
+> => {
   const response = await AxiosInstance.get<ApiResponse<DocumentType[]>>(
-    "/document-types/all"
+    "/document-types/all",
   );
   return response.data;
 };
 
 export const createDocumentType = async (
-  newDocumentType: DocumentType
+  newDocumentType: DocumentType,
 ): Promise<ApiResponse<DocumentType>> => {
   const response = await AxiosInstance.post<ApiResponse<DocumentType>>(
     "/document-types/create",
-    newDocumentType
+    newDocumentType,
   );
   return response.data;
 };
 
 export const updateDocumentType = async (
-  documentTypeId: number
+  documentTypeId: number,
 ): Promise<ApiResponse<DocumentType>> => {
   try {
     const response = await AxiosInstance.put<ApiResponse<DocumentType>>(
-      `/document-types/update/${documentTypeId}`
+      `/document-types/update/${documentTypeId}`,
     );
     return response.data;
   } catch (error) {
@@ -214,11 +225,11 @@ export const updateDocumentType = async (
 };
 
 export const deleteDocumentType = async (
-  documentTypeId: number
+  documentTypeId: number,
 ): Promise<ApiResponse<void>> => {
   try {
     const response = await AxiosInstance.delete<ApiResponse<void>>(
-      `/document-types/delete/${documentTypeId}`
+      `/document-types/delete/${documentTypeId}`,
     );
     return response.data;
   } catch (error) {
@@ -228,41 +239,40 @@ export const deleteDocumentType = async (
 };
 
 export const deleteFile = async (
-    documentTypeId: number
-  ): Promise<ApiResponse<void>> => {
-    try {
-      const response = await AxiosInstance.delete<ApiResponse<void>>(
-        `/document-types/delete/${documentTypeId}`
-      );
-      return response.data;
-    } catch (error) {
-      console.error("Error deleting document type:", error);
-      throw error;
-    }
-  };
-
-  export const getFolders = async (): Promise<ApiResponse<DirectoryData[]>> => {
-    const response = await AxiosInstance.get<ApiResponse<DirectoryData[]>>(
-      "file-management/api/v1/directories/all"
+  documentTypeId: number,
+): Promise<ApiResponse<void>> => {
+  try {
+    const response = await AxiosInstance.delete<ApiResponse<void>>(
+      `/document-types/delete/${documentTypeId}`,
     );
     return response.data;
-  };
-
-  export const createFolders = async (
-    newFolder: Omit<DirectoryData, "folderID">
-): Promise<ApiResponse<DirectoryData>> => {
-    try {
-        const response = await AxiosInstance.post<ApiResponse<DirectoryData>>(
-            "file-management/api/v1/directories/create",
-            newFolder
-        );
-        return response.data;
-    } catch (error) {
-        console.error("Failed to create folder via API:", error);
-        throw error; // Ensure errors are properly propagated
-    }
+  } catch (error) {
+    console.error("Error deleting document type:", error);
+    throw error;
+  }
 };
 
+export const getFolders = async (): Promise<ApiResponse<DirectoryData[]>> => {
+  const response = await AxiosInstance.get<ApiResponse<DirectoryData[]>>(
+    "file-management/api/v1/directories/all",
+  );
+  return response.data;
+};
+
+export const createFolders = async (
+  newFolder: Omit<DirectoryData, "folderID">,
+): Promise<ApiResponse<DirectoryData>> => {
+  try {
+    const response = await AxiosInstance.post<ApiResponse<DirectoryData>>(
+      "file-management/api/v1/directories/create",
+      newFolder,
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Failed to create folder via API:", error);
+    throw error; // Ensure errors are properly propagated
+  }
+};
 
 export const createSubFolders = async (newFolder: DirectoryData) => {
   try {
@@ -270,8 +280,8 @@ export const createSubFolders = async (newFolder: DirectoryData) => {
       "file-management/api/v1/directories/subfolder",
       {
         name: newFolder.name,
-        parentFolderID: newFolder.parentFolderID
-      }
+        parentFolderID: newFolder.parentFolderID,
+      },
     );
     return response.data;
   } catch (error) {
@@ -283,7 +293,7 @@ export const createSubFolders = async (newFolder: DirectoryData) => {
 export const fetchChildFolders = async (parentFolderId: number) => {
   try {
     const response = await AxiosInstance.get<ApiResponse<DirectoryData[]>>(
-      `file-management/api/v1/directories/by-parent/${parentFolderId}`
+      `file-management/api/v1/directories/by-parent/${parentFolderId}`,
     );
     return response.data;
   } catch (error) {
@@ -292,76 +302,82 @@ export const fetchChildFolders = async (parentFolderId: number) => {
   }
 };
 
+export const deleteFolder = async (folderId: number): Promise<void> => {
+  try {
+    const response = await AxiosInstance.delete<ApiResponse<void>>(
+      `file-management/api/v1/directory/delete/${folderId}`,
+    );
 
-  export const deleteFolder = async (folderId: number): Promise<void> => {
-    try {
-      const response = await AxiosInstance.delete<ApiResponse<void>>(
-        `file-management/api/v1/directory/delete/${folderId}`
-      );
-  
-      if (!response.data) {
-        throw new Error(response.data || 'Failed to delete folder');
-      }
-    } catch (error) {
-      console.error('Failed to delete folder', error);
-      throw error;
+    if (!response.data) {
+      throw new Error(response.data || "Failed to delete folder");
     }
-  };
+  } catch (error) {
+    console.error("Failed to delete folder", error);
+    throw error;
+  }
+};
 
-  export const getDocumentTypes = async () => {
-    try {
-      const response = await AxiosInstance.get("file-management/api/v1/document-types/all");
-      return response.data;
-    } catch (error) {
-      console.log(error);
-    }
-  };
-  
-  export const addDocumentsByFolderId = async (
-    files: File[],
-    folderId: number,
-    documentData?: {
-      documentName: string;
-      documentType: string;
-      metadata: Record<string, any>;
-      mimeType?: string;
-    }
-  ): Promise<ApiResponse<void>> => {
-    const token = getTokenFromSessionStorage();
-    const authorization = `Bearer ${JSON.parse(token!)}`;
-  
-    const formData = new FormData();
-  
-    // Add document data if provided
-    if (documentData) {
-      formData.append(
-        "fileData",
-        new Blob([JSON.stringify({
-          ...documentData,
-          folderID: folderId
-        })], { type: "application/json" })
-      );
-    }
-  
-    // Add files
-    files.forEach((file) => {
-      formData.append("file", file);
-    });
-  
-    try {
-      const response = await AxiosInstance.post<ApiResponse<void>>(
-        `${ENDPOINT_URL}${folderId}`,
-        formData,
-        {
-          headers: {
-            Authorization: authorization,
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
-      return response.data;
-    } catch (error) {
-      console.error("Error uploading documents:", error);
-      throw error;
-    }
-  };
+export const getDocumentTypes = async () => {
+  try {
+    const response = await AxiosInstance.get(
+      "file-management/api/v1/document-types/all",
+    );
+    return response.data;
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+export const addDocumentsByFolderId = async (
+  files: File[],
+  folderId: number,
+  documentData?: {
+    documentName: string;
+    documentType: string;
+    metadata: Record<string, any>;
+    mimeType?: string;
+  },
+): Promise<ApiResponse<void>> => {
+  const token = getTokenFromSessionStorage();
+  const authorization = `Bearer ${JSON.parse(token!)}`;
+
+  const formData = new FormData();
+
+  // Add document data if provided
+  if (documentData) {
+    formData.append(
+      "fileData",
+      new Blob(
+        [
+          JSON.stringify({
+            ...documentData,
+            folderID: folderId,
+          }),
+        ],
+        { type: "application/json" },
+      ),
+    );
+  }
+
+  // Add files
+  files.forEach((file) => {
+    formData.append("file", file);
+  });
+
+  try {
+    const response = await AxiosInstance.post<ApiResponse<void>>(
+      `${ENDPOINT_URL}${folderId}`,
+      formData,
+      {
+        headers: {
+          Authorization: authorization,
+          "Content-Type": "multipart/form-data",
+        },
+      },
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error uploading documents:", error);
+    throw error;
+  }
+};

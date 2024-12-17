@@ -1,19 +1,19 @@
 "use client";
 
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
-import { ThemeProvider } from '@/components/ThemeProvider';
-import { Inter } from 'next/font/google';
+import Header from "@/components/Header";
+import Sidebar from "@/components/Sidebar";
+import { ThemeProvider } from "@/components/ThemeProvider";
+import { Inter } from "next/font/google";
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ["latin"] });
 
 export default function DashboardLayout({
-    children,
-  }: {
-    children: React.ReactNode
-  }) {
-    return (
-      <html lang="en" suppressHydrationWarning>
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider
           attribute="class"
@@ -21,15 +21,10 @@ export default function DashboardLayout({
           enableSystem
           disableTransitionOnChange
         >
-            <Header />
-      <Sidebar>
-{children}
-      </Sidebar>
-
-      </ThemeProvider>
+          <Header />
+          <Sidebar>{children}</Sidebar>
+        </ThemeProvider>
       </body>
-      </html>
-
-    )
-      
-  }
+    </html>
+  );
+}

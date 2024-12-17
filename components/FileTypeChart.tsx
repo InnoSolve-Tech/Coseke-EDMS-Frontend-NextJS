@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import { Pie, PieChart, ResponsiveContainer, Cell, Legend } from "recharts"
-import { ChartContainer, ChartTooltip } from "@/components/ui/chart"
+import { Pie, PieChart, ResponsiveContainer, Cell, Legend } from "recharts";
+import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 
 const data = [
   { name: "PDF", value: 400 },
@@ -9,12 +9,11 @@ const data = [
   { name: "XLSX", value: 200 },
   { name: "JPG", value: 100 },
   { name: "Others", value: 50 },
-]
+];
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8']
+const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8"];
 
 export function FileTypeChart() {
-
   const config = {
     storage: {
       label: "Storage (GB)",
@@ -24,8 +23,7 @@ export function FileTypeChart() {
       label: "Bandwidth (GB)",
       color: "hsl(var(--chart-2))",
     },
-  }
-
+  };
 
   return (
     <ChartContainer
@@ -65,7 +63,10 @@ export function FileTypeChart() {
             dataKey="value"
           >
             {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+              <Cell
+                key={`cell-${index}`}
+                fill={COLORS[index % COLORS.length]}
+              />
             ))}
           </Pie>
           <ChartTooltip config={config} />
@@ -73,6 +74,5 @@ export function FileTypeChart() {
         </PieChart>
       </ResponsiveContainer>
     </ChartContainer>
-  )
+  );
 }
-

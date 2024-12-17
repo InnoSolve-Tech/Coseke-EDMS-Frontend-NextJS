@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import * as React from "react"
+import * as React from "react";
 import {
   Table,
   TableBody,
@@ -8,29 +8,29 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Edit2, Trash2 } from 'lucide-react'
+} from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Edit2, Trash2 } from "lucide-react";
 
 interface Lead {
-  id: string
-  title: string
-  status: string
+  id: string;
+  title: string;
+  status: string;
   activity: {
-    text: string
-    date: string
-    time: string
-  }
-  assignedTo: string
-  createdAt: string
+    text: string;
+    date: string;
+    time: string;
+  };
+  assignedTo: string;
+  createdAt: string;
 }
 
 interface LeadsTableProps {
-  leads: Lead[]
-  onEdit: (lead: Lead) => void
-  onDelete: (leadId: string) => void
+  leads: Lead[];
+  onEdit: (lead: Lead) => void;
+  onDelete: (leadId: string) => void;
 }
 
 export function LeadsTable({ leads, onEdit, onDelete }: LeadsTableProps) {
@@ -39,9 +39,7 @@ export function LeadsTable({ leads, onEdit, onDelete }: LeadsTableProps) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-12">
-              <Checkbox />
-            </TableHead>
+            <TableHead className="w-12"></TableHead>
             <TableHead>Lead</TableHead>
             <TableHead>Stage</TableHead>
             <TableHead>Activity</TableHead>
@@ -53,9 +51,7 @@ export function LeadsTable({ leads, onEdit, onDelete }: LeadsTableProps) {
         <TableBody>
           {leads.map((lead) => (
             <TableRow key={lead.id}>
-              <TableCell>
-                <Checkbox />
-              </TableCell>
+              <TableCell></TableCell>
               <TableCell>
                 <div className="flex flex-col">
                   <span className="font-medium">{lead.title}</span>
@@ -63,7 +59,10 @@ export function LeadsTable({ leads, onEdit, onDelete }: LeadsTableProps) {
                 </div>
               </TableCell>
               <TableCell>
-                <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                <Badge
+                  variant="secondary"
+                  className="bg-blue-100 text-blue-700"
+                >
                   {lead.status}
                 </Badge>
               </TableCell>
@@ -104,6 +103,5 @@ export function LeadsTable({ leads, onEdit, onDelete }: LeadsTableProps) {
         </TableBody>
       </Table>
     </div>
-  )
+  );
 }
-

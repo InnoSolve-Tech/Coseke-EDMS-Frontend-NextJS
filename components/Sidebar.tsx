@@ -1,12 +1,12 @@
-import React, { useState, ReactNode } from 'react';
-import { 
-  Folder, 
-  LayoutDashboard, 
-  List as ListIcon, 
-  Workflow, 
-  Users, 
-  HelpCircle, 
-  Settings, 
+import React, { useState, ReactNode } from "react";
+import {
+  Folder,
+  LayoutDashboard,
+  List as ListIcon,
+  Workflow,
+  Users,
+  HelpCircle,
+  Settings,
   LogOut,
   Sun,
   Moon,
@@ -15,11 +15,11 @@ import {
   X,
   ChevronRight,
   ChevronDown,
-  User
-} from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { Navbar } from './dashboard/Navbar';
-import ThemeToggle from './ThemeToggle';
+  User,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Navbar } from "./dashboard/Navbar";
+import ThemeToggle from "./ThemeToggle";
 
 // Define types for navigation and menu items
 type SubItem = {
@@ -49,68 +49,68 @@ type SidebarLayoutProps = {
 const NAVIGATION_ITEMS: NavigationItem[] = [
   {
     icon: LayoutDashboard,
-    label: 'Dashboard',
-    path: '/dashboard',
-    subItems: []
+    label: "Dashboard",
+    path: "/dashboard",
+    subItems: [],
   },
   {
     icon: Folder,
-    label: 'Folders',
-    path: '/dashboard/folders',
-    subItems: []
+    label: "Folders",
+    path: "/dashboard/folders",
+    subItems: [],
   },
   {
     icon: Workflow,
-    label: 'Workflows',
-    path: '/dashboard/workflows',
-    subItems: [   
-      { label: 'All Workflows', path: '/dashboard/workflows' },   
-      { label: 'Create', path: '/dashboard/workflows/init' },
-    ]
+    label: "Workflows",
+    path: "/dashboard/workflows",
+    subItems: [
+      { label: "All Workflows", path: "/dashboard/workflows" },
+      { label: "Create", path: "/dashboard/workflows/init" },
+    ],
   },
   {
     icon: ListIcon,
-    label: 'Tasks',
-    path: '/dashboard/tasks',
+    label: "Tasks",
+    path: "/dashboard/tasks",
     subItems: [
-      { label: 'All Tasks', path: '/dashboard/tasks/all' },
-      { label: 'Backlog', path: '/dashboard/tasks/backlog' },
-      { label: 'In Progress', path: '/dashboard/tasks/in-progress' },
-      { label: 'Done', path: '/dashboard/tasks/done' }
-    ]
+      { label: "All Tasks", path: "/dashboard/tasks/all" },
+      { label: "Backlog", path: "/dashboard/tasks/backlog" },
+      { label: "In Progress", path: "/dashboard/tasks/in-progress" },
+      { label: "Done", path: "/dashboard/tasks/done" },
+    ],
   },
   {
     icon: User,
-    label: 'Users',
-    path: '/users',
+    label: "Users",
+    path: "/users",
     subItems: [
-      { label: 'My Profile', path: '/dashboard/users/profile' },
-      { label: 'Create User', path: '/dashboard/users/create' },
-      { label: 'Roles & Permissions', path: '/dashboard/users/roles' }
-    ]
+      { label: "My Profile", path: "/dashboard/users/profile" },
+      { label: "Create User", path: "/dashboard/users/create" },
+      { label: "Roles & Permissions", path: "/dashboard/users/roles" },
+    ],
   },
   {
     icon: File,
-    label: 'Forms',
-    path: '/forms',
+    label: "Forms",
+    path: "/forms",
     subItems: [
-      { label: 'All Forms', path: '/dashboard/forms' },
-      { label: 'Active forms', path: '/dashboard/forms/active' },
-    ]
-  }
+      { label: "All Forms", path: "/dashboard/forms" },
+      { label: "Active forms", path: "/dashboard/forms/active" },
+    ],
+  },
 ];
 
 const FOOTER_ITEMS: FooterItem[] = [
   {
     icon: HelpCircle,
-    label: 'Support',
-    path: 'https://support.coseke.com'
+    label: "Support",
+    path: "https://support.coseke.com",
   },
   {
     icon: Settings,
-    label: 'Settings',
-    path: '/dashboard/settings'
-  }
+    label: "Settings",
+    path: "/dashboard/settings",
+  },
 ];
 
 type MenuItemProps = {
@@ -125,29 +125,30 @@ type MenuItemProps = {
 export default function Sidebar({ children }: SidebarLayoutProps) {
   const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [openSubmenus, setOpenSubmenus] = useState<{[key: string]: boolean}>({});
+  const [openSubmenus, setOpenSubmenus] = useState<{ [key: string]: boolean }>(
+    {},
+  );
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
   };
 
-
   const toggleSubmenu = (label: string) => {
     if (!isCollapsed) {
       setOpenSubmenus((prev) => ({
         ...prev,
-        [label]: !prev[label]
+        [label]: !prev[label],
       }));
     }
   };
 
-  const MenuItemWithTooltip: React.FC<MenuItemProps> = ({ 
-    icon: Icon, 
-    label, 
-    path, 
-    onClick, 
-    chipCount, 
-    nested = false 
+  const MenuItemWithTooltip: React.FC<MenuItemProps> = ({
+    icon: Icon,
+    label,
+    path,
+    onClick,
+    chipCount,
+    nested = false,
   }) => {
     const handleClick = () => {
       if (onClick) {
@@ -158,17 +159,17 @@ export default function Sidebar({ children }: SidebarLayoutProps) {
     };
 
     return (
-      <div 
+      <div
         className={`
           flex items-center cursor-pointer relative
-          ${nested ? 'pl-4' : ''} 
+          ${nested ? "pl-4" : ""} 
           hover:bg-gray-100 
-          ${isCollapsed ? 'justify-center' : 'justify-start'}
+          ${isCollapsed ? "justify-center" : "justify-start"}
           p-2 rounded-md
         `}
         onClick={handleClick}
       >
-        <Navbar isCollapsed={isCollapsed}/>
+        <Navbar isCollapsed={isCollapsed} />
         <div className="flex items-center flex-grow">
           {!nested && Icon && (
             <div className="w-5 h-5 mr-2">
@@ -188,7 +189,11 @@ export default function Sidebar({ children }: SidebarLayoutProps) {
                 </div>
                 {onClick && (
                   <div className="ml-auto">
-                    {openSubmenus[label] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                    {openSubmenus[label] ? (
+                      <ChevronDown size={16} />
+                    ) : (
+                      <ChevronRight size={16} />
+                    )}
                   </div>
                 )}
               </div>
@@ -201,21 +206,25 @@ export default function Sidebar({ children }: SidebarLayoutProps) {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <div 
+      <div
         className={`
           border-r border-gray-200 
           flex flex-col transition-all duration-300
-          ${isCollapsed ? 'w-20' : 'w-64'}
+          ${isCollapsed ? "w-20" : "w-64"}
         `}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4">
           {!isCollapsed && <h2 className="text-xl font-bold">Coseke EDMS</h2>}
-          <button 
-            onClick={toggleCollapse} 
+          <button
+            onClick={toggleCollapse}
             className="ml-auto hover:bg-gray-100 p-2 rounded-md"
           >
-            {isCollapsed ? <Menu className="w-6 h-6" /> : <X className="w-6 h-6" />}
+            {isCollapsed ? (
+              <Menu className="w-6 h-6" />
+            ) : (
+              <X className="w-6 h-6" />
+            )}
           </button>
         </div>
 
@@ -224,27 +233,31 @@ export default function Sidebar({ children }: SidebarLayoutProps) {
           <div className="space-y-1 p-2">
             {NAVIGATION_ITEMS.map((item) => (
               <div key={item.label}>
-                <MenuItemWithTooltip 
-                  icon={item.icon} 
-                  label={item.label} 
+                <MenuItemWithTooltip
+                  icon={item.icon}
+                  label={item.label}
                   path={item.path}
                   chipCount={item.chipCount}
-                  onClick={item.subItems.length > 0 
-                    ? () => toggleSubmenu(item.label) 
-                    : undefined}
+                  onClick={
+                    item.subItems.length > 0
+                      ? () => toggleSubmenu(item.label)
+                      : undefined
+                  }
                 />
-                {!isCollapsed && item.subItems.length > 0 && openSubmenus[item.label] && (
-                  <div className="pl-4 space-y-1">
-                    {item.subItems.map((subItem) => (
-                      <MenuItemWithTooltip 
-                        key={subItem.label}
-                        label={subItem.label} 
-                        path={subItem.path}
-                        nested 
-                      />
-                    ))}
-                  </div>
-                )}
+                {!isCollapsed &&
+                  item.subItems.length > 0 &&
+                  openSubmenus[item.label] && (
+                    <div className="pl-4 space-y-1">
+                      {item.subItems.map((subItem) => (
+                        <MenuItemWithTooltip
+                          key={subItem.label}
+                          label={subItem.label}
+                          path={subItem.path}
+                          nested
+                        />
+                      ))}
+                    </div>
+                  )}
               </div>
             ))}
           </div>
@@ -253,29 +266,27 @@ export default function Sidebar({ children }: SidebarLayoutProps) {
         {/* Footer Menu */}
         <div className="border-t border-gray-200 p-2 space-y-1">
           {FOOTER_ITEMS.map((item) => (
-            <MenuItemWithTooltip 
+            <MenuItemWithTooltip
               key={item.label}
               icon={item.icon}
               label={item.label}
               path={item.path}
             />
           ))}
-          
+
           {/* Color Scheme Toggle */}
-          {!isCollapsed && (
-           <ThemeToggle/>
-          )}
+          {!isCollapsed && <ThemeToggle />}
         </div>
 
         {/* User Profile */}
         <div className="p-4 border-t border-gray-200 flex items-center">
-          <img 
-            src="/api/placeholder/40/40" 
-            alt="User" 
+          <img
+            src="/api/placeholder/40/40"
+            alt="User"
             className={`
               rounded-full 
-              ${isCollapsed ? 'mx-auto' : 'mr-3'}
-            `} 
+              ${isCollapsed ? "mx-auto" : "mr-3"}
+            `}
           />
           {!isCollapsed && (
             <div className="flex-grow">
@@ -284,32 +295,29 @@ export default function Sidebar({ children }: SidebarLayoutProps) {
             </div>
           )}
           {!isCollapsed && (
-            <button 
+            <button
               className="hover:bg-gray-100 p-2 rounded-md"
               onClick={() => {
                 // Clear local storage and redirect to login page
-                sessionStorage.clear()
-                router.push('/')
-              }
-              }
+                sessionStorage.clear();
+                router.push("/");
+              }}
             >
               <LogOut className="w-5 h-5" />
             </button>
           )}
         </div>
       </div>
-      
+
       {/* Main Content Area */}
-      <main 
+      <main
         className={`
           flex-grow overflow-auto transition-all duration-300 mt-10
-          ${isCollapsed ? 'ml-10' : 'ml-55'}
+          ${isCollapsed ? "ml-10" : "ml-55"}
           h-screen
         `}
       >
-        <div className="p-4 h-full overflow-auto">
-          {children}
-        </div>
+        <div className="p-4 h-full overflow-auto">{children}</div>
       </main>
     </div>
   );
