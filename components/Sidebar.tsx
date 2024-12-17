@@ -14,7 +14,8 @@ import {
   File,
   X,
   ChevronRight,
-  ChevronDown
+  ChevronDown,
+  User
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Navbar } from './dashboard/Navbar';
@@ -79,7 +80,7 @@ const NAVIGATION_ITEMS: NavigationItem[] = [
     ]
   },
   {
-    icon: Users,
+    icon: User,
     label: 'Users',
     path: '/users',
     subItems: [
@@ -90,12 +91,11 @@ const NAVIGATION_ITEMS: NavigationItem[] = [
   },
   {
     icon: File,
-    label: 'Users',
-    path: '/users',
+    label: 'Forms',
+    path: '/forms',
     subItems: [
-      { label: 'My Profile', path: '/dashboard/users/profile' },
-      { label: 'Create User', path: '/dashboard/users/create' },
-      { label: 'Roles & Permissions', path: '/dashboard/users/roles' }
+      { label: 'All Forms', path: '/dashboard/forms' },
+      { label: 'Active forms', path: '/dashboard/forms/active' },
     ]
   }
 ];

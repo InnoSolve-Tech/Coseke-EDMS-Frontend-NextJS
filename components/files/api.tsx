@@ -18,13 +18,24 @@ type DocumentType = {
 };
 
 type FileData = {
-  id: number;
-  name: string;
-  type: string;
-  folderId: number;
-  createdDate: string;
-  lastModifiedDate: string;
+  id: number
+  folderID: number
+  filename: string
+  documentType: string
+  documentName: string
+  hashName: string
+  fileLink: string | null
+  mimeType: string
+  metadata: Metadata
+  createdDate: string
+  lastModifiedDateTime: string
+  lastModifiedBy: number
+  createdBy: number
 };
+
+interface Metadata {
+  [key: string]: string | string[]
+}
 
 type ApiResponse<T> = {
   id: number;
@@ -127,17 +138,21 @@ export const getFiles = async (): Promise<ApiResponse<FileData[]>> => {
   return response.data;
 };
 
-export const getFilesById = async (fileId: number): Promise<ApiResponse<FileData[]>> => {
-  const response = await AxiosInstance.get<ApiResponse<FileData[]>>(
+export const getFilesById = async (fileId: number): Promise<FileData> => {
+  const response = await AxiosInstance.get<FileData>(
     `file-management/api/v1/files/file/${fileId}`
   );
   return response.data;
 };
 
 export const getFilesByHash = async (hashName: string): Promise<Blob> => {
-  const response = await AxiosInstance.get(
-    `file-management/api/v1/files/download/${hashName}`,
-    { responseType: 'blob' }
+  const response = await axios.get(
+    `http://localhost:8081/file-management/api/v1/files/download/${hashName}`,
+    { responseType: 'blob',
+      headers: {
+        "X-Proxy-Secret": "my-proxy-secret-key"
+      }
+     }
   );
 
   // Return the blob with the correct MIME type
