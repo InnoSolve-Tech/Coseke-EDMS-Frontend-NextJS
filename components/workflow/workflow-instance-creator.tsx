@@ -168,7 +168,7 @@ export default function WorkflowInstanceCreator() {
                             View Details
                           </Button>
                         </DialogTrigger>
-                        <DialogContent>
+                        <DialogContent className="bg-white bg-opacity-100">
                           <DialogHeader>
                             <DialogTitle>Instance Details</DialogTitle>
                           </DialogHeader>
