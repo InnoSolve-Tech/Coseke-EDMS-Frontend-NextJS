@@ -127,11 +127,31 @@ export const getFiles = async (): Promise<ApiResponse<FileData[]>> => {
   return response.data;
 };
 
+export const getFilesById = async (fileId: number): Promise<ApiResponse<FileData[]>> => {
+  const response = await AxiosInstance.get<ApiResponse<FileData[]>>(
+    `file-management/api/v1/files/file/${fileId}`
+  );
+  return response.data;
+};
+
+export const getFilesByHash = async (hashName: string): Promise<Blob> => {
+  const response = await AxiosInstance.get(
+    `file-management/api/v1/files/download/${hashName}`,
+    { responseType: 'blob' }
+  );
+
+  // Return the blob with the correct MIME type
+  const mimeType = response.headers['content-type'] || 'application/octet-stream';
+  return new Blob([response.data], { type: mimeType });
+};
+
+
+
 export const getFilesByFolderID = async (
   folderId: number
 ): Promise<ApiResponse<FileData[]>> => {
   const response = await AxiosInstance.get<ApiResponse<FileData[]>>(
-    `/files/folder/${folderId}`
+    `file-management/api/v1/files/folder/${folderId}`
   );
   return response.data;
 };
