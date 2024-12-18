@@ -18,15 +18,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AlertCircle, FileText, Plus, Save, Upload, X } from "lucide-react";
-import React, { useCallback, useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import React, { useEffect, useState } from "react";
 import { addDocument } from "../files/api";
-import {
-  IDocumentType,
-  IDocumentTypeForm,
-  MetadataItem,
-  getDocumentTypes,
-} from "./api";
+import { IDocumentType, getDocumentTypes } from "./api";
 import { DocumentTypeCreation } from "./DocumentTypes";
 
 interface FileUploadDialogProps {
@@ -43,21 +37,6 @@ interface FileUploadDialogProps {
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = [".pdf", ".doc", ".docx", ".txt"];
 
-interface MetadataField {
-  name: string;
-  type: "text" | "select";
-  options?: string[]; // For select fields
-  value?: string;
-}
-
-interface MetadataPayload {
-  author: string;
-  version: string;
-  description: string;
-  tags: string[];
-  [key: string]: string | string[];
-}
-
 export default function FileUploadDialog({
   open,
   onClose,
@@ -69,28 +48,10 @@ export default function FileUploadDialog({
   const [selectedDocType, setSelectedDocType] = useState<IDocumentType | null>(
     null,
   );
-  const [showNewDocTypeForm, setShowNewDocTypeForm] = useState(false);
-  const [newMetadata, setNewMetadata] = useState<MetadataItem[]>([]);
-  const [dragActive, setDragActive] = useState(false);
+  const [metadata, setMetadata] = useState<Record<string, string>>({});
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [metadata, setMetadata] = useState<Record<string, string>>({});
-  const [inputValue, setInputValue] = useState("");
-  const [metadataOptions, setMetadataOptions] = useState<MetadataField[]>([]);
-  const [isSelectField, setIsSelectField] = useState(false);
-  const [selectOptions, setSelectOptions] = useState<string>("");
   const [showDocTypeDialog, setShowDocTypeDialog] = useState(false);
-
-  const defaultDocumentType: IDocumentTypeForm = {
-    name: "",
-    metadata: [],
-  };
-
-  const { control, handleSubmit, formState, reset } =
-    useForm<IDocumentTypeForm>({
-      defaultValues: defaultDocumentType,
-    });
 
   useEffect(() => {
     fetchDocumentTypes();
@@ -98,23 +59,19 @@ export default function FileUploadDialog({
 
   useEffect(() => {
     if (selectedDocType) {
-      reset({
-        name: selectedDocType.name,
-        metadata: selectedDocType.metadata,
-      });
-      setMetadataOptions(
-        selectedDocType.metadata.map((item) => ({
-          name: item.name,
-          type: item.type as "text" | "select",
-          options: item.options,
-          value: item.value,
-        })),
+      setMetadata(
+        selectedDocType.metadata.reduce(
+          (acc, field) => ({
+            ...acc,
+            [field.name]: field.type === "select" ? "" : field.value || "",
+          }),
+          {},
+        ),
       );
     } else {
-      reset(defaultDocumentType);
-      setMetadataOptions([]);
+      setMetadata({});
     }
-  }, [selectedDocType, reset]);
+  }, [selectedDocType]);
 
   const fetchDocumentTypes = async () => {
     try {
@@ -125,88 +82,28 @@ export default function FileUploadDialog({
     }
   };
 
-  const handleCreateNewDocType = (newDocType: IDocumentType) => {
-    setDocumentTypes((prev) => [...prev, newDocType]);
-    setSelectedDocType(newDocType);
-    setShowNewDocTypeForm(false);
-    reset(defaultDocumentType);
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      const file = event.target.files[0];
+      if (validateFile(file)) {
+        setFile(file);
+        simulateUploadProgress(); // Simulate upload progress
+      }
+    }
   };
 
   const validateFile = (file: File): boolean => {
     setError(null);
-
     if (file.size > MAX_FILE_SIZE) {
       setError("File size exceeds 10MB limit");
       return false;
     }
-
     const fileExtension = `.${file.name.split(".").pop()?.toLowerCase()}`;
     if (!ALLOWED_TYPES.includes(fileExtension)) {
       setError("Invalid file type. Please upload PDF, DOC, DOCX, or TXT files");
       return false;
     }
-
     return true;
-  };
-
-  const handleFile = async (file: File) => {
-    if (validateFile(file)) {
-      try {
-        // Create a proper blob from the file
-        const fileBlob = await file
-          .arrayBuffer()
-          .then((buffer) => new Blob([buffer], { type: file.type }));
-        const fileObject = new File([fileBlob], file.name, { type: file.type });
-        setFile(fileObject);
-
-        // Create preview if needed
-        if (file.type === "application/pdf" || file.type.startsWith("text/")) {
-          const url = URL.createObjectURL(fileObject);
-          setPreviewUrl(url);
-        }
-
-        // Progress simulation
-        setUploadProgress(0);
-        const interval = setInterval(() => {
-          setUploadProgress((prev) => {
-            if (prev >= 100) {
-              clearInterval(interval);
-              return 100;
-            }
-            return prev + 10;
-          });
-        }, 200);
-      } catch (error) {
-        console.error("Error processing file:", error);
-        setError("Failed to process file. Please try again.");
-      }
-    }
-  };
-
-  const handleDrag = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFile(e.dataTransfer.files[0]);
-    }
-  }, []);
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      handleFile(event.target.files[0]);
-    }
   };
 
   const handleMetadataChange = (key: string, value: string) => {
@@ -218,36 +115,73 @@ export default function FileUploadDialog({
       setError("No file selected");
       return;
     }
+
+    if (!selectedDocType) {
+      setError("No document type selected");
+      return;
+    }
+
     try {
-      const data = {
+      const payload = {
         documentName: file.name,
         mimeType: file.type,
-        documentType: selectedDocType?.name || "",
-        metadata: {
-          author: metadata.author || "",
-          version: metadata.version || "",
-          description: metadata.description || "",
-          tags: metadata.tags ? metadata.tags.split(",") : [],
-        },
+        documentType: selectedDocType.name,
+        metadata: selectedDocType.metadata.reduce(
+          (acc, field) => {
+            acc[field.name] = metadata[field.name] || "";
+            return acc;
+          },
+          {} as Record<string, string>,
+        ),
       };
 
-      // Perform upload
-      await addDocument(data, file, folderID!);
+      console.log("Payload being sent to API:", payload);
 
-      console.log("Upload successful");
-      onClose();
-    } catch (error) {
-      console.error("Upload failed:", error);
-      setError("Failed to upload file. Please try again.");
+      // Add more detailed error logging
+      try {
+        await addDocument(payload, file, folderID || 0);
+        console.log("Upload successful");
+        onClose();
+      } catch (apiError: any) {
+        console.error("Detailed API Error:", {
+          message: apiError.message,
+          response: apiError.response,
+          stack: apiError.stack,
+        });
+        setError(
+          apiError.message || "Failed to upload file. Please try again.",
+        );
+      }
+    } catch (error: any) {
+      console.error("Payload preparation error:", error);
+      setError("Failed to prepare upload. Please try again.");
     }
   };
 
+  const simulateUploadProgress = () => {
+    setUploadProgress(0);
+    const interval = setInterval(() => {
+      setUploadProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          return 100;
+        }
+        return prev + 20;
+      });
+    }, 500);
+  };
+
   const handleClose = () => {
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
-    }
+    setFile(null);
+    setUploadProgress(0);
+    setMetadata({});
     onClose();
+  };
+
+  const handleCreateNewDocType = (newDocType: IDocumentType) => {
+    setDocumentTypes((prev) => [...prev, newDocType]);
+    setSelectedDocType(newDocType);
+    setShowDocTypeDialog(false);
   };
 
   return (
@@ -258,7 +192,7 @@ export default function FileUploadDialog({
         </DialogHeader>
 
         <div className="grid grid-cols-2 gap-6 p-6 overflow-y-auto">
-          {/* Left Column - File Upload & Preview */}
+          {/* Left Column - File Upload & Progress */}
           <div className="space-y-4">
             {error && (
               <Alert variant="destructive">
@@ -266,22 +200,13 @@ export default function FileUploadDialog({
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-
             {!file ? (
-              <div
-                className={`relative border-2 border-dashed rounded-lg p-6 text-center min-h-[400px] flex flex-col items-center justify-center ${
-                  dragActive ? "border-blue-500 bg-blue-50" : "border-gray-300"
-                }`}
-                onDragEnter={handleDrag}
-                onDragLeave={handleDrag}
-                onDragOver={handleDrag}
-                onDrop={handleDrop}
-              >
+              <div className="relative border-2 border-dashed rounded-lg p-6 text-center min-h-[400px] flex flex-col items-center justify-center border-gray-300">
                 <Upload className="h-12 w-12 text-gray-400" />
                 <div className="mt-4">
                   <Label
                     htmlFor="file-upload"
-                    className="relative cursor-pointer rounded-md bg-white font-semibold text-blue-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-600 focus-within:ring-offset-2 hover:text-blue-500"
+                    className="cursor-pointer rounded-md bg-white font-semibold text-blue-600"
                   >
                     <span>Upload a file</span>
                     <Input
@@ -311,32 +236,11 @@ export default function FileUploadDialog({
                         </p>
                       </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setFile(null);
-                        if (previewUrl) {
-                          URL.revokeObjectURL(previewUrl);
-                          setPreviewUrl(null);
-                        }
-                      }}
-                    >
+                    <Button variant="ghost" size="sm" onClick={handleClose}>
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
-
                   <Progress value={uploadProgress} className="h-2 mb-4" />
-
-                  {previewUrl && (
-                    <div className="flex-1 w-full h-[400px] border rounded">
-                      <iframe
-                        src={previewUrl}
-                        className="w-full h-full"
-                        title="File preview"
-                      />
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             )}
@@ -348,81 +252,33 @@ export default function FileUploadDialog({
               <div className="space-y-6">
                 <div className="space-y-2">
                   <Label>Document Type</Label>
-                  <div className="flex gap-2">
-                    <Select
-                      value={selectedDocType?.id.toString()}
-                      onValueChange={(value) => {
-                        const docType = documentTypes.find(
-                          (dt) => dt.id.toString() === value,
-                        );
-                        setSelectedDocType(docType || null);
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {documentTypes.map((type) => (
-                          <SelectItem key={type.id} value={type.id.toString()}>
-                            {type.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setShowDocTypeDialog(true)}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Author</Label>
-                  <Input
-                    placeholder="Enter author name"
-                    value={metadata.author || ""}
-                    onChange={(e) =>
-                      handleMetadataChange("author", e.target.value)
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Version</Label>
-                  <Input
-                    placeholder="Enter version number"
-                    value={metadata.version || ""}
-                    onChange={(e) =>
-                      handleMetadataChange("version", e.target.value)
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Description</Label>
-                  <textarea
-                    className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    placeholder="Enter document description"
-                    rows={4}
-                    value={metadata.description || ""}
-                    onChange={(e) =>
-                      handleMetadataChange("description", e.target.value)
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Tags</Label>
-                  <Input
-                    placeholder="Enter tags (comma-separated)"
-                    value={metadata.tags || ""}
-                    onChange={(e) =>
-                      handleMetadataChange("tags", e.target.value)
-                    }
-                  />
+                  <Select
+                    value={selectedDocType?.id.toString()}
+                    onValueChange={(value) => {
+                      const docType = documentTypes.find(
+                        (dt) => dt.id.toString() === value,
+                      );
+                      setSelectedDocType(docType || null);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {documentTypes.map((type) => (
+                        <SelectItem key={type.id} value={type.id.toString()}>
+                          {type.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={() => setShowDocTypeDialog(true)}
+                  >
+                    <Plus />
+                  </Button>
                 </div>
 
                 {selectedDocType?.metadata.map((field) => (
@@ -447,13 +303,7 @@ export default function FileUploadDialog({
                         </SelectContent>
                       </Select>
                     ) : (
-                      <Input
-                        placeholder={`Enter ${field.name}`}
-                        value={metadata[field.name] || ""}
-                        onChange={(e) =>
-                          handleMetadataChange(field.name, e.target.value)
-                        }
-                      />
+                      <p className="text-gray-600">{metadata[field.name]}</p>
                     )}
                   </div>
                 ))}
@@ -464,7 +314,15 @@ export default function FileUploadDialog({
                   </Button>
                   <Button
                     onClick={handleUpload}
-                    disabled={!file || uploadProgress < 100}
+                    disabled={
+                      !file ||
+                      !selectedDocType ||
+                      selectedDocType.metadata.some(
+                        (field) =>
+                          field.type === "select" && !metadata[field.name],
+                      ) ||
+                      uploadProgress < 100
+                    }
                   >
                     <Save className="mr-2 h-4 w-4" />
                     Save
@@ -476,7 +334,6 @@ export default function FileUploadDialog({
         </div>
       </DialogContent>
 
-      {/* Add the DocumentTypeCreation dialog */}
       <Dialog open={showDocTypeDialog} onOpenChange={setShowDocTypeDialog}>
         <DialogContent>
           <DocumentTypeCreation

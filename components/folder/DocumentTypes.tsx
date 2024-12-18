@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,9 +39,12 @@ export function DocumentTypeCreation({
     metadata: [],
   };
 
-  const { control, handleSubmit, reset } = useForm<IDocumentTypeForm>({
+  const { control, handleSubmit, reset, watch } = useForm<IDocumentTypeForm>({
     defaultValues: defaultDocumentType,
   });
+
+  // Watch the current form values
+  const formValues = watch();
 
   const handleAddMetadataField = () => {
     if (!inputValue) return;
@@ -67,17 +70,30 @@ export function DocumentTypeCreation({
     setIsSelectField(false);
   };
 
-  const handleCreateNewDocType = async (formData: IDocumentTypeForm) => {
+  const handleCreateNewDocType = async () => {
     try {
-      // First handle any pending metadata field
-      if (inputValue) {
-        handleAddMetadataField();
-      }
-
-      // Create the payload with the accumulated metadata
+      // Prepare payload with all current metadata fields
       const payload = {
-        name: formData.name,
-        metadata: metadataOptions.map((field) => ({
+        name: formValues.name,
+        metadata: [
+          ...metadataOptions,
+          // Add the current in-progress field if it exists
+          ...(inputValue.trim()
+            ? [
+                {
+                  name: inputValue.trim(),
+                  type: isSelectField ? "select" : "text",
+                  value: isSelectField ? "" : textValue.trim(),
+                  options: isSelectField
+                    ? selectOptions
+                        .split(",")
+                        .map((opt) => opt.trim())
+                        .filter((opt) => opt)
+                    : [],
+                },
+              ]
+            : []),
+        ].map((field) => ({
           name: field.name,
           type: field.type,
           value: field.type === "text" ? field.value : "",
@@ -85,10 +101,15 @@ export function DocumentTypeCreation({
         })),
       };
 
-      // Call the API
+      // Validate payload
+      if (!payload.name) {
+        throw new Error("Document type name is required");
+      }
+
+      // Call the API to create a document type
       const newDocType = await createDocumentType(payload);
 
-      // Handle success
+      // Invoke the callback to notify the parent
       onCreate(newDocType);
 
       // Reset the form
@@ -100,6 +121,7 @@ export function DocumentTypeCreation({
       setIsSelectField(false);
     } catch (error) {
       console.error("Failed to create document type:", error);
+      // Optionally, add error handling or user feedback
     }
   };
 

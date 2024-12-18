@@ -53,6 +53,7 @@ interface Document {
 
 const FileViewPage = () => {
   const { id } = useParams();
+  const [documentTypes, setDocumentTypes] = useState<string[]>([]);
   const [document, setDocument] = useState<Document | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,8 +72,6 @@ const FileViewPage = () => {
     excelData: null,
   });
 
-  const documentTypes = ["User Manual", "Procurement Document", "Contract"];
-
   // Fetch file details on component mount
   useEffect(() => {
     const fetchFileDetails = async () => {
@@ -81,14 +80,22 @@ const FileViewPage = () => {
         const response = await getFilesByHash(res.hashName);
         console.log("File details response:", response);
 
+        // Extract unique document types from the initial response
+        const availableDocumentTypes = [res.documentType]; // Start with the current document's type
+
         if (response) {
           const fileData = {
             ...res,
-            fileLink: URL.createObjectURL(new Blob([response])),
+            fileLink: URL.createObjectURL(
+              new Blob([response], { type: res.mimeType }),
+            ),
             mimeType: res.mimeType,
           };
 
           setDocument(fileData);
+
+          // If you want to add a list of document types for the Select component
+          setDocumentTypes(availableDocumentTypes);
         } else {
           throw new Error("No file found");
         }
