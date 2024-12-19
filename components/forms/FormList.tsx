@@ -9,49 +9,41 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { updateForm } from "@/core/forms/api";
+import { dummyForms } from "@/data/dummyData";
+import { Form } from "@/lib/types/forms";
 import { EditIcon } from "lucide-react";
-import { useState } from "react";
-
-const fieldTypes = [
-  "text",
-  "number",
-  "email",
-  "password",
-  "date",
-  "time",
-  "textarea",
-  "select",
-] as const;
-
-interface SelectOptions {
-  options: string[];
-}
-interface FieldDefinition {
-  type: (typeof fieldTypes)[number];
-  selectOptions?: SelectOptions;
-}
-
-export interface Form {
-  id?: number;
-  name: string;
-  description: string;
-  fieldDefinitions: Record<string, FieldDefinition>;
-}
+import { useEffect, useState } from "react";
 
 interface FormListProps {
-  forms: Form[];
+  initialForms: Form[];
 }
 
-export function FormList({ forms: initialForms }: FormListProps) {
-  const [forms, setForms] = useState(initialForms);
+export function FormList({ initialForms }: FormListProps) {
+  const [forms, setForms] = useState<Form[]>([]);
   const [editingForm, setEditingForm] = useState<Form | null>(null);
 
-  const handleSave = (updatedForm: Form) => {
-    setForms(
-      forms.map((form) => (form.id === updatedForm.id ? updatedForm : form)),
-    );
-    setEditingForm(null);
+  const handleSave = async (updatedForm: Form) => {
+    try {
+      updatedForm.formFields = updatedForm.formFields.map(
+        ({ id, ...field }) => ({
+          ...field,
+          type: field.type.toUpperCase().trim(),
+        }),
+      ) as any;
+      await updateForm(updatedForm.id!, updatedForm);
+      setForms(
+        forms.map((form) => (form.id === updatedForm.id ? updatedForm : form)),
+      );
+      setEditingForm(null);
+    } catch (error) {
+      console.error("Error updating form", error);
+    }
   };
+
+  useEffect(() => {
+    setForms(initialForms);
+  }, [initialForms]);
 
   return (
     <>
@@ -76,14 +68,12 @@ export function FormList({ forms: initialForms }: FormListProps) {
             <CardContent>
               <p className="text-sm text-muted-foreground mb-2">Fields:</p>
               <ul className="list-disc list-inside">
-                {Object.entries(form.fieldDefinitions).map(
-                  ([fieldName, fieldType]) => (
-                    <li key={fieldName} className="text-sm">
-                      {fieldName}:{" "}
-                      <span className="font-mono">{fieldType.type}</span>
-                    </li>
-                  ),
-                )}
+                {form.formFields.map((field, index) => (
+                  <li key={field.name} className="text-sm">
+                    {field.name}:{" "}
+                    <span className="font-mono">{field.type}</span>
+                  </li>
+                ))}
               </ul>
             </CardContent>
           </Card>

@@ -1,3 +1,5 @@
+import { IUserDetails } from "@/core/authentication/interface";
+
 export const metadataSplitter = (array: any[]) => {
   const length = array.length;
   const middleIndex = Math.ceil(length / 2);
@@ -143,4 +145,8 @@ export const renderFilePreview = (file: string, mimeType: string) => {
 
   // Return null if mimeType is not handled
   return <p>Unsupported file type.</p>;
+};
+
+export const getCurrentUser = (): IUserDetails => {
+  return JSON.parse(sessionStorage.getItem("current-user") || "{}");
 };
