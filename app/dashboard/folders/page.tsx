@@ -18,6 +18,7 @@ import {
   FormControl,
   Modal,
   Input,
+  Snackbar,
 } from "@mui/joy";
 import { useRouter } from "next/navigation";
 import FileUploadDialog from "@/components/folder/FileUploadDialog";
@@ -35,9 +36,11 @@ import {
   getFilesByFolderID,
   getDocumentTypes,
   getFilesByHash,
+  editFolder,
 } from "@/components/files/api";
 import { ChevronDown, ChevronRight, File, Folder } from "lucide-react";
 import axios from "axios";
+import { ColorPaletteProp } from "@mui/joy/styles";
 
 interface FileNode {
   id: string;
@@ -109,55 +112,72 @@ export default function FileExplorer() {
   const [selectedDocType, setSelectedDocType] = useState<string>("");
   const [metadata, setMetadata] = useState<Record<string, any>>({});
   const [fileCount, setFileCount] = useState<string>("...");
+  const [renameFolderName, setRenameFolderName] = useState("");
+  const [folderToRename, setFolderToRename] = useState<FileNode | null>(null);
+  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    color: ColorPaletteProp;
+    message: string;
+  }>({
+    open: false,
+    message: "",
+    color: "success",
+  });
+
+  const loadFoldersAndFiles = async () => {
+    try {
+      const foldersResponse = await getFolders();
+      const folders = Array.isArray(foldersResponse)
+        ? foldersResponse
+        : foldersResponse.data || [];
+
+      const folderNodesWithFiles: FileNode[] = [];
+
+      for (const folder of folders) {
+        // Convert folder to FileNode
+        const folderNode: FileNode = {
+          id: folder.folderID?.toString() || "",
+          label: folder.name,
+          type: "folder",
+          folderID: folder.folderID,
+          parentFolderID: folder.parentFolderID || 0,
+        };
+
+        // Add files directly from the folder
+        const fileNodes = (folder.files || []).map(
+          (file: FileData): FileNode => ({
+            id: file.id.toString(),
+            label: file.filename || "Unnamed File",
+            type: "file",
+            folderID: folder.folderID,
+            fileId: file.id,
+            parentFolderID: folder.folderID,
+            metadata: file,
+          }),
+        );
+
+        // Add folder and its files to the list
+        folderNodesWithFiles.push(folderNode, ...fileNodes);
+      }
+
+      return folderNodesWithFiles;
+    } catch (error) {
+      console.error("Failed to load folders and files:", error);
+      return [];
+    }
+  };
 
   useEffect(() => {
-    const loadFoldersAndFiles = async () => {
-      try {
-        // Fetch folders with their files
-        const foldersResponse = await getFolders();
-        const folders = Array.isArray(foldersResponse)
-          ? foldersResponse
-          : foldersResponse.data || [];
-
-        const folderNodesWithFiles: FileNode[] = [];
-
-        for (const folder of folders) {
-          // Convert folder to FileNode
-          const folderNode: FileNode = {
-            id: folder.folderID?.toString() || "",
-            label: folder.name,
-            type: "folder",
-            folderID: folder.folderID,
-            parentFolderID: folder.parentFolderID || 0,
-          };
-
-          // Add files directly from the folder
-          const fileNodes = (folder.files || []).map(
-            (file: FileData): FileNode => ({
-              id: file.id.toString(),
-              label: file.filename || "Unnamed File",
-              type: "file",
-              folderID: folder.folderID,
-              fileId: file.id,
-              parentFolderID: folder.folderID,
-              metadata: file,
-            }),
-          );
-
-          // Add folder and its files to the list
-          folderNodesWithFiles.push(folderNode, ...fileNodes);
-        }
-
-        // Update state with folders and their files
-        setFileData(folderNodesWithFiles);
-        setFolderCount(folders.length.toString());
-      } catch (error) {
-        console.error("Failed to load folders and files:", error);
-        setFolderCount("0");
-      }
+    const initializeData = async () => {
+      const data = await loadFoldersAndFiles();
+      setFileData(data);
+      setFolderCount(
+        data.filter((node) => node.type === "folder").length.toString(),
+      );
     };
 
-    loadFoldersAndFiles();
+    initializeData();
   }, []);
 
   useEffect(() => {
@@ -232,6 +252,18 @@ export default function FileExplorer() {
     if (!menuTarget) return;
 
     switch (action) {
+      case "Rename":
+        try {
+          if (menuTarget?.type === "folder" && menuTarget.folderID) {
+            setFolderToRename(menuTarget); // Set the folder to rename
+            setRenameFolderName(menuTarget.label || ""); // Pre-fill the current folder name
+            setIsRenameModalOpen(true); // Open the rename dialog
+          }
+        } catch (error) {
+          console.error("Failed to open rename dialog:", error);
+          showSnackbar("Failed to open rename dialog.", "danger");
+        }
+        break;
       case "CreateSubfolder":
         // Set the context for subfolder creation
         setCurrentFolderID(menuTarget.folderID ?? null);
@@ -255,23 +287,50 @@ export default function FileExplorer() {
             setFileData((prev) =>
               prev.filter((item) => item.id !== menuTarget.id),
             );
+            showSnackbar("Folder deleted successfully", "success");
           } else if (menuTarget.type === "file" && menuTarget.fileId) {
             await deleteFile(menuTarget.fileId);
             setFileData((prev) =>
               prev.filter((item) => item.id !== menuTarget.id),
             );
+            showSnackbar("File deleted successfully", "success");
           }
         } catch (error) {
-          console.error("Failed to delete item:", error);
+          console.error("Action failed:", error);
+          const actionName = action.toLowerCase();
+          showSnackbar(`Failed to ${actionName} ${menuTarget.type}`, "danger");
         }
         break;
     }
     handleCloseMenu();
   };
 
+  const handleRename = async () => {
+    try {
+      if (folderToRename && renameFolderName.trim()) {
+        const folderId = folderToRename.folderID; // Extract folder ID
+        if (folderId) {
+          await editFolder(folderId, renameFolderName.trim()); // Pass the folder ID
+          setIsRenameModalOpen(false);
+          setRenameFolderName("");
+          setFolderToRename(null);
+          showSnackbar("Folder renamed successfully.", "success");
+        } else {
+          throw new Error("Folder ID is missing");
+        }
+      }
+    } catch (error) {
+      console.error("Failed to rename folder:", error);
+      showSnackbar("Failed to rename folder.", "danger");
+    }
+  };
+
+  const showSnackbar = (message: string, color: ColorPaletteProp) => {
+    setSnackbar({ open: true, message, color });
+  };
+
   const handleCreateFolder = async () => {
     try {
-      // For root-level folder creation
       const parentFolderID = currentPath[currentPath.length - 1]?.folderID || 0;
 
       const newFolder: Omit<DirectoryData, "id"> = {
@@ -282,15 +341,23 @@ export default function FileExplorer() {
       const createdFolder = await createFolders(newFolder);
 
       if (createdFolder?.data?.id && createdFolder?.data?.name) {
-        const folderId = createdFolder.data.id.toString();
-        const folderData: FileNode = {
-          id: folderId,
+        const newFolderNode: FileNode = {
+          id: createdFolder.data.id.toString(),
           label: createdFolder.data.name,
           type: "folder",
-          folderID: createdFolder.data.folderID,
+          folderID: createdFolder.data.id,
+          parentFolderID: parentFolderID,
         };
 
-        setFileData((prev) => [...prev, folderData]);
+        setFileData((prev) => [...prev, newFolderNode]);
+
+        // Ensure the parent folder is expanded
+        setExpanded((prev) => ({
+          ...prev,
+          [parentFolderID.toString()]: true,
+        }));
+
+        showSnackbar("Folder created successfully", "success");
       }
 
       setIsCreateFolderModalOpen(false);
@@ -298,6 +365,7 @@ export default function FileExplorer() {
       setIsSubfolderMode(false);
     } catch (error) {
       console.error("Failed to create folder:", error);
+      showSnackbar("Failed to create folder", "danger");
     }
   };
 
@@ -315,19 +383,22 @@ export default function FileExplorer() {
       const createdFolder = await createSubFolders(newFolder);
 
       if (createdFolder.id && createdFolder.name) {
-        const newFolderNode: FileNode = {
-          id: createdFolder.id.toString(),
-          label: createdFolder.name,
-          type: "folder",
-          folderID: createdFolder.id,
-          parentFolderID: createdFolder.parentFolderID,
-        };
+        // Reload all folders and files to ensure correct hierarchy
+        const updatedData = await loadFoldersAndFiles();
+        setFileData(updatedData);
+        setFolderCount(
+          updatedData
+            .filter((node) => node.type === "folder")
+            .length.toString(),
+        );
 
-        setFileData((prev) => [...prev, newFolderNode]);
+        // Ensure the parent folder is expanded
         setExpanded((prev) => ({
           ...prev,
-          [currentFolderID.toString()]: true, // Expand parent folder
+          [currentFolderID.toString()]: true,
         }));
+
+        showSnackbar("Subfolder created successfully", "success");
       }
 
       setIsCreateFolderModalOpen(false);
@@ -335,8 +406,8 @@ export default function FileExplorer() {
       setIsSubfolderMode(false);
       setMenuTarget(null);
     } catch (error) {
-      console.error("Failed to create folder:", error);
-      alert("Failed to create folder. Please try again.");
+      console.error("Failed to create subfolder:", error);
+      showSnackbar("Failed to create subfolder", "danger");
     }
   };
 
@@ -412,12 +483,13 @@ export default function FileExplorer() {
           ...prev,
           [currentFolder.id]: true,
         }));
+        showSnackbar("File uploaded successfully", "success");
       }
 
       setUploadDialogOpen(false);
     } catch (error) {
       console.error("Failed to upload file:", error);
-      alert("Failed to upload file. Please try again.");
+      showSnackbar("Failed to upload file", "danger");
     }
   };
 
@@ -676,7 +748,7 @@ export default function FileExplorer() {
                 <MenuItem onClick={() => handleAction("UploadFile")}>
                   Upload File
                 </MenuItem>
-                <MenuItem onClick={() => handleAction("Edit")}>Edit</MenuItem>
+                <MenuItem onClick={() => handleAction("Rename")}>Edit</MenuItem>
                 <MenuItem onClick={() => handleAction("Delete")}>
                   Delete
                 </MenuItem>
@@ -761,8 +833,81 @@ export default function FileExplorer() {
               </CardContent>
             </Card>
           </Modal>
+
+          {isRenameModalOpen && folderToRename && (
+            <Modal
+              open={isRenameModalOpen}
+              onClose={() => {
+                setIsRenameModalOpen(false);
+                setRenameFolderName("");
+                setFolderToRename(null);
+              }}
+            >
+              <Card
+                sx={{
+                  maxWidth: 400,
+                  margin: "auto",
+                  mt: 8,
+                  padding: 3,
+                  borderRadius: "12px",
+                  boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
+                }}
+              >
+                <Typography level="h4" sx={{ fontWeight: "bold", mb: 2 }}>
+                  Rename Folder
+                </Typography>
+                <Input
+                  value={renameFolderName}
+                  onChange={(e) => setRenameFolderName(e.target.value)}
+                  placeholder="Enter folder name"
+                  sx={{
+                    mb: 3,
+                    border: "1px solid rgba(0, 0, 0, 0.2)",
+                    borderRadius: "8px",
+                    padding: "10px",
+                  }}
+                />
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    gap: "12px",
+                  }}
+                >
+                  <Button
+                    onClick={() => {
+                      setIsRenameModalOpen(false);
+                      setRenameFolderName("");
+                      setFolderToRename(null);
+                    }}
+                    variant="outlined"
+                    color="neutral"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleRename}
+                    disabled={!renameFolderName.trim()}
+                    color="primary"
+                  >
+                    Rename
+                  </Button>
+                </div>
+              </Card>
+            </Modal>
+          )}
         </CardContent>
       </Card>
+      <Snackbar
+        variant="soft"
+        color={snackbar.color}
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        {snackbar.message}
+      </Snackbar>
     </div>
   );
 }

@@ -238,12 +238,10 @@ export const deleteDocumentType = async (
   }
 };
 
-export const deleteFile = async (
-  documentTypeId: number,
-): Promise<ApiResponse<void>> => {
+export const deleteFile = async (id: number): Promise<ApiResponse<void>> => {
   try {
     const response = await AxiosInstance.delete<ApiResponse<void>>(
-      `/document-types/delete/${documentTypeId}`,
+      `file-management/api/v1/files/delete/${id}`,
     );
     return response.data;
   } catch (error) {
@@ -305,7 +303,7 @@ export const fetchChildFolders = async (parentFolderId: number) => {
 export const deleteFolder = async (folderId: number): Promise<void> => {
   try {
     const response = await AxiosInstance.delete<ApiResponse<void>>(
-      `file-management/api/v1/directory/delete/${folderId}`,
+      `file-management/api/v1/directories/delete/${folderId}`,
     );
 
     if (!response.data) {
@@ -313,6 +311,25 @@ export const deleteFolder = async (folderId: number): Promise<void> => {
     }
   } catch (error) {
     console.error("Failed to delete folder", error);
+    throw error;
+  }
+};
+
+export const editFolder = async (
+  folderId: number,
+  newName: string,
+): Promise<void> => {
+  try {
+    const response = await AxiosInstance.put<ApiResponse<void>>(
+      `file-management/api/v1/directories/edit/${folderId}`,
+      { name: newName }, // Send the new name in the request body
+    );
+
+    if (response.status !== 200) {
+      throw new Error("Failed to edit folder");
+    }
+  } catch (error) {
+    console.error("Failed to edit folder", error);
     throw error;
   }
 };
