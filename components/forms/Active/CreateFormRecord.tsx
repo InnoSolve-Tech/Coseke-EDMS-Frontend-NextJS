@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,18 +17,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "@/hooks/use-toast";
-import { Form, FieldType, FormField } from "@/lib/types/forms";
-import { getAllForms } from "@/core/forms/api";
-import { getCurrentUser } from "@/components/helpers";
 import { createFormRecord } from "@/core/formrecords/api";
+import { getAllForms } from "@/core/forms/api";
+import { toast } from "@/hooks/use-toast";
 import { FormRecord } from "@/lib/types/formRecords";
+import { Form, FormField } from "@/lib/types/forms";
+import { User } from "@/lib/types/user";
+import { useEffect, useState } from "react";
 
 export default function CreateFormRecord() {
   const [forms, setForms] = useState<Form[]>([]);
   const [selectedForm, setSelectedForm] = useState<Form | null>(null);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const getCurrentUser = (): User => {
+    let user = sessionStorage.getItem("current-user");
+    if (!user) {
+      throw new Error("User not found in session storage.");
+    }
+    return JSON.parse(user);
+  };
 
   useEffect(() => {
     const fetchForms = async () => {
@@ -77,14 +85,14 @@ export default function CreateFormRecord() {
         form: selectedForm,
         formFieldValues,
         userId: user.id,
-        createdBy: user.id! as string,
+        createdBy: user.id!,
         createdDate: new Date().toISOString(),
       } as FormRecord);
       const response = await createFormRecord({
         form: selectedForm!,
         formFieldValues: formFieldValues,
         userId: user.id! as number,
-        createdBy: user.id! as string,
+        createdBy: user.id!,
         createdDate: new Date().toISOString(),
       });
 

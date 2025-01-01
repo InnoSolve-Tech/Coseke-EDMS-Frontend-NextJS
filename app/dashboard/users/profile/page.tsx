@@ -1,6 +1,5 @@
 "use client";
 
-import { getCurrentUser } from "@/components/helpers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { updatePassword, updateUser } from "@/core/users";
 import { useToast } from "@/hooks/use-toast";
+import { User } from "@/lib/types/user";
 import { Edit, Loader2 } from "lucide-react";
 import * as React from "react";
 
@@ -32,24 +32,48 @@ export default function UserProfile() {
     currentPassword: "",
     newPassword: "",
   });
+  const [currentUser, setCurrentUser] = React.useState<User | null>(null);
 
   const { toast } = useToast();
-  const currentUser = getCurrentUser();
 
+  // Move sessionStorage access to useEffect to ensure it only runs client-side
   React.useEffect(() => {
-    const storedImage = localStorage.getItem(`profileImage_${currentUser.id}`);
-    if (storedImage) {
-      setSelectedImage(storedImage);
-    }
+    const getCurrentUser = (): User | null => {
+      try {
+        const user = sessionStorage.getItem("current-user");
+        return user ? JSON.parse(user) : null;
+      } catch (error) {
+        console.error("Error getting user from session storage:", error);
+        return null;
+      }
+    };
 
-    setUserDetails({
-      first_name: currentUser.first_name || "",
-      last_name: currentUser.last_name || "",
-      email: currentUser.email || "",
-      phone: currentUser.phone || "",
-      address: currentUser.address || "",
-    });
-  }, [currentUser]);
+    const user = getCurrentUser();
+    setCurrentUser(user);
+
+    if (user) {
+      setUserDetails({
+        first_name: user.first_name || "",
+        last_name: user.last_name || "",
+        email: user.email || "",
+        phone: user.phone || "",
+        address: user.address || "",
+      });
+    }
+  }, []);
+
+  // Early return if no user is found
+  if (!currentUser) {
+    return (
+      <div className="container mx-auto px-4 py-6 sm:px-6 lg:px-8">
+        <Card>
+          <CardContent className="p-6">
+            <p>Please log in to view your profile.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -130,7 +154,9 @@ export default function UserProfile() {
                       src={selectedImage || "/placeholder-avatar.png"}
                       alt="Profile"
                     />
-                    <AvatarFallback>{`${userDetails.first_name.charAt(0)}${userDetails.last_name.charAt(0)}`}</AvatarFallback>
+                    <AvatarFallback>{`${userDetails.first_name.charAt(
+                      0,
+                    )}${userDetails.last_name.charAt(0)}`}</AvatarFallback>
                   </Avatar>
                   <Label
                     htmlFor="picture"
