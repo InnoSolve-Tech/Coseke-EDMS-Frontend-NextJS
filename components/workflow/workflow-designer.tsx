@@ -23,16 +23,7 @@ import { nodeTypes as nodeConfig } from "./node-types";
 import { WorkflowHelpDialog } from "./workflow-help-dialog";
 import { WorkflowJson } from "./workflow-json";
 import WorkflowNode from "./workflow-node";
-
-type NodeForm = {
-  id: string;
-  fields: Array<{
-    id: string;
-    type: "number" | "text" | "select" | "date" | "checkbox";
-    label: string;
-    required?: boolean;
-  }>;
-};
+import { Form } from "@/lib/types/forms";
 
 type WorkflowNodeData = {
   label: string;
@@ -41,7 +32,7 @@ type WorkflowNodeData = {
   conditions?: { field: string; operator: string; value: string }[];
   assignee?: { assignee_type: "role" | "user"; assignee_id: string };
   dueDate?: string;
-  form?: NodeForm;
+  form?: Form;
   branches?: string[];
 };
 
@@ -50,8 +41,7 @@ const nodeTypes = {
   end: WorkflowNode,
   task: WorkflowNode,
   decision: WorkflowNode,
-  parallel: WorkflowNode,
-  merge: WorkflowNode,
+  form: WorkflowNode,
 };
 
 export function WorkflowDesigner() {
@@ -60,7 +50,7 @@ export function WorkflowDesigner() {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState<
     | (Node<WorkflowNodeData> & {
-        type: "start" | "end" | "task" | "decision" | "parallel" | "merge";
+        type: "start" | "end" | "task" | "decision" | "form";
       })
     | null
   >(null);
@@ -97,9 +87,10 @@ export function WorkflowDesigner() {
   const onNodeClick = (_: React.MouseEvent, node: Node<WorkflowNodeData>) => {
     setSelectedNode(
       node as Node<WorkflowNodeData> & {
-        type: "start" | "end" | "task" | "decision" | "parallel" | "merge";
+        type: "start" | "end" | "task" | "decision" | "form";
       },
     );
+    console.log("selected node:", node);
   };
 
   const updateNode = (updatedNode: Node<WorkflowNodeData>) => {

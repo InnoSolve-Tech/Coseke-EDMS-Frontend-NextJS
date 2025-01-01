@@ -1,0 +1,192 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { AxiosInstance } from "@/components/routes/api";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { User, Role, Permission } from "@/lib/types/user";
+
+interface UserDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: () => void;
+  user?: User | null;
+}
+
+export function UserDialog({
+  isOpen,
+  onClose,
+  onSubmit,
+  user,
+}: UserDialogProps) {
+  const [userData, setUserData] = useState<User>({
+    id: 0,
+    first_name: "",
+    last_name: "",
+    email: "",
+    password: "",
+    phone: "",
+    address: "",
+    roles: [],
+  });
+  const [availableRoles, setAvailableRoles] = useState<Role[]>([]);
+
+  useEffect(() => {
+    if (user) {
+      setUserData(user);
+    } else {
+      setUserData({
+        id: 0,
+        first_name: "",
+        last_name: "",
+        email: "",
+        password: "",
+        phone: "",
+        address: "",
+        roles: [],
+      });
+    }
+    fetchRoles();
+  }, [user]);
+
+  const fetchRoles = async () => {
+    try {
+      const rolesRes = await AxiosInstance.get<Role[]>("/roles/all");
+      setAvailableRoles(rolesRes.data);
+    } catch (error) {
+      console.error("Error fetching roles:", error);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (user) {
+        await AxiosInstance.put(`/users/${user.id}`, userData);
+      } else {
+        await AxiosInstance.post("/users/create-users", userData);
+      }
+      onSubmit();
+      onClose();
+    } catch (error) {
+      console.error("Error submitting user data:", error);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUserData({ ...userData, [e.target.name]: e.target.value });
+  };
+
+  const handleRoleChange = (role: Role) => {
+    setUserData((prevData) => ({
+      ...prevData,
+      roles: prevData.roles.some((r) => r.id === role.id)
+        ? prevData.roles.filter((r) => r.id !== role.id)
+        : [...prevData.roles, role],
+    }));
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{user ? "Edit User" : "Add New User"}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="first_name">First Name</Label>
+              <Input
+                id="first_name"
+                name="first_name"
+                value={userData.first_name}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="last_name">Last Name</Label>
+              <Input
+                id="last_name"
+                name="last_name"
+                value={userData.last_name}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              value={userData.email}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          {!user && (
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                value={userData.password}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+          )}
+          <div className="space-y-2">
+            <Label htmlFor="phone">Phone</Label>
+            <Input
+              id="phone"
+              name="phone"
+              value={userData.phone}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="address">Address</Label>
+            <Input
+              id="address"
+              name="address"
+              value={userData.address}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Roles</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {availableRoles.map((role) => (
+                <div key={role.id} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`role-${role.id}`}
+                    checked={userData.roles.some((r) => r.id === role.id)}
+                    onCheckedChange={() => handleRoleChange(role)}
+                  />
+                  <Label htmlFor={`role-${role.id}`}>{role.name}</Label>
+                </div>
+              ))}
+            </div>
+          </div>
+          <Button type="submit" className="w-full">
+            {user ? "Update User" : "Add User"}
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

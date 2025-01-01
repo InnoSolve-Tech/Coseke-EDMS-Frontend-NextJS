@@ -1,7 +1,4 @@
-export interface NodeForm {
-  id: string;
-  fields: FormField[];
-}
+import { Form } from "./forms";
 
 export interface FormField {
   id: string;
@@ -12,7 +9,7 @@ export interface FormField {
 
 export interface WorkflowNode {
   id: string;
-  type: "start" | "end" | "task" | "decision" | "parallel" | "merge";
+  type: "start" | "end" | "task" | "decision" | "form";
   position: { x: number; y: number };
   data: {
     label: string;
@@ -21,7 +18,7 @@ export interface WorkflowNode {
     conditions?: { field: string; operator: string; value: string }[];
     assignee?: { assignee_type: "role" | "user"; assignee_id: string };
     dueDate?: string;
-    form?: NodeForm;
+    form?: Form;
     branches?: string[];
   };
 }

@@ -4,9 +4,6 @@ import {
   Circle,
   ClipboardList,
   Diamond,
-  FileCheck,
-  GitMerge,
-  LayoutGrid,
   PlayCircle,
   StopCircle,
 } from "lucide-react";
@@ -14,21 +11,21 @@ import {
 export const nodeTypes = {
   start: {
     icon: PlayCircle,
-    label: "Start Process",
+    label: "Start",
     color: "bg-green-500",
-    description: "Initiates the workflow",
+    description: "Initiates the process",
   },
   end: {
     icon: StopCircle,
-    label: "End Process",
+    label: "End",
     color: "bg-red-500",
-    description: "Concludes the workflow",
+    description: "Concludes the process",
   },
   task: {
-    icon: FileCheck,
+    icon: ClipboardList,
     label: "Task",
     color: "bg-blue-500",
-    description: "Assign work to users or roles",
+    description: "Represents a task to be completed",
   },
   decision: {
     icon: Diamond,
@@ -36,17 +33,11 @@ export const nodeTypes = {
     color: "bg-yellow-500",
     description: "Branch based on conditions",
   },
-  parallel: {
-    icon: LayoutGrid,
-    label: "Parallel Tasks",
+  form: {
+    icon: Circle,
+    label: "Form",
     color: "bg-purple-500",
-    description: "Execute multiple tasks simultaneously",
-  },
-  merge: {
-    icon: GitMerge,
-    label: "Merge",
-    color: "bg-orange-500",
-    description: "Combine parallel paths",
+    description: "Represents a form to be filled",
   },
 } as const;
 

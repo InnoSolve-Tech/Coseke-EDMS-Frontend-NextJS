@@ -1,16 +1,17 @@
 "use client";
 
+import { WorkflowNode } from "@/lib/types/workflow";
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import { NodeAssignment } from "./node-assignment";
+import CreateFormRecord from "../forms/Active/CreateFormRecord";
 import { Button } from "../ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Textarea } from "../ui/textarea";
-import { WorkflowNode } from "@/lib/types/workflow";
+import { NodeAssignment } from "./node-assignment";
+import { TaskForm } from "./node-forms";
 import { nodeTypes } from "./node-types";
-import { TaskForm, DecisionForm, ParallelForm } from "./node-forms";
 
 interface NodeEditorProps {
   node: WorkflowNode;
@@ -35,7 +36,7 @@ export function NodeEditor({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl bg-white bg-opacity-100 text-black">
+      <DialogContent className="max-w-2xl bg-white bg-opacity-100 text-black max-h-[700px] min-h-[300px] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <nodeConfig.icon className="h-5 w-5" />
@@ -51,6 +52,9 @@ export function NodeEditor({
             )}
             {node.type === "decision" && (
               <TabsTrigger value="conditions">Conditions</TabsTrigger>
+            )}
+            {node.type === "form" && (
+              <TabsTrigger value="form">Form</TabsTrigger>
             )}
             <TabsTrigger value="assignment">Assignment</TabsTrigger>
           </TabsList>
@@ -90,7 +94,7 @@ export function NodeEditor({
           {node.type === "task" && (
             <TabsContent value="form">
               <TaskForm
-                fields={editedNode.data.form?.fields || []}
+                fields={[]}
                 onUpdate={(fields) =>
                   setEditedNode({
                     ...editedNode,
@@ -98,9 +102,12 @@ export function NodeEditor({
                       ...editedNode.data,
                       form: {
                         ...editedNode.data.form,
-                        id: editedNode.data.form?.id || crypto.randomUUID(),
-                        fields: fields.map((field) => ({
+                        id: 0,
+                        name: editedNode.data.form?.name || "",
+                        description: editedNode.data.form?.description || "",
+                        formFields: fields.map((field) => ({
                           ...field,
+                          name: field.label,
                           type: field.type as
                             | "number"
                             | "checkbox"
@@ -117,54 +124,9 @@ export function NodeEditor({
             </TabsContent>
           )}
 
-          {node.type === "parallel" && (
-            <TabsContent value="branches">
-              <ParallelForm
-                branches={
-                  editedNode.data.branches?.map(
-                    (branch: string | { id: string; label: string }) => ({
-                      id: typeof branch === "string" ? branch : branch.id,
-                      label: typeof branch === "string" ? branch : branch.label,
-                      name: typeof branch === "string" ? branch : branch.label,
-                    }),
-                  ) || []
-                }
-                onUpdate={(branches) =>
-                  setEditedNode({
-                    ...editedNode,
-                    data: {
-                      ...editedNode.data,
-                      branches: branches.map((branch) => branch.id),
-                    },
-                  })
-                }
-              />
-            </TabsContent>
-          )}
-
-          {node.type === "decision" && (
-            <TabsContent value="conditions">
-              <DecisionForm
-                conditions={(editedNode.data.conditions || []).map((c) => ({
-                  field: c.field,
-                  operator: c.operator,
-                  value: c.value,
-                  id: crypto.randomUUID(),
-                }))}
-                fields={editedNode.data.form?.fields || []}
-                onUpdate={(conditions) =>
-                  setEditedNode({
-                    ...editedNode,
-                    data: {
-                      ...editedNode.data,
-                      conditions: conditions.map((c) => ({
-                        ...c,
-                        id: crypto.randomUUID(),
-                      })),
-                    },
-                  })
-                }
-              />
+          {node.type === "form" && (
+            <TabsContent value="form">
+              <CreateFormRecord />
             </TabsContent>
           )}
 

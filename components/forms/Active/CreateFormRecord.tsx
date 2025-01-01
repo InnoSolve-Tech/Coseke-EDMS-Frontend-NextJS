@@ -131,7 +131,7 @@ export default function CreateFormRecord() {
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select a form" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white bg-opacity-100">
                 {forms.map((form) => (
                   <SelectItem key={form.id} value={form.id!.toString()}>
                     {form.name}
@@ -161,7 +161,7 @@ export default function CreateFormRecord() {
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder={`Select ${field.name}`} />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-white bg-opacity-100">
                         {field.selectOptions?.map((option) => (
                           <SelectItem key={option.value} value={option.value}>
                             {option.label}
