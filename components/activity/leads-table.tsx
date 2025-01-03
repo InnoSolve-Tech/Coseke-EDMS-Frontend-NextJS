@@ -13,35 +13,48 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Edit2, Trash2 } from "lucide-react";
+//import { toast } from "@/hooks/use-toast"
+import axios from "axios";
+import { Task } from "../../components/task";
+import { toast } from "react-toastify";
 
-interface Lead {
-  id: string;
-  title: string;
-  status: string;
-  activity: {
-    text: string;
-    date: string;
-    time: string;
-  };
-  assignedTo: string;
-  createdAt: string;
+interface TasksTableProps {
+  tasks: Task[];
+  onEdit: (task: Task) => void;
+  onDelete: (taskId: number) => void;
 }
 
-interface LeadsTableProps {
-  leads: Lead[];
-  onEdit: (lead: Lead) => void;
-  onDelete: (leadId: string) => void;
-}
+export function TaskTable({ tasks, onEdit, onDelete }: TasksTableProps) {
+  async function handleDelete(leadId: number): Promise<void> {
+    try {
+      // Make API call to delete the lead
+      await axios.delete(`/api/tasks/delete/${leadId}`);
 
-export function LeadsTable({ leads, onEdit, onDelete }: LeadsTableProps) {
+      // Notify user of successful deletion
+      toast.success("Lead deleted successfully");
+    } catch (error: unknown) {
+      // Handle error and provide feedback
+      if (axios.isAxiosError(error)) {
+        console.error(
+          "Error deleting lead:",
+          error.response?.data || error.message,
+        );
+      } else {
+        console.error("Unexpected error:", error);
+      }
+      toast.error("Failed to delete lead");
+    }
+  }
   return (
     <div className="rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-12"></TableHead>
-            <TableHead>Lead</TableHead>
-            <TableHead>Stage</TableHead>
+            <TableHead className="w-12">
+              <Checkbox />
+            </TableHead>
+            <TableHead>Task</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead>Activity</TableHead>
             <TableHead>Full Name</TableHead>
             <TableHead>Created</TableHead>
@@ -49,12 +62,14 @@ export function LeadsTable({ leads, onEdit, onDelete }: LeadsTableProps) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {leads.map((lead) => (
-            <TableRow key={lead.id}>
-              <TableCell></TableCell>
+          {tasks.map((task: Task) => (
+            <TableRow key={task.id}>
+              <TableCell>
+                <Checkbox />
+              </TableCell>
               <TableCell>
                 <div className="flex flex-col">
-                  <span className="font-medium">{lead.title}</span>
+                  <span className="font-medium">{task.title}</span>
                   <span className="text-sm text-muted-foreground">Call</span>
                 </div>
               </TableCell>
@@ -63,36 +78,33 @@ export function LeadsTable({ leads, onEdit, onDelete }: LeadsTableProps) {
                   variant="secondary"
                   className="bg-blue-100 text-blue-700"
                 >
-                  {lead.status}
+                  {task.status}
                 </Badge>
               </TableCell>
               <TableCell>
                 <div className="flex flex-col">
-                  <span className="text-sm">{lead.activity.text}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {lead.activity.date} {lead.activity.time}
-                  </span>
+                  <span className="text-sm">{task.description}</span>
                 </div>
               </TableCell>
               <TableCell>
-                <span className="text-sm">{lead.assignedTo}</span>
+                <span className="text-sm">{task.assignees}</span>
               </TableCell>
               <TableCell>
-                <span className="text-sm">{lead.createdAt}</span>
+                <span className="text-sm">{task.date}</span>
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => onEdit(lead)}
+                    onClick={() => onEdit(task)}
                   >
                     <Edit2 className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => onDelete(lead.id)}
+                    onClick={() => onDelete(task.id)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
