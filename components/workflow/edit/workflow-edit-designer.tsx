@@ -29,16 +29,7 @@ import { WorkflowJson } from "../workflow-json";
 import WorkflowNode from "../workflow-node";
 import { getWorkflow } from "@/core/workflows/api";
 import { v4 as uuidv4 } from "uuid";
-
-type NodeForm = {
-  id: string;
-  fields: Array<{
-    id: string;
-    type: "number" | "text" | "select" | "date" | "checkbox";
-    label: string;
-    required?: boolean;
-  }>;
-};
+import { Form } from "@/lib/types/forms";
 
 type WorkflowNodeData = {
   nodeId: any;
@@ -47,7 +38,7 @@ type WorkflowNodeData = {
   conditions?: { field: string; operator: string; value: string }[];
   assignee?: { assignee_type: "role" | "user"; assignee_id: string };
   dueDate?: string;
-  form?: NodeForm;
+  form?: Form;
   branches?: string[];
 };
 
@@ -81,7 +72,7 @@ export function WorkflowDesigner({ id }: WorkflowDesignerProps) {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState<
     | (Node<WorkflowNodeData> & {
-        type: "start" | "end" | "task" | "decision" | "parallel" | "merge";
+        type: "start" | "end" | "task" | "decision" | "form";
       })
     | null
   >(null);
@@ -120,7 +111,7 @@ export function WorkflowDesigner({ id }: WorkflowDesignerProps) {
   const onNodeClick = (_: React.MouseEvent, node: Node<WorkflowNodeData>) => {
     setSelectedNode(
       node as Node<WorkflowNodeData> & {
-        type: "start" | "end" | "task" | "decision" | "parallel" | "merge";
+        type: "start" | "end" | "task" | "decision" | "form";
       },
     );
   };

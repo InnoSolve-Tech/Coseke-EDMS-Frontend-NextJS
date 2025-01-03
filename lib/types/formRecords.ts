@@ -11,5 +11,5 @@ export interface FormRecord {
   userId: number;
   formFieldValues: FormFieldValue[];
   createdDate?: string;
-  createdBy: string;
+  createdBy: number;
 }

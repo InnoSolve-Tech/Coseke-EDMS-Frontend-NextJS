@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { AxiosInstance } from "@/components/routes/api";
-import { columns } from "./columns";
-import { DataTable } from "./data-table";
-import { UserDialog } from "./user-dialog";
+import { columns } from "@/components/user/columns";
+import { DataTable } from "@/components/user/data-table";
+import { UserDialog } from "@/components/user/user-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Search } from "lucide-react";
