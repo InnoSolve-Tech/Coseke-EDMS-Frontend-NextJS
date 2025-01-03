@@ -20,13 +20,37 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Role {
   id: number;
   roleName: string;
+}
+
+interface Permission {
+  id: string;
+  permissionName: string;
+  checked: boolean;
+}
+
+interface PermissionGroup {
+  Name: string;
+  permissions: Permission[];
 }
 
 const initialRoles: Role[] = [
@@ -36,7 +60,7 @@ const initialRoles: Role[] = [
   { id: 4, roleName: "Super_Admin" },
 ];
 
-const initialPermissions = [
+const initialPermissions: PermissionGroup[] = [
   {
     Name: "Dashboard",
     permissions: [
@@ -69,15 +93,36 @@ const initialPermissions = [
 export function SystemRoles() {
   const [roles, setRoles] = useState<Role[]>(initialRoles);
   const [selectedRole, setSelectedRole] = useState<string | undefined>();
-  const [permissionsByRole, setPermissionsByRole] =
-    useState(initialPermissions);
+  const [permissionsByRole, setPermissionsByRole] = useState<
+    Record<number, PermissionGroup[]>
+  >({});
   const [newRoleName, setNewRoleName] = useState("");
   const [isAddRoleDialogOpen, setIsAddRoleDialogOpen] = useState(false);
+  const [isDeleteRoleDialogOpen, setIsDeleteRoleDialogOpen] = useState(false);
+
+  const initializePermissionsForRole = (roleId: number) => {
+    return initialPermissions.map((group) => ({
+      ...group,
+      permissions: group.permissions.map((perm) => ({
+        ...perm,
+        checked: false,
+      })),
+    }));
+  };
+
+  useEffect(() => {
+    const initialPermissionsByRole: Record<number, PermissionGroup[]> = {};
+    roles.forEach((role) => {
+      initialPermissionsByRole[role.id] = initializePermissionsForRole(role.id);
+    });
+    setPermissionsByRole(initialPermissionsByRole);
+  }, [roles]);
 
   useEffect(() => {
     if (selectedRole) {
       const roleId = parseInt(selectedRole);
-      let newPermissions = [...initialPermissions];
+      let newPermissions =
+        permissionsByRole[roleId] || initializePermissionsForRole(roleId);
 
       if (roleId === 1) {
         // Manager
@@ -99,7 +144,7 @@ export function SystemRoles() {
         }));
       }
 
-      setPermissionsByRole(newPermissions);
+      setPermissionsByRole((prev) => ({ ...prev, [roleId]: newPermissions }));
     }
   }, [selectedRole]);
 
@@ -108,8 +153,12 @@ export function SystemRoles() {
   };
 
   const handlePermissionToggle = (groupName: string, permissionId: string) => {
-    setPermissionsByRole((prevState) =>
-      prevState.map((group) =>
+    if (!selectedRole) return;
+
+    const roleId = parseInt(selectedRole);
+    setPermissionsByRole((prevState) => ({
+      ...prevState,
+      [roleId]: prevState[roleId].map((group) =>
         group.Name === groupName
           ? {
               ...group,
@@ -121,12 +170,16 @@ export function SystemRoles() {
             }
           : group,
       ),
-    );
+    }));
   };
 
   const handleGroupToggle = (groupName: string, isChecked: boolean) => {
-    setPermissionsByRole((prevState) =>
-      prevState.map((group) =>
+    if (!selectedRole) return;
+
+    const roleId = parseInt(selectedRole);
+    setPermissionsByRole((prevState) => ({
+      ...prevState,
+      [roleId]: prevState[roleId].map((group) =>
         group.Name === groupName
           ? {
               ...group,
@@ -137,18 +190,36 @@ export function SystemRoles() {
             }
           : group,
       ),
-    );
+    }));
   };
 
   const handleAddRole = () => {
     if (newRoleName.trim()) {
       const newRole: Role = {
-        id: roles.length + 1,
+        id: Math.max(...roles.map((r) => r.id)) + 1,
         roleName: newRoleName.trim(),
       };
-      setRoles([...roles, newRole]);
+      setRoles((prevRoles) => [...prevRoles, newRole]);
+      setPermissionsByRole((prevState) => ({
+        ...prevState,
+        [newRole.id]: initializePermissionsForRole(newRole.id),
+      }));
       setNewRoleName("");
       setIsAddRoleDialogOpen(false);
+    }
+  };
+
+  const handleDeleteRole = () => {
+    if (selectedRole) {
+      const roleId = parseInt(selectedRole);
+      setRoles((prevRoles) => prevRoles.filter((role) => role.id !== roleId));
+      setPermissionsByRole((prevState) => {
+        const newState = { ...prevState };
+        delete newState[roleId];
+        return newState;
+      });
+      setSelectedRole(undefined);
+      setIsDeleteRoleDialogOpen(false);
     }
   };
 
@@ -196,61 +267,97 @@ export function SystemRoles() {
                   />
                 </div>
               </div>
-              <Button onClick={handleAddRole}>Add Role</Button>
+              <DialogFooter>
+                <Button onClick={handleAddRole}>Add Role</Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
+          <AlertDialog
+            open={isDeleteRoleDialogOpen}
+            onOpenChange={setIsDeleteRoleDialogOpen}
+          >
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="destructive"
+                className="flex items-center"
+                disabled={!selectedRole}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete Role
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  Are you sure you want to delete this role?
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete the
+                  role and remove its permissions.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteRole}>
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {permissionsByRole.map((group) => (
-          <Card
-            key={group.Name}
-            className="shadow-lg hover:shadow-xl transition-shadow duration-300"
-          >
-            <CardHeader className="bg-gray-50 dark:bg-gray-800">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-semibold">
-                  {group.Name}
-                </CardTitle>
-                <Switch
-                  checked={group.permissions.every((perm) => perm.checked)}
-                  onCheckedChange={(checked) =>
-                    handleGroupToggle(group.Name, checked)
-                  }
-                  aria-label={`Toggle all ${group.Name} permissions`}
-                />
-              </div>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="space-y-4">
-                {group.permissions.map((perm) => (
-                  <div
-                    key={perm.id}
-                    className="flex items-center justify-between"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id={perm.id}
-                        checked={perm.checked}
-                        onCheckedChange={() =>
-                          handlePermissionToggle(group.Name, perm.id)
-                        }
-                        aria-label={perm.permissionName}
-                      />
-                      <Label htmlFor={perm.id} className="text-sm">
-                        {perm.permissionName}
-                      </Label>
+      {selectedRole && permissionsByRole[parseInt(selectedRole)] && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {permissionsByRole[parseInt(selectedRole)].map((group) => (
+            <Card
+              key={group.Name}
+              className="shadow-lg hover:shadow-xl transition-shadow duration-300"
+            >
+              <CardHeader className="bg-gray-50 dark:bg-gray-800">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg font-semibold">
+                    {group.Name}
+                  </CardTitle>
+                  <Switch
+                    checked={group.permissions.every((perm) => perm.checked)}
+                    onCheckedChange={(checked) =>
+                      handleGroupToggle(group.Name, checked)
+                    }
+                    aria-label={`Toggle all ${group.Name} permissions`}
+                  />
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="space-y-4">
+                  {group.permissions.map((perm) => (
+                    <div
+                      key={perm.id}
+                      className="flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id={perm.id}
+                          checked={perm.checked}
+                          onCheckedChange={() =>
+                            handlePermissionToggle(group.Name, perm.id)
+                          }
+                          aria-label={perm.permissionName}
+                        />
+                        <Label htmlFor={perm.id} className="text-sm">
+                          {perm.permissionName}
+                        </Label>
+                      </div>
+                      <Badge variant={perm.checked ? "default" : "secondary"}>
+                        {perm.checked ? "Granted" : "Denied"}
+                      </Badge>
                     </div>
-                    <Badge variant={perm.checked ? "default" : "secondary"}>
-                      {perm.checked ? "Granted" : "Denied"}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
