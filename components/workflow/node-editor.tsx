@@ -82,9 +82,6 @@ export function NodeEditor({
         <Tabs defaultValue="details" className="w-full">
           <TabsList>
             <TabsTrigger value="details">Details</TabsTrigger>
-            {node.type === "task" && (
-              <TabsTrigger value="form">Form</TabsTrigger>
-            )}
             {node.type === "decision" && (
               <TabsTrigger value="conditions">Conditions</TabsTrigger>
             )}
@@ -125,39 +122,6 @@ export function NodeEditor({
               </div>
             </div>
           </TabsContent>
-
-          {node.type === "task" && (
-            <TabsContent value="form">
-              <TaskForm
-                fields={[]}
-                onUpdate={(fields) =>
-                  setEditedNode({
-                    ...editedNode,
-                    data: {
-                      ...editedNode.data,
-                      form: {
-                        ...editedNode.data.form,
-                        id: 0,
-                        name: editedNode.data.form?.name || "",
-                        description: editedNode.data.form?.description || "",
-                        formFields: fields.map((field) => ({
-                          ...field,
-                          name: field.label,
-                          type: field.type as
-                            | "number"
-                            | "checkbox"
-                            | "date"
-                            | "text"
-                            | "select",
-                          id: crypto.randomUUID(),
-                        })),
-                      },
-                    },
-                  })
-                }
-              />
-            </TabsContent>
-          )}
 
           {node.type === "form" && (
             <TabsContent value="form">
