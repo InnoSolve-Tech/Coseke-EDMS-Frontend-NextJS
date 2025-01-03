@@ -1,26 +1,35 @@
 import { Search, Plus, Settings2, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { LeadsTable } from "../../../../components/activity/leads-table";
+import { TaskTable } from "../../../../components/activity/leads-table";
+import { Task } from "@/components/task";
+
 interface Lead {
-  id: string;
+  id: number;
   title: string;
-  status: string;
-  activity: {
-    text: string;
-    date: string;
-    time: string;
-  };
-  assignedTo: string;
-  createdAt: string;
+  dueDate: string;
 }
 
 export default function LeadsPage() {
   function handleEdit(lead: Lead): void {
-    console.log("Editing lead:", lead);
+    const task: Task = {
+      id: lead.id,
+      title: "",
+      description: "",
+      dueDate: "",
+      assignees: [],
+      priority: "",
+      status: "contracted",
+      startDate: "",
+      roles: [],
+      timelineReason: "",
+      deadline: "",
+      date: "",
+    };
+    console.log("Editing task:", task);
   }
 
-  function handleDelete(leadId: string): void {
+  function handleDelete(leadId: number): void {
     throw new Error("Function not implemented.");
   }
 
@@ -55,7 +64,7 @@ export default function LeadsPage() {
 
         {/* Table */}
         <div className="p-4">
-          <LeadsTable onEdit={handleEdit} onDelete={handleDelete} leads={[]} />
+          <TaskTable onEdit={handleEdit} onDelete={handleDelete} tasks={[]} />
         </div>
       </main>
     </div>
