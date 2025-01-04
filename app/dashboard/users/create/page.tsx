@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Plus, Search } from "lucide-react";
 import { getAllUsers } from "@/core/authentication/api";
 import { User } from "@/lib/types/user";
+import { deleteUser } from "@/core/users";
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -41,7 +42,7 @@ export default function UsersPage() {
 
   const handleRemoveUser = async (userId: number) => {
     try {
-      await AxiosInstance.delete(`/users/${userId}`);
+      await deleteUser(userId);
       setUsers(users.filter((user) => user.id !== userId));
     } catch (error) {
       console.error("Error removing user:", error);

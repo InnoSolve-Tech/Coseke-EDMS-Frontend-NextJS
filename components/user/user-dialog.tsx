@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { User, Role, Permission } from "@/lib/types/user";
+import { getAllRoles } from "@/core/authentication/api";
+import { createUser, updateUser } from "@/core/users";
 
 interface UserDialogProps {
   isOpen: boolean;
@@ -59,8 +61,8 @@ export function UserDialog({
 
   const fetchRoles = async () => {
     try {
-      const rolesRes = await AxiosInstance.get<Role[]>("/roles/all");
-      setAvailableRoles(rolesRes.data);
+      const rolesRes = await getAllRoles();
+      setAvailableRoles(rolesRes);
     } catch (error) {
       console.error("Error fetching roles:", error);
     }
@@ -70,9 +72,12 @@ export function UserDialog({
     e.preventDefault();
     try {
       if (user) {
-        await AxiosInstance.put(`/users/${user.id}`, userData);
+        await updateUser(user.id, userData);
       } else {
-        await AxiosInstance.post("/users/create-users", userData);
+        await createUser({
+          ...userData,
+          roles: userData.roles.map((r) => r.id),
+        });
       }
       onSubmit();
       onClose();

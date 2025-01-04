@@ -12,7 +12,7 @@ export const findAllUsers = async () => {
 // Fetch a single user by ID
 export const findUserById = async (id: number) => {
   try {
-    const response = await AxiosInstance.get(`/users/${id}`);
+    const response = await AxiosInstance.get(`/api/v1/users/${id}`);
     return response.data;
   } catch (error) {
     throw error;
@@ -22,7 +22,7 @@ export const findUserById = async (id: number) => {
 // Create a new user
 export const createUser = async (userData: any) => {
   try {
-    const response = await AxiosInstance.post("/users/create-users", userData);
+    const response = await AxiosInstance.post("/api/v1/users", userData);
     return response.data;
   } catch (error) {
     throw error;
@@ -44,7 +44,7 @@ export const addRoleToUser = async (userId: number, roleId: number) => {
 // Delete a user by ID
 export const deleteUser = async (id: number) => {
   try {
-    const response = await AxiosInstance.delete(`/users/${id}`);
+    const response = await AxiosInstance.delete(`/api/v1/users/${id}`);
     return response.data;
   } catch (error) {
     throw error;
@@ -54,7 +54,10 @@ export const deleteUser = async (id: number) => {
 // Update a user's basic information
 export const updateUser = async (id: number, updateData: any) => {
   try {
-    const response = await AxiosInstance.put(`/users/update/${id}`, updateData);
+    const response = await AxiosInstance.put(
+      `/api/v1/users/update/${id}`,
+      updateData,
+    );
     return response.data;
   } catch (error) {
     throw error;
@@ -65,7 +68,7 @@ export const updateUser = async (id: number, updateData: any) => {
 export const updateRoles = async (id: number, roles: any[]) => {
   try {
     const response = await AxiosInstance.put(
-      `/users/roles-update/${id}`,
+      `/api/v1/users/roles-update/${id}`,
       roles,
     );
     return response.data;
@@ -77,9 +80,13 @@ export const updateRoles = async (id: number, roles: any[]) => {
 // Forgot password request
 export const forgotPassword = async (email: string) => {
   try {
-    const response = await AxiosInstance.post("/users/forgot-password", null, {
-      params: { email },
-    });
+    const response = await AxiosInstance.post(
+      "/api/v1/users/forgot-password",
+      null,
+      {
+        params: { email },
+      },
+    );
     return response.data;
   } catch (error) {
     throw error;
@@ -89,9 +96,13 @@ export const forgotPassword = async (email: string) => {
 // Reset password with token and new password
 export const resetPassword = async (token: string, newPassword: string) => {
   try {
-    const response = await AxiosInstance.post("/users/reset-password", null, {
-      params: { token, newPassword },
-    });
+    const response = await AxiosInstance.post(
+      "/api/v1/users/reset-password",
+      null,
+      {
+        params: { token, newPassword },
+      },
+    );
     return response.data;
   } catch (error) {
     throw error;
@@ -106,7 +117,7 @@ export const updatePassword = async (
 ) => {
   try {
     const response = await AxiosInstance.put(
-      `/users/update-password/${userId}`,
+      `/api/v1/users/update-password/${userId}`,
       null,
       {
         params: { currentPassword, newPassword },
