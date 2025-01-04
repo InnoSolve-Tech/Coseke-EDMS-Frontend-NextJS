@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { AxiosInstance } from "@/components/routes/api";
 import { columns } from "@/components/user/columns";
 import { DataTable } from "@/components/user/data-table";
 import { UserDialog } from "@/components/user/user-dialog";
@@ -9,14 +8,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Search } from "lucide-react";
 import { getAllUsers } from "@/core/authentication/api";
-import { User } from "@/lib/types/user";
 import { deleteUser } from "@/core/users";
+import { useToast } from "@/hooks/use-toast";
+import { User } from "@/lib/types/user";
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [isEditUserOpen, setIsEditUserOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchUsers();
@@ -28,6 +29,11 @@ export default function UsersPage() {
       setUsers(response);
     } catch (error) {
       console.error("Error fetching users:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch users. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -41,11 +47,22 @@ export default function UsersPage() {
   };
 
   const handleRemoveUser = async (userId: number) => {
-    try {
-      await deleteUser(userId);
-      setUsers(users.filter((user) => user.id !== userId));
-    } catch (error) {
-      console.error("Error removing user:", error);
+    if (window.confirm("Are you sure you want to delete this user?")) {
+      try {
+        await deleteUser(userId);
+        setUsers(users.filter((user) => user.id !== userId));
+        toast({
+          title: "Success",
+          description: "User deleted successfully.",
+        });
+      } catch (error) {
+        console.error("Error removing user:", error);
+        toast({
+          title: "Error",
+          description: "Failed to delete user. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -64,7 +81,12 @@ export default function UsersPage() {
         </div>
       </div>
 
-      <DataTable columns={columns} data={users} />
+      <DataTable
+        columns={columns(handleEditUser, handleRemoveUser)}
+        data={users}
+        onEdit={handleEditUser}
+        onDelete={handleRemoveUser}
+      />
 
       <UserDialog
         isOpen={isAddUserOpen}

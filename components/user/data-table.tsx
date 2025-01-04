@@ -15,16 +15,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { User } from "@/lib/types/user";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
+  onEdit: (user: User) => void;
+  onDelete: (userId: number) => void;
 }
 
 export function DataTable<TData, TValue>({
-  columns,
+  columns: columnsDef,
   data,
+  onEdit,
+  onDelete,
 }: DataTableProps<TData, TValue>) {
+  const columns = columnsDef;
+
   const table = useReactTable({
     data,
     columns,

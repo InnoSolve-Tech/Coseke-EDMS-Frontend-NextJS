@@ -2,19 +2,14 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Pencil, Trash } from "lucide-react";
+import { Pencil, Trash } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { User } from "@/lib/types/user";
 
-export type User = {
-  id: number;
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone: string;
-  address: string;
-};
-
-export const columns: ColumnDef<User>[] = [
+export const columns = (
+  onEdit: (user: User) => void,
+  onDelete: (userId: number) => void,
+): ColumnDef<User>[] => [
   {
     accessorKey: "name",
     header: "Name",
@@ -60,18 +55,10 @@ export const columns: ColumnDef<User>[] = [
 
       return (
         <div className="flex items-center space-x-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => console.log("Edit", user.id)}
-          >
+          <Button variant="ghost" size="icon" onClick={() => onEdit(user)}>
             <Pencil className="h-4 w-4" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => console.log("Delete", user.id)}
-          >
+          <Button variant="ghost" size="icon" onClick={() => onDelete(user.id)}>
             <Trash className="h-4 w-4" />
           </Button>
         </div>
