@@ -244,10 +244,6 @@ export default function FileExplorer() {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const handleBreadcrumbClick = (index: number) => {
-    setCurrentPath((prev) => prev.slice(0, index + 1));
-  };
-
   const handleAction = async (action: string) => {
     if (!menuTarget) return;
 
@@ -502,54 +498,102 @@ export default function FileExplorer() {
     console.log("Search:", { query, searchType, metadata });
   };
 
-  const handleNodeClick = (node: FileNode) => {
-    if (node.type === "folder") {
-      // Toggle folder expansion
+  const navigateToFolder = async (folderId: number) => {
+    try {
+      // Start with root
+      const newPath = [
+        { id: "0", label: "Root", type: "folder" as const, folderID: 0 },
+      ];
+
+      if (folderId !== 0) {
+        // Get all folders to build the path
+        const foldersResponse = await getFolders();
+        const folders = Array.isArray(foldersResponse)
+          ? foldersResponse
+          : foldersResponse.data || [];
+
+        // Find the target folder and its ancestors
+        const buildFolderPath = (folders: any[], targetId: number): any[] => {
+          const folder = folders.find((f) => f.folderID === targetId);
+          if (!folder) return [];
+
+          const path = [];
+          if (folder.parentFolderID) {
+            path.push(...buildFolderPath(folders, folder.parentFolderID));
+          }
+          path.push({
+            id: folder.folderID.toString(),
+            label: folder.name,
+            type: "folder" as const,
+            folderID: folder.folderID,
+            parentFolderID: folder.parentFolderID,
+          });
+          return path;
+        };
+
+        // Build path from root to target folder
+        const folderPath = buildFolderPath(folders, folderId);
+        newPath.push(...folderPath);
+      }
+
+      // Update current path
+      setCurrentPath(newPath);
+
+      // Fetch and display children of the target folder
+      const childFolders = fileData.filter(
+        (node) => node.parentFolderID === folderId,
+      );
+
+      // Expand the target folder
       setExpanded((prev) => ({
         ...prev,
-        [node.id]: !prev[node.id],
+        [folderId.toString()]: true,
       }));
+
+      return childFolders;
+    } catch (error) {
+      console.error("Error navigating to folder:", error);
+      return [];
+    }
+  };
+
+  const handleNodeClick = async (node: FileNode) => {
+    if (node.type === "folder") {
+      const folderId = node.folderID ?? 0;
+      await navigateToFolder(folderId);
     } else if (node.type === "file") {
-      // Navigate to file view
       router.push(`/dashboard/folders/file/${node.fileId}`);
     }
   };
 
+  const handleBreadcrumbClick = async (index: number) => {
+    const targetCrumb = currentPath[index];
+    if (!targetCrumb) return;
+
+    // If clicking root or any folder, navigate to that folder
+    await navigateToFolder(targetCrumb.folderID ?? 0);
+  };
+
+  // Modify the renderTree function to only show children of current folder
   const renderTree = (nodes: FileNode[]) => {
-    const renderNode = (node: FileNode, level: number = 0) => {
+    const currentFolderId = currentPath[currentPath.length - 1]?.folderID ?? 0;
+
+    // Filter nodes to only show direct children of current folder
+    const visibleNodes = nodes.filter(
+      (node) => node.parentFolderID === currentFolderId,
+    );
+
+    const renderNode = (node: FileNode) => {
       const isFolder = node.type === "folder";
-      const isFile = node.type === "file";
       const isOpen = expanded[node.id] || false;
 
-      // Find direct children (sub-folders and files)
-      const subFolders = nodes.filter(
-        (child) =>
-          child.type === "folder" && child.parentFolderID === node.folderID,
-      );
-      console.log("subfolders", subFolders);
-
-      const directFiles = nodes.filter(
-        (child) => child.type === "file" && child.folderID === node.folderID,
-      );
-      console.log("files", directFiles);
-
-      const handleToggleExpand = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setExpanded((prev) => ({
-          ...prev,
-          [node.id]: !prev[node.id],
-        }));
-      };
+      // Get direct children for folders
+      const children = isFolder
+        ? nodes.filter((child) => child.parentFolderID === node.folderID)
+        : [];
 
       return (
-        <ListItem
-          key={node.id}
-          nested={isFolder}
-          sx={{
-            my: 0.5,
-            ml: level * 2,
-          }}
-        >
+        <ListItem key={node.id} nested={isFolder} sx={{ my: 0.5 }}>
           <ListItemButton
             onClick={() => handleNodeClick(node)}
             onContextMenu={(e) => handleRightClick(e, node)}
@@ -557,12 +601,9 @@ export default function FileExplorer() {
               display: "flex",
               alignItems: "center",
               padding: "8px",
-              "&:hover": {
-                backgroundColor: "action.hover",
-              },
+              "&:hover": { backgroundColor: "action.hover" },
             }}
           >
-            {/* Node Icon and Expansion Logic */}
             <span
               className="mr-2"
               style={{ display: "flex", alignItems: "center" }}
@@ -572,80 +613,30 @@ export default function FileExplorer() {
                   size="sm"
                   variant="plain"
                   color="neutral"
-                  onClick={handleToggleExpand}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setExpanded((prev) => ({
+                      ...prev,
+                      [node.id]: !prev[node.id],
+                    }));
+                  }}
                 >
                   {isOpen ? <ChevronDown /> : <ChevronRight />}
                 </IconButton>
               )}
-
               <span className="mr-2">{isFolder ? <Folder /> : <File />}</span>
             </span>
-
             <Typography>{node.label}</Typography>
           </ListItemButton>
 
-          {/* Render children if folder is open */}
-          {isFolder && isOpen && (
-            <List>
-              {/* Render sub-folders */}
-              {subFolders.map((folder) => renderNode(folder, level + 1))}
-
-              {/* Render direct files */}
-              {directFiles.map((file) => renderNode(file, level + 1))}
-            </List>
+          {isFolder && isOpen && children.length > 0 && (
+            <List>{children.map((child) => renderNode(child))}</List>
           )}
         </ListItem>
       );
     };
 
-    // Find root-level folders (no parent or parent is 0/null)
-    const rootFolders = nodes.filter(
-      (node) =>
-        node.type === "folder" &&
-        (node.parentFolderID === 0 || node.parentFolderID == null),
-    );
-
-    // Find root-level files (no parent or parent is 0/null)
-    const rootFiles = nodes.filter(
-      (node) =>
-        node.type === "file" &&
-        (node.parentFolderID === 0 || node.parentFolderID == null),
-    );
-
-    return (
-      <List>
-        {/* Render root folders */}
-        {rootFolders.map((folder) => renderNode(folder))}
-
-        {/* Render root files separately */}
-        {rootFiles.map((file) => (
-          <ListItem
-            key={file.id}
-            sx={{
-              my: 0.5,
-            }}
-          >
-            <ListItemButton
-              onClick={() => handleNodeClick(file)}
-              onContextMenu={(e) => handleRightClick(e, file)}
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                padding: "8px",
-                "&:hover": {
-                  backgroundColor: "action.hover",
-                },
-              }}
-            >
-              <span className="mr-2">
-                <File />
-              </span>
-              <Typography>{file.label}</Typography>
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
-    );
+    return <List>{visibleNodes.map((node) => renderNode(node))}</List>;
   };
 
   return (

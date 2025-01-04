@@ -38,6 +38,15 @@ interface Metadata {
 }
 
 type ApiResponse<T> = {
+  map(
+    arg0: (folder: any) => {
+      id: any;
+      label: any;
+      type: string;
+      folderID: any;
+      parentFolderID: any;
+    },
+  ): unknown;
   id: number;
   name: string;
   parentFolderID: number | undefined;

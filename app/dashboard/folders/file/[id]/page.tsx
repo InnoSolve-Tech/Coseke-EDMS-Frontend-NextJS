@@ -30,6 +30,7 @@ import { ColorPaletteProp } from "@mui/joy/styles";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
+import DocViewer, { DocViewerRenderers } from "react-doc-viewer";
 
 interface Metadata {
   [key: string]: string | string[];
@@ -71,6 +72,12 @@ const FileViewPage = () => {
   }>({
     excelData: null,
   });
+  const [previewMode, setPreviewMode] = useState<
+    "default" | "local" | "google"
+  >("default");
+  const [fileURL, setFileURL] = useState<string | null>(null);
+  const [googleFileId, setGoogleFileId] = useState<string | null>(null);
+  const [showInstallMessage, setShowInstallMessage] = useState(false);
 
   // Fetch file details on component mount
   useEffect(() => {
@@ -221,48 +228,17 @@ const FileViewPage = () => {
   }
 
   const renderPreview = () => {
-    const mimeType = document.mimeType.toLowerCase();
-
-    // Image preview
-    if (mimeType.startsWith("image/")) {
+    if (!document || !document.fileLink) {
       return (
-        <Card variant="outlined" sx={{ height: "calc(100% - 60px)" }}>
-          <CardContent
-            sx={{
-              height: "100%",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <img
-              src={document.fileLink || ""}
-              alt={document.filename}
-              style={{
-                maxWidth: "100%",
-                maxHeight: "70vh",
-                objectFit: "contain",
-              }}
-            />
-            <Typography level="body-lg" textAlign="center" sx={{ mt: 2 }}>
-              {document.filename}
-              <br />
-              File type: {document.mimeType}
-            </Typography>
-            <Button
-              onClick={handleDownload}
-              startDecorator={<DownloadIcon />}
-              sx={{ mt: 2 }}
-            >
-              Download File
-            </Button>
-          </CardContent>
-        </Card>
+        <Typography level="body-lg" textAlign="center">
+          No file available to preview.
+        </Typography>
       );
     }
 
-    // PDF preview with iframe
+    const mimeType = document.mimeType.toLowerCase();
+
+    // Handle PDF files with iframe
     if (mimeType === "application/pdf") {
       return (
         <Card
@@ -279,9 +255,9 @@ const FileViewPage = () => {
             }}
           >
             <iframe
-              src={`${document.fileLink}#navpanes=0&toolbar=0`}
+              src={`${document.fileLink}#toolbar=0`}
               width="100%"
-              height="600"
+              height="600px"
               style={{ border: "none" }}
               title="PDF Preview"
             />
@@ -300,164 +276,52 @@ const FileViewPage = () => {
       );
     }
 
-    // Video preview
-    if (mimeType.startsWith("video/")) {
-      return (
-        <Card variant="outlined" sx={{ height: "calc(100% - 60px)" }}>
-          <CardContent
-            sx={{
-              height: "100%",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <video
-              controls
-              src={document.fileLink || ""}
-              style={{
-                maxWidth: "100%",
-                maxHeight: "70vh",
-              }}
-            >
-              Your browser does not support the video tag.
-            </video>
-            <Typography level="body-lg" textAlign="center" sx={{ mt: 2 }}>
-              {document.filename}
-              <br />
-              File type: {document.mimeType}
-            </Typography>
-            <Button
-              onClick={handleDownload}
-              startDecorator={<DownloadIcon />}
-              sx={{ mt: 2 }}
-            >
-              Download Video
-            </Button>
-          </CardContent>
-        </Card>
-      );
-    }
+    // Use react-doc-viewer for other file types (e.g., .docx, .xlsx)
+    const docs = [
+      {
+        uri: document.fileLink,
+        fileName: document.filename,
+      },
+    ];
 
-    // Excel files with data table
-    if (
-      mimeType === "application/vnd.ms-excel" ||
-      mimeType ===
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    ) {
-      return (
-        <Card
-          variant="outlined"
-          sx={{ height: "calc(100% - 60px)", overflow: "auto" }}
+    return (
+      <Card
+        variant="outlined"
+        sx={{ height: "calc(100% - 60px)", overflow: "auto" }}
+      >
+        <CardContent
+          sx={{
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
         >
-          <CardContent
-            sx={{
-              height: "100%",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
+          <DocViewer
+            documents={docs}
+            pluginRenderers={DocViewerRenderers}
+            config={{
+              header: {
+                disableHeader: true,
+              },
             }}
+          />
+          <Typography level="body-lg" textAlign="center" sx={{ mt: 2 }}>
+            {document.filename}
+          </Typography>
+          <Button
+            onClick={handleDownload}
+            startDecorator={<DownloadIcon />}
+            sx={{ mt: 2 }}
           >
-            <ExcelIcon sx={{ fontSize: 100, color: "primary.300", mb: 2 }} />
-            <Typography level="body-lg" textAlign="center">
-              Excel Document: {document.filename}
-            </Typography>
-            {previewState.excelData && (
-              <Box sx={{ width: "100%", maxHeight: "500px", overflow: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr>
-                      {(previewState.excelData[0] as any).map(
-                        (header: any, index: any) => (
-                          <th
-                            key={index}
-                            style={{
-                              border: "1px solid #ddd",
-                              padding: "8px",
-                              backgroundColor: "#f2f2f2",
-                            }}
-                          >
-                            {header}
-                          </th>
-                        ),
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(previewState.excelData as any)
-                      .slice(1)
-                      .map((row: any, rowIndex: any) => (
-                        <tr key={rowIndex}>
-                          {row.map((cell: any, cellIndex: any) => (
-                            <td
-                              key={cellIndex}
-                              style={{
-                                border: "1px solid #ddd",
-                                padding: "8px",
-                              }}
-                            >
-                              {cell}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </Box>
-            )}
-            <Button
-              onClick={handleDownload}
-              startDecorator={<DownloadIcon />}
-              sx={{ mt: 2 }}
-            >
-              Download Excel File
-            </Button>
-          </CardContent>
-        </Card>
-      );
-    }
-
-    // Word documents with iframe
-    if (
-      mimeType === "application/msword" ||
-      mimeType ===
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    ) {
-      return (
-        <Card variant="outlined" sx={{ height: "calc(100% - 60px)" }}>
-          <CardContent
-            sx={{
-              height: "100%",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <iframe
-              src={`https://docs.google.com/viewer?url=${encodeURIComponent(document!.fileLink!)}&embedded=true`}
-              width="100%"
-              height="500"
-              style={{ border: "none" }}
-              title="Document Preview"
-            />
-            <Typography level="body-lg" textAlign="center" sx={{ mt: 2 }}>
-              Word Document: {document.filename}
-            </Typography>
-            <Button
-              onClick={handleDownload}
-              startDecorator={<DownloadIcon />}
-              sx={{ mt: 2 }}
-            >
-              Download Document
-            </Button>
-          </CardContent>
-        </Card>
-      );
-    }
+            Download File
+          </Button>
+        </CardContent>
+      </Card>
+    );
   };
+
   return (
     <Box
       sx={{
