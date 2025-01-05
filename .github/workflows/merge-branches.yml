@@ -1,0 +1,53 @@
+name: Auto Merge Branches
+
+on:
+  schedule:
+    - cron: "0 0 * * *" # Runs daily at midnight (UTC)
+  workflow_dispatch: # Allows manual triggering of the workflow
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set Up GitHub CLI
+        uses: actions/setup-gh@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fetch all branches
+        run: git fetch --all
+
+      - name: Get branches
+        id: branches
+        run: |
+          gh api repos/${{ github.repository }}/branches \
+            --jq '.[] | select(.name != "master") | .name' > branches.txt
+
+      - name: Process branches
+        run: |
+          while read branch; do
+            echo "Processing branch: $branch"
+            BASE_BRANCH="master"
+
+            # Check for merge conflicts
+            if ! git merge-base --is-ancestor $BASE_BRANCH $branch; then
+              echo "Skipping $branch due to conflicts"
+              continue
+            fi
+
+            # Count commits behind base
+            BEHIND_COUNT=$(git rev-list --count $branch..$BASE_BRANCH)
+            if [ $BEHIND_COUNT -lt 5 ]; then
+              echo "Skipping $branch as it's less than 5 commits behind"
+              continue
+            fi
+
+            # Perform merge
+            echo "Merging $branch into $BASE_BRANCH"
+            git checkout $BASE_BRANCH
+            git merge --no-ff $branch -m "Auto-merged $branch into $BASE_BRANCH"
+            git push
+          done < branches.txt
