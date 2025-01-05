@@ -39,7 +39,6 @@ export function NodeAssignment({ value, onChange }: NodeAssignmentProps) {
         ]);
         setRoles(roles);
         setUsers(users);
-        console.log("Users:", users);
       } catch (error) {
         console.error("Error fetching roles or users:", error);
       }
@@ -98,7 +97,7 @@ export function NodeAssignment({ value, onChange }: NodeAssignmentProps) {
                 <SelectItem
                   className="text-black"
                   key={role.id}
-                  value={role.id.toString()}
+                  value={role.id!.toString()}
                 >
                   {role?.name
                     .split(" ")

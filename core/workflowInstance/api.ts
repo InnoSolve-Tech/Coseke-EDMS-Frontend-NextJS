@@ -46,7 +46,9 @@ export const getAllWorkflowInstances = async () => {
  */
 export const getWorkflowInstanceById = async (id: string) => {
   try {
-    const response = await AxiosInstance.get(`/api/workflow-instances/${id}`);
+    const response = await AxiosInstance.get(
+      `/api/v1/workflow-instances/${id}`,
+    );
     return response.data; // Return the specific workflow instance data
   } catch (error) {
     console.error(`Error fetching Workflow Instance with ID ${id}:`, error);
@@ -62,7 +64,7 @@ export const getWorkflowInstanceById = async (id: string) => {
 export const deleteWorkflowInstanceById = async (id: string) => {
   try {
     const response = await AxiosInstance.delete(
-      `/api/workflow-instances/${id}`,
+      `/workflows/api/v1/workflow-instances/${id}`,
     );
     return response.data; // Return the confirmation of deletion
   } catch (error) {
@@ -83,7 +85,7 @@ export const updateWorkflowInstance = async (
 ) => {
   try {
     const response = await AxiosInstance.put(
-      `/api/workflow-instances/${id}`,
+      `/workflows/api/v1/workflow-instances/${id}`,
       updatedWorkflowInstance,
     );
     return response.data; // Return the updated workflow instance data

@@ -14,12 +14,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { editWorkflow } from "@/core/workflows/api";
 import { useWorkflow } from "@/lib/contexts/workflow-edit-context";
-import { Workflow } from "@/lib/types/workflow";
+import { Edge, Workflow } from "@/lib/types/workflow";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
-
+import { useToast } from "@/hooks/use-toast";
 import * as z from "zod";
 
 const formSchema = z.object({
@@ -35,6 +35,7 @@ export function WorkflowForm() {
   const { workflow, updateWorkflow } = useWorkflow();
   const initialWorkflowRef = useRef(workflow);
   const router = useRouter();
+  const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -45,12 +46,11 @@ export function WorkflowForm() {
   });
 
   useEffect(() => {
-    // Check if workflow has actually changed and if the form values need resetting
     if (
       workflow?.name !== initialWorkflowRef.current?.name ||
       workflow?.description !== initialWorkflowRef.current?.description
     ) {
-      initialWorkflowRef.current = workflow; // Update the ref
+      initialWorkflowRef.current = workflow;
       form.reset({
         name: workflow?.name || "",
         description: workflow?.description || "",
@@ -58,26 +58,87 @@ export function WorkflowForm() {
     }
   }, [workflow, form]);
 
+  const traceEdges = (edges: Edge[], start: any, end: any): boolean => {
+    if (!start || !end) {
+      return false;
+    }
+
+    if (edges.length === 0) {
+      return false;
+    }
+
+    const visited = new Set<string>();
+    const queue: string[] = [start.id];
+
+    while (queue.length > 0) {
+      const currentNode = queue.shift()!;
+
+      if (currentNode === end.id) {
+        return true;
+      }
+
+      visited.add(currentNode);
+      const connectedEdges = edges.filter(
+        (edge) => edge.source === currentNode,
+      );
+
+      for (const edge of connectedEdges) {
+        if (!visited.has(edge.target)) {
+          queue.push(edge.target);
+        }
+      }
+    }
+    return false;
+  };
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      updateWorkflow({
+      let wf = {
         ...workflow,
         ...values,
+      };
+
+      if (wf.nodes!.filter((node: any) => node.type === "start").length === 0) {
+        throw new Error("Workflow must have a start node.");
+      }
+
+      let start = wf.nodes!.find((node: any) => node.type === "start");
+
+      if (wf.nodes!.filter((node: any) => node.type === "end").length === 0) {
+        throw new Error("Workflow must have an end node.");
+      }
+
+      let end = wf.nodes!.find((node: any) => node.type === "end");
+      let edges = wf.edges;
+
+      if (!traceEdges(edges!, start, end)) {
+        throw new Error("Workflow must have a path from start to end.");
+      }
+
+      if (
+        wf.nodes!.map((node: any) => node.data.assignee).includes(null) ||
+        wf.nodes!.map((node: any) => node.data.assignee).includes(undefined)
+      ) {
+        throw new Error("Workflow must have assignee for each node.");
+      }
+
+      updateWorkflow(wf);
+      await editWorkflow(wf as Workflow);
+
+      toast({
+        title: "Success",
+        description: "Workflow has been updated successfully.",
       });
 
-      await editWorkflow({
-        ...workflow,
-        ...values,
-      } as Workflow);
-
-      console.log({
-        ...workflow,
-        ...values,
-      });
-
-      // router.push("/dashboard/workflows");
+      router.push("/dashboard/workflows");
     } catch (error) {
       console.error("Failed to update workflow:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description:
+          error instanceof Error ? error.message : "Failed to update workflow",
+      });
     }
   };
 
