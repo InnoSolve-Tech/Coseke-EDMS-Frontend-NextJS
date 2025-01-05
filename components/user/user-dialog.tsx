@@ -1,7 +1,4 @@
-"use client";
-
 import { useState, useEffect } from "react";
-import { AxiosInstance } from "@/components/routes/api";
 import {
   Dialog,
   DialogContent,
@@ -11,8 +8,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { User, Role, Permission } from "@/lib/types/user";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { User, Role } from "@/lib/types/user";
+import { getAllRoles } from "@/core/authentication/api";
+import { createUser, updateUser } from "@/core/users";
 
 interface UserDialogProps {
   isOpen: boolean;
@@ -59,8 +64,8 @@ export function UserDialog({
 
   const fetchRoles = async () => {
     try {
-      const rolesRes = await AxiosInstance.get<Role[]>("/roles/all");
-      setAvailableRoles(rolesRes.data);
+      const rolesRes = await getAllRoles();
+      setAvailableRoles(rolesRes);
     } catch (error) {
       console.error("Error fetching roles:", error);
     }
@@ -70,9 +75,12 @@ export function UserDialog({
     e.preventDefault();
     try {
       if (user) {
-        await AxiosInstance.put(`/users/${user.id}`, userData);
+        await updateUser(user.id, userData);
       } else {
-        await AxiosInstance.post("/users/create-users", userData);
+        await createUser({
+          ...userData,
+          roles: userData.roles.map((r) => r.id),
+        });
       }
       onSubmit();
       onClose();
@@ -85,13 +93,16 @@ export function UserDialog({
     setUserData({ ...userData, [e.target.name]: e.target.value });
   };
 
-  const handleRoleChange = (role: Role) => {
-    setUserData((prevData) => ({
-      ...prevData,
-      roles: prevData.roles.some((r) => r.id === role.id)
-        ? prevData.roles.filter((r) => r.id !== role.id)
-        : [...prevData.roles, role],
-    }));
+  const handleRoleChange = (roleId: string) => {
+    const selectedRole = availableRoles.find(
+      (r) => r.id!.toString() === roleId,
+    );
+    if (selectedRole) {
+      setUserData((prevData) => ({
+        ...prevData,
+        roles: [selectedRole],
+      }));
+    }
   };
 
   return (
@@ -168,19 +179,22 @@ export function UserDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label>Roles</Label>
-            <div className="grid grid-cols-2 gap-2">
-              {availableRoles.map((role) => (
-                <div key={role.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`role-${role.id}`}
-                    checked={userData.roles.some((r) => r.id === role.id)}
-                    onCheckedChange={() => handleRoleChange(role)}
-                  />
-                  <Label htmlFor={`role-${role.id}`}>{role.name}</Label>
-                </div>
-              ))}
-            </div>
+            <Label>Role</Label>
+            <Select
+              value={userData.roles[0]?.id!.toString()}
+              onValueChange={handleRoleChange}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a role" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableRoles.map((role) => (
+                  <SelectItem key={role.id} value={role.id!.toString()}>
+                    {role.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <Button type="submit" className="w-full">
             {user ? "Update User" : "Add User"}

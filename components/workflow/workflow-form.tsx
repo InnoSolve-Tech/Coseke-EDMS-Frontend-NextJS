@@ -14,10 +14,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { createWorkflow } from "@/core/workflows/api";
 import { useWorkflow } from "@/lib/contexts/workflow-context";
+import { Edge } from "@/lib/types/workflow";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
+import { useToast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -31,6 +33,7 @@ const formSchema = z.object({
 export function WorkflowForm() {
   const { workflow, updateWorkflow } = useWorkflow();
   const router = useRouter();
+  const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -40,22 +43,89 @@ export function WorkflowForm() {
     },
   });
 
+  const traceEdges = (edges: Edge[], start: any, end: any): boolean => {
+    if (!start || !end) {
+      return false;
+    }
+
+    if (edges.length === 0) {
+      return false;
+    }
+
+    const visited = new Set<string>();
+    const queue: string[] = [start.id];
+
+    while (queue.length > 0) {
+      const currentNode = queue.shift()!;
+
+      if (currentNode === end.id) {
+        return true;
+      }
+
+      visited.add(currentNode);
+      const connectedEdges = edges.filter(
+        (edge) => edge.source === currentNode,
+      );
+
+      for (const edge of connectedEdges) {
+        if (!visited.has(edge.target)) {
+          queue.push(edge.target);
+        }
+      }
+    }
+    return false;
+  };
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      updateWorkflow({
+      let wf: any = {
         ...workflow,
         ...values,
+      };
+      updateWorkflow(wf);
+      console.log(wf);
+
+      if (wf.nodes.filter((node: any) => node.type === "start").length === 0) {
+        throw new Error("Workflow must have a start node.");
+      }
+
+      let start = wf.nodes.find((node: any) => node.type === "start");
+
+      if (wf.nodes.filter((node: any) => node.type === "end").length === 0) {
+        throw new Error("Workflow must have an end node.");
+      }
+
+      let end = wf.nodes.find((node: any) => node.type === "end");
+      let edges = wf.edges;
+
+      if (!traceEdges(edges, start, end)) {
+        throw new Error("Workflow must have a path from start to end.");
+      }
+
+      if (
+        wf.nodes.map((node: any) => node.data.assignee).includes(null) ||
+        wf.nodes.map((node: any) => node.data.assignee).includes(undefined)
+      ) {
+        throw new Error("Workflow must have assignee for each node.");
+      }
+
+      await createWorkflow(wf);
+
+      toast({
+        title: "Success",
+        color: "success",
+        description: "Workflow has been saved successfully.",
       });
 
-      await createWorkflow({
-        ...workflow,
-        ...values,
-      } as any);
-
-      // Navigate to dashboard/workflows
       router.push("/dashboard/workflows");
     } catch (error) {
       console.error("Failed to create workflow:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description:
+          error instanceof Error ? error.message : "Failed to create workflow",
+      });
     }
   };
 
