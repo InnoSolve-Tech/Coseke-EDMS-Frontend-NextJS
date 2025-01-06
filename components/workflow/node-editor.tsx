@@ -1,20 +1,5 @@
 "use client";
 
-import { WorkflowNode } from "@/lib/types/workflow";
-import { useEffect, useState } from "react";
-import CreateFormRecord from "../forms/Active/CreateFormRecord";
-import { Button } from "../ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
-import { Input } from "../ui/input";
-import { Label } from "../ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import { Textarea } from "../ui/textarea";
-import { NodeAssignment } from "./node-assignment";
-import { TaskForm } from "./node-forms";
-import { nodeTypes } from "./node-types";
-import { getAllForms } from "@/core/forms/api";
-import { Form } from "@/lib/types/forms";
-import { toast } from "@/hooks/use-toast";
 import {
   Select,
   SelectContent,
@@ -22,6 +7,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { getAllForms } from "@/core/forms/api";
+import { toast } from "@/hooks/use-toast";
+import { Form } from "@/lib/types/forms";
+import { WorkflowNode } from "@/lib/types/workflow";
+import { useEffect, useState } from "react";
+import { Button } from "../ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { Textarea } from "../ui/textarea";
+import { NodeAssignment } from "./node-assignment";
+import { nodeTypes } from "./node-types";
 
 interface NodeEditorProps {
   node: WorkflowNode;
@@ -46,26 +44,35 @@ export function NodeEditor({
     onClose();
   };
 
-  useEffect(() => {
-    const fetchForms = async () => {
-      try {
-        const response = await getAllForms();
-        setForms(response);
-      } catch (error) {
-        console.error("Error fetching forms:", error);
-        toast({
-          title: "Error",
-          description: "Failed to fetch forms. Please try again.",
-          variant: "destructive",
-        });
-      }
-    };
+  const fetchForms = async () => {
+    try {
+      const response = await getAllForms();
+      setForms(response);
+      setSelectedForm(
+        response.find((f) => f.id === parseInt(node.data.formId!)),
+      );
+    } catch (error) {
+      console.error("Error fetching forms:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch forms. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
-    fetchForms();
+  useEffect(() => {
+    if (node.type === "form") {
+      fetchForms();
+    }
   }, []);
 
   const handleFormSelect = (formId: string) => {
     const form = forms.find((f) => f.id === parseInt(formId));
+    setEditedNode({
+      ...editedNode,
+      data: { ...editedNode.data, formId: formId },
+    });
     setSelectedForm(form || null);
   };
 
@@ -125,7 +132,10 @@ export function NodeEditor({
 
           {node.type === "form" && (
             <TabsContent value="form">
-              <Select onValueChange={handleFormSelect}>
+              <Select
+                value={selectedForm?.id?.toString()}
+                onValueChange={handleFormSelect}
+              >
                 <SelectTrigger className="w-full my-10">
                   <SelectValue placeholder="Select a form" />
                 </SelectTrigger>

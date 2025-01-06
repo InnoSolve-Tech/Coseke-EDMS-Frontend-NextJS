@@ -15,7 +15,7 @@ export default function DashboardLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={`${inter.className} dashboard-layout`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

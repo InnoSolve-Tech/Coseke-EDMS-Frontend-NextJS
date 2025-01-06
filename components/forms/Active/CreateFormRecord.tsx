@@ -25,7 +25,7 @@ import { Form, FormField } from "@/lib/types/forms";
 import { User } from "@/lib/types/user";
 import { useEffect, useState } from "react";
 
-export default function CreateFormRecord() {
+export default function CreateFormRecord({ formId }: { formId: string }) {
   const [forms, setForms] = useState<Form[]>([]);
   const [selectedForm, setSelectedForm] = useState<Form | null>(null);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
@@ -44,6 +44,7 @@ export default function CreateFormRecord() {
       try {
         const response = await getAllForms();
         setForms(response);
+        setSelectedForm(response.find((f) => f.id === parseInt(formId)));
       } catch (error) {
         console.error("Error fetching forms:", error);
         toast({
