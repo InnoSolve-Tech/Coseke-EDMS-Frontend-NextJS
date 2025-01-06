@@ -47,8 +47,7 @@ const nodeTypes = {
   end: WorkflowNode,
   task: WorkflowNode,
   decision: WorkflowNode,
-  parallel: WorkflowNode,
-  merge: WorkflowNode,
+  form: WorkflowNode,
 };
 
 interface WorkflowDesignerProps {

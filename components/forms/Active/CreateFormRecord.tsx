@@ -1,5 +1,6 @@
 "use client";
 
+import { getUserFromSessionStorage } from "@/components/routes/sessionStorage";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -30,14 +31,11 @@ export default function CreateFormRecord() {
   const [selectedForm, setSelectedForm] = useState<Form | null>(null);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [user, setUser] = useState<any>();
 
-  const getCurrentUser = (): User => {
-    let user = sessionStorage.getItem("current-user");
-    if (!user) {
-      throw new Error("User not found in session storage.");
-    }
-    return JSON.parse(user);
-  };
+  useEffect(() => {
+    setUser(getUserFromSessionStorage());
+  }, []);
 
   useEffect(() => {
     const fetchForms = async () => {
@@ -70,8 +68,6 @@ export default function CreateFormRecord() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedForm) return;
-
-    let user = getCurrentUser();
 
     setIsSubmitting(true);
     const formFieldValues = Object.entries(formValues).map(

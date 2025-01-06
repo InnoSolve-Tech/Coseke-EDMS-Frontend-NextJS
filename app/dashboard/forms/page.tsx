@@ -12,7 +12,6 @@ export default function FormsPage() {
   const fetchForms = async () => {
     try {
       const response = await getAllForms();
-      console.log("response", response);
       setForms(response);
     } catch (error) {
       console.error("Error fetching forms", error);

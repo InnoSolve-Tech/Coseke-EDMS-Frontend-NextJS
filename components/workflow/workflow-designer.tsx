@@ -1,6 +1,7 @@
 "use client";
 
 import { useWorkflow } from "@/lib/contexts/workflow-context";
+import { Form } from "@/lib/types/forms";
 import { WorkflowNode as WorkflowNodeType } from "@/lib/types/workflow";
 import { Info } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -17,13 +18,11 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { v4 as uuidv4 } from "uuid";
-import { Button } from "../ui/button";
+import { Button } from "@/components/ui/button";
 import { NodeEditor } from "./node-editor";
 import { nodeTypes as nodeConfig } from "./node-types";
 import { WorkflowHelpDialog } from "./workflow-help-dialog";
-import { WorkflowJson } from "./workflow-json";
 import WorkflowNode from "./workflow-node";
-import { Form } from "@/lib/types/forms";
 
 type WorkflowNodeData = {
   label: string;
@@ -134,12 +133,6 @@ export function WorkflowDesigner() {
         </div>
         <div className="flex items-center gap-2">
           <WorkflowHelpDialog />
-          <WorkflowJson
-            workflow={{
-              nodes: nodes as unknown as WorkflowNodeType[],
-              edges,
-            }}
-          />
         </div>
       </div>
 

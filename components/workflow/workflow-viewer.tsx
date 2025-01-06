@@ -12,8 +12,7 @@ const nodeTypes = {
   end: WorkflowNode,
   task: WorkflowNode,
   decision: WorkflowNode,
-  parallel: WorkflowNode,
-  merge: WorkflowNode,
+  form: WorkflowNode,
 };
 
 export function WorkflowViewer({ id }: { id: string }) {

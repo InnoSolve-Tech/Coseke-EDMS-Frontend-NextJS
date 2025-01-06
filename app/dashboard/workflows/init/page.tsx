@@ -1,3 +1,5 @@
+"use client";
+
 import WorkflowInstanceCreator from "@/components/workflow/workflow-instance-creator";
 
 export default function WorkflowInstancesPage() {
