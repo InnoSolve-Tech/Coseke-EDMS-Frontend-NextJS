@@ -1,5 +1,6 @@
 "use client";
 
+import { getUserFromSessionStorage } from "@/components/routes/sessionStorage";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -25,26 +26,22 @@ import { Form, FormField } from "@/lib/types/forms";
 import { User } from "@/lib/types/user";
 import { useEffect, useState } from "react";
 
-export default function CreateFormRecord({ formId }: { formId: string }) {
+export default function CreateFormRecord() {
   const [forms, setForms] = useState<Form[]>([]);
   const [selectedForm, setSelectedForm] = useState<Form | null>(null);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [user, setUser] = useState<any>();
 
-  const getCurrentUser = (): User => {
-    let user = sessionStorage.getItem("current-user");
-    if (!user) {
-      throw new Error("User not found in session storage.");
-    }
-    return JSON.parse(user);
-  };
+  useEffect(() => {
+    setUser(getUserFromSessionStorage());
+  }, []);
 
   useEffect(() => {
     const fetchForms = async () => {
       try {
         const response = await getAllForms();
         setForms(response);
-        setSelectedForm(response.find((f) => f.id === parseInt(formId)));
       } catch (error) {
         console.error("Error fetching forms:", error);
         toast({
@@ -71,8 +68,6 @@ export default function CreateFormRecord({ formId }: { formId: string }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedForm) return;
-
-    let user = getCurrentUser();
 
     setIsSubmitting(true);
     const formFieldValues = Object.entries(formValues).map(

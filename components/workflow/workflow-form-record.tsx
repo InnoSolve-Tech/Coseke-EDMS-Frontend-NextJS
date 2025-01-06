@@ -1,7 +1,7 @@
 "use client";
 
-import { useToast } from "@/hooks/use-toast";
-import { useEffect, useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -9,22 +9,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Form, FormField } from "@/lib/types/forms";
-import { getAllForms } from "@/core/forms/api";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card";
 import { createFormRecord } from "@/core/formrecords/api";
+import { getAllForms } from "@/core/forms/api";
+import { useToast } from "@/hooks/use-toast";
 import { FormRecord } from "@/lib/types/formRecords";
-import { User } from "@/lib/types/user";
+import { Form, FormField } from "@/lib/types/forms";
+import { useEffect, useState } from "react";
+import { getUserFromSessionStorage } from "../routes/sessionStorage";
 
 const WorkflowFormRecord = ({
   formId,
@@ -46,6 +37,11 @@ const WorkflowFormRecord = ({
   setFormValues: (formValues: any) => void;
 }) => {
   const { toast } = useToast();
+  const [user, setUser] = useState<any>();
+
+  useEffect(() => {
+    setUser(getUserFromSessionStorage());
+  }, []);
 
   useEffect(() => {
     const fetchForms = async () => {
@@ -79,19 +75,9 @@ const WorkflowFormRecord = ({
     setFormValues((prev: any) => ({ ...prev, [fieldId]: value }));
   };
 
-  const getCurrentUser = (): User => {
-    const user = sessionStorage.getItem("current-user");
-    if (!user) {
-      throw new Error("User not found in session storage.");
-    }
-    return JSON.parse(user);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedForm) return;
-
-    const user = getCurrentUser();
 
     const formFieldValues = Object.entries(formValues).map(
       ([fieldId, value]) => ({

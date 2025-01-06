@@ -1,8 +1,8 @@
 "use client";
 
-import { getTokenFromSessionStorage } from "../routes/sessionStorage";
-import { AxiosInstance } from "../routes/api";
 import axios from "axios";
+import { AxiosInstance } from "../routes/api";
+import { getTokenFromSessionStorage } from "../routes/sessionStorage";
 
 const ENDPOINT_URL = "file-management/api/v1/files/";
 
@@ -70,9 +70,6 @@ export const addDocument = async (
   file: File,
   folderId: number,
 ): Promise<void> => {
-  let token = getTokenFromSessionStorage();
-  let authorization = `Bearer ${JSON.parse(token!)}`;
-
   // Create FormData object
   let formData = new FormData();
   console.log(data);

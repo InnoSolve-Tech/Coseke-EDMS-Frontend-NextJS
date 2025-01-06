@@ -1,5 +1,6 @@
 "use client";
 
+import { getUserFromSessionStorage } from "@/components/routes/sessionStorage";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,25 +33,16 @@ export default function UserProfile() {
     currentPassword: "",
     newPassword: "",
   });
-  const [currentUser, setCurrentUser] = React.useState<User | null>(null);
+  const [user, setUser] = React.useState<any>();
+
+  React.useEffect(() => {
+    setUser(getUserFromSessionStorage());
+  }, []);
 
   const { toast } = useToast();
 
   // Move sessionStorage access to useEffect to ensure it only runs client-side
   React.useEffect(() => {
-    const getCurrentUser = (): User | null => {
-      try {
-        const user = sessionStorage.getItem("current-user");
-        return user ? JSON.parse(user) : null;
-      } catch (error) {
-        console.error("Error getting user from session storage:", error);
-        return null;
-      }
-    };
-
-    const user = getCurrentUser();
-    setCurrentUser(user);
-
     if (user) {
       setUserDetails({
         first_name: user.first_name || "",
@@ -63,7 +55,7 @@ export default function UserProfile() {
   }, []);
 
   // Early return if no user is found
-  if (!currentUser) {
+  if (!user) {
     return (
       <div className="container mx-auto px-4 py-6 sm:px-6 lg:px-8">
         <Card>
@@ -87,7 +79,7 @@ export default function UserProfile() {
       reader.onloadend = () => {
         const imageBase64 = reader.result as string;
         setSelectedImage(imageBase64);
-        localStorage.setItem(`profileImage_${currentUser.id}`, imageBase64);
+        localStorage.setItem(`profileImage_${user.id}`, imageBase64);
       };
       reader.readAsDataURL(file);
     }
@@ -96,7 +88,7 @@ export default function UserProfile() {
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      await updateUser(currentUser.id as number, userDetails);
+      await updateUser(user.id as number, userDetails);
       toast({
         title: "Profile Updated",
         description: "Your profile has been updated successfully.",
@@ -116,7 +108,7 @@ export default function UserProfile() {
     setIsLoading(true);
     try {
       await updatePassword(
-        currentUser.id as number,
+        user.id as number,
         newPassword.currentPassword,
         newPassword.newPassword,
       );

@@ -1,5 +1,3 @@
-"use client";
-
 import { IUserDetails } from "../../core/authentication/interface";
 
 const accessToken = "access-token";
@@ -26,4 +24,9 @@ export const getUserFromSessionStorage = () => {
 export const updateSessionStorage = (data: IUserDetails) => {
   addTokenToSessionStorage(data.token);
   addUserToSessionStorage(data);
+};
+
+export const clearSessionStorage = () => {
+  sessionStorage.removeItem(accessToken);
+  sessionStorage.removeItem(user);
 };

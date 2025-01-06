@@ -16,9 +16,12 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import React, { ReactNode, useState } from "react";
+import React, { ReactNode, useEffect, useState } from "react";
 import { Navbar } from "./dashboard/Navbar";
-import { getUserFromSessionStorage } from "./routes/sessionStorage";
+import {
+  clearSessionStorage,
+  getUserFromSessionStorage,
+} from "./routes/sessionStorage";
 import ThemeToggle from "./ThemeToggle";
 
 // Define types for navigation and menu items
@@ -128,7 +131,16 @@ export default function Sidebar({ children }: SidebarLayoutProps) {
   const [openSubmenus, setOpenSubmenus] = useState<{ [key: string]: boolean }>(
     {},
   );
-  const user: UserDetails = getUserFromSessionStorage();
+  const [user, setUser] = useState<UserDetails>({
+    id: 0,
+    first_name: "",
+    last_name: "",
+    email: "",
+    phone: "",
+    address: "",
+    password: "",
+    roles: [],
+  });
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
@@ -142,6 +154,10 @@ export default function Sidebar({ children }: SidebarLayoutProps) {
       }));
     }
   };
+
+  useEffect(() => {
+    setUser(getUserFromSessionStorage());
+  }, []);
 
   const MenuItemWithTooltip: React.FC<MenuItemProps> = ({
     icon: Icon,
@@ -303,7 +319,7 @@ export default function Sidebar({ children }: SidebarLayoutProps) {
               className="hover:bg-gray-100 p-2 rounded-md"
               onClick={() => {
                 // Clear local storage and redirect to login page
-                sessionStorage.clear();
+                clearSessionStorage();
                 router.push("/");
               }}
             >

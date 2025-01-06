@@ -1,3 +1,5 @@
+"use client";
+
 import { WorkflowList } from "@/components/workflow/workflow-list";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";

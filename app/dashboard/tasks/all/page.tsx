@@ -1,22 +1,21 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { CssVarsProvider } from "@mui/joy/styles";
+import TaskForm from "@/components/task-form";
+import { DndContext, DragOverlay } from "@dnd-kit/core";
+import { Add, Notifications } from "@mui/icons-material";
 import { CssBaseline } from "@mui/joy";
 import Avatar from "@mui/joy/Avatar";
-import IconButton from "@mui/joy/IconButton";
 import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
-import { Notifications, Add } from "@mui/icons-material";
-import CalendarPage from "./CalendarPage";
-import ActivityPage from "./ActivityPage";
-import { DndContext, DragOverlay } from "@dnd-kit/core";
-import { KanbanColumn } from "../../Kanban/kanban-olumn";
-import { KanbanItem } from "../../Kanban/kanban-item";
-import TaskForm from "@/components/task-form";
+import IconButton from "@mui/joy/IconButton";
+import { CssVarsProvider } from "@mui/joy/styles";
+import { useEffect, useState } from "react";
 import { AxiosInstance } from "../../../../components/routes/api";
 import { Task } from "../../../../components/task";
-import { List } from "lucide-react";
+import { KanbanItem } from "../../Kanban/kanban-item";
+import { KanbanColumn } from "../../Kanban/kanban-olumn";
+import ActivityPage from "./ActivityPage";
+import CalendarPage from "./CalendarPage";
 import LeadsPage from "./List";
 
 interface Column {

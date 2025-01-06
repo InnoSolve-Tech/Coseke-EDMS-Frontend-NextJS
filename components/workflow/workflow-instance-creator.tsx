@@ -86,9 +86,13 @@ export default function WorkflowInstanceCreator() {
   );
 
   const [existingWorkflows, setExistingWorkflows] = useState<Workflow[]>([]);
-  const user: User = getUserFromSessionStorage();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [user, setUser] = useState<any>();
+
+  useEffect(() => {
+    setUser(getUserFromSessionStorage());
+  }, []);
 
   const closeDialog = () => {
     setSelectedInstanceId(null);
@@ -208,7 +212,8 @@ export default function WorkflowInstanceCreator() {
     // Check role assignment
     if (currentNode.data.assignee.assignee_type === "role") {
       return user?.roles?.some(
-        (role) => role.id === parseInt(currentNode.data.assignee.assignee_id),
+        (role: any) =>
+          role.id === parseInt(currentNode.data.assignee.assignee_id),
       );
     }
 
