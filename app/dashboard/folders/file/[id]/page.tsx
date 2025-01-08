@@ -261,6 +261,7 @@ const FileViewPage = () => {
               style={{ border: "none" }}
               title="PDF Preview"
             />
+
             <Typography level="body-lg" textAlign="center" sx={{ mt: 2 }}>
               {document.filename}
             </Typography>
