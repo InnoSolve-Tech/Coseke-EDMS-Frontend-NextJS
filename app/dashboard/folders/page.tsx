@@ -42,6 +42,11 @@ import { ChevronDown, ChevronRight, File, Folder } from "lucide-react";
 import axios from "axios";
 import { ColorPaletteProp } from "@mui/joy/styles";
 
+interface SearchMatchInfo {
+  label: boolean;
+  metadata: boolean;
+}
+
 interface FileNode {
   id: string;
   label: string;
@@ -50,7 +55,8 @@ interface FileNode {
   children?: FileNode[];
   folderID?: number;
   fileId?: number;
-  parentFolderID?: number; // New field to track parent folder
+  parentFolderID?: number;
+  searchMatches?: SearchMatchInfo;
 }
 
 interface FileData {
@@ -115,6 +121,7 @@ export default function FileExplorer() {
   const [renameFolderName, setRenameFolderName] = useState("");
   const [folderToRename, setFolderToRename] = useState<FileNode | null>(null);
   const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+  const [filteredData, setFilteredData] = useState<FileNode[]>([]);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     color: ColorPaletteProp;
@@ -127,48 +134,26 @@ export default function FileExplorer() {
 
   const loadFoldersAndFiles = async () => {
     try {
+      console.log("Loading folders and files...");
       const foldersResponse = await getFolders();
+      console.log("Folders Response:", foldersResponse);
+
       const folders = Array.isArray(foldersResponse)
         ? foldersResponse
         : foldersResponse.data || [];
+
+      console.log("Parsed Folders:", folders);
 
       const folderMap = new Map();
       const rootNodes: FileNode[] = [];
 
       // First pass: Create folder nodes and store them in the map
       for (const folder of folders) {
-        const folderNode: FileNode = {
-          id: folder.folderID?.toString() || "",
-          label: folder.name,
-          type: "folder",
-          folderID: folder.folderID,
-          parentFolderID: folder.parentFolderID || 0,
-          children: [],
-        };
-        folderMap.set(folder.folderID, folderNode);
-      }
-
-      // Second pass: Build the folder hierarchy
-      for (const folder of folders) {
-        const folderNode = folderMap.get(folder.folderID);
-        if (folder.parentFolderID && folderMap.has(folder.parentFolderID)) {
-          const parentNode = folderMap.get(folder.parentFolderID);
-          parentNode.children.push(folderNode);
-        } else {
-          rootNodes.push(folderNode);
-        }
-      }
-
-      // Third pass: Load files for each folder
-      for (const folder of folders) {
-        const folderNode = folderMap.get(folder.folderID);
-        const filesResponse = await getFilesByFolderID(folder.folderID);
-        const files = filesResponse.data || [];
-
-        const fileNodes = files.map(
-          (file: FileData): FileNode => ({
+        // Convert files array to FileNode array
+        const fileNodes: FileNode[] = (folder.files || []).map(
+          (file: FileData) => ({
             id: file.id.toString(),
-            label: file.filename || "Unnamed File",
+            label: file.filename || file.documentName || "Unnamed File",
             type: "file",
             folderID: folder.folderID,
             fileId: file.id,
@@ -177,14 +162,71 @@ export default function FileExplorer() {
           }),
         );
 
-        folderNode.children.push(...fileNodes);
+        // Create folder node with its files
+        const folderNode: FileNode = {
+          id: folder.folderID?.toString() || "",
+          label: folder.name,
+          type: "folder",
+          folderID: folder.folderID,
+          parentFolderID: folder.parentFolderID || 0,
+          children: fileNodes, // Include files as children
+        };
+
+        folderMap.set(folder.folderID, folderNode);
       }
 
+      // Second pass: Build the folder hierarchy
+      for (const folder of folders) {
+        const folderNode = folderMap.get(folder.folderID);
+        if (folder.parentFolderID && folderMap.has(folder.parentFolderID)) {
+          const parentNode = folderMap.get(folder.parentFolderID);
+          if (!parentNode.children) {
+            parentNode.children = [];
+          }
+          parentNode.children.push(folderNode);
+        } else {
+          rootNodes.push(folderNode);
+        }
+      }
+
+      // Sort children within each folder (folders first, then files)
+      const sortChildren = (node: FileNode) => {
+        if (node.children) {
+          node.children.sort((a, b) => {
+            if (a.type === b.type) {
+              return a.label.localeCompare(b.label);
+            }
+            return a.type === "folder" ? -1 : 1;
+          });
+          node.children.forEach(sortChildren);
+        }
+      };
+
+      rootNodes.forEach(sortChildren);
+
+      console.log("Final Root Nodes:", rootNodes);
       return rootNodes;
     } catch (error) {
       console.error("Failed to load folders and files:", error);
       return [];
     }
+  };
+
+  // Add this helper function to recursively find a folder by ID
+  const findFolderById = (
+    nodes: FileNode[],
+    folderId: number,
+  ): FileNode | null => {
+    for (const node of nodes) {
+      if (node.type === "folder" && node.folderID === folderId) {
+        return node;
+      }
+      if (node.children) {
+        const found = findFolderById(node.children, folderId);
+        if (found) return found;
+      }
+    }
+    return null;
   };
 
   const refreshCurrentFolder = async () => {
@@ -282,12 +324,6 @@ export default function FileExplorer() {
 
     fetchDocumentTypes();
   }, []);
-
-  const handleRightClick = (event: React.MouseEvent, node: FileNode) => {
-    event.preventDefault();
-    setAnchorEl(event.currentTarget as HTMLElement);
-    setMenuTarget(node);
-  };
 
   const handleCloseMenu = () => {
     setAnchorEl(null);
@@ -550,122 +586,319 @@ export default function FileExplorer() {
     documentType: string,
     metadata: Record<string, any>,
   ) => {
+    // Generate a temporary ID
+    const tempFileId = `temp-${Date.now()}`;
+
     try {
-      const currentFolder = currentPath[currentPath.length - 1];
-      if (!currentFolder?.folderID) {
-        throw new Error("No folder selected for upload");
+      const folderId = currentFolderID;
+
+      if (folderId === null) {
+        throw new Error("No folder selected");
       }
 
+      // Create temporary file node
+      const tempFile: FileNode = {
+        id: tempFileId,
+        label: file.name,
+        type: "file",
+        folderID: folderId,
+        parentFolderID: folderId,
+        metadata: {
+          documentType,
+          mimeType: file.type,
+          uploadStatus: "uploading",
+          progress: 0,
+          ...metadata,
+        },
+      };
+
+      // Add console logs to debug state updates
+      console.log("Current folder ID:", folderId);
+      console.log("Temp file to add:", tempFile);
+
+      // Directly modify the state to add the temp file
+      setFileData((prevData) => {
+        // Create a deep copy of the previous state
+        const newData = JSON.parse(JSON.stringify(prevData));
+
+        // Find the current folder and add the file to it
+        const addFileToFolder = (nodes: FileNode[]): boolean => {
+          for (let i = 0; i < nodes.length; i++) {
+            const node = nodes[i];
+
+            // If this is the target folder, add the file
+            if (node.folderID === folderId) {
+              console.log("Found target folder:", node);
+              if (!node.children) {
+                node.children = [];
+              }
+              node.children.push(tempFile);
+              return true;
+            }
+
+            // If this node has children, recursively search them
+            if (node.children && node.children.length > 0) {
+              if (addFileToFolder(node.children)) {
+                return true;
+              }
+            }
+          }
+          return false;
+        };
+
+        // If we're at the root level and the current folder is root
+        if (folderId === 0) {
+          console.log("Adding to root level");
+          newData.push(tempFile);
+          return newData;
+        }
+
+        // Try to add the file to a subfolder
+        const added = addFileToFolder(newData);
+
+        if (!added) {
+          console.warn("Could not find target folder, adding to root level");
+          newData.push(tempFile);
+        }
+
+        console.log("Updated file data:", newData);
+        return newData;
+      });
+
+      // Prepare the form data for upload
+      const formData = new FormData();
       const fileData = {
         documentName: file.name,
         documentType: documentType,
         metadata: metadata,
-        folderID: currentFolder.folderID,
+        folderID: folderId,
         mimeType: file.type,
       };
 
-      const formData = new FormData();
       formData.append(
         "fileData",
         new Blob([JSON.stringify(fileData)], { type: "application/json" }),
       );
       formData.append("file", file);
 
-      const response = await axios.post(
-        `/api/v1/files/${currentFolder.folderID}`,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
+      // Perform the upload
+      const response = await axios.post(`/api/v1/files/${folderId}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+        onUploadProgress: (progressEvent) => {
+          const progress = progressEvent.total
+            ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
+            : 0;
+
+          setFileData((prevData) => {
+            const newData = JSON.parse(JSON.stringify(prevData));
+
+            const updateProgress = (nodes: FileNode[]): boolean => {
+              for (let i = 0; i < nodes.length; i++) {
+                const node = nodes[i];
+
+                if (node.id === tempFileId) {
+                  node.metadata = {
+                    ...node.metadata,
+                    progress,
+                    uploadStatus: progress === 100 ? "processing" : "uploading",
+                  };
+                  return true;
+                }
+
+                if (node.children && node.children.length > 0) {
+                  if (updateProgress(node.children)) {
+                    return true;
+                  }
+                }
+              }
+              return false;
+            };
+
+            updateProgress(newData);
+            return newData;
+          });
         },
-      );
+      });
 
       if (response.status === 200) {
-        await refreshCurrentFolder(); // Refresh the folder contents
+        // Update the temporary file with the real file data
+        setFileData((prevData) => {
+          const newData = JSON.parse(JSON.stringify(prevData));
+
+          const updateFile = (nodes: FileNode[]): boolean => {
+            for (let i = 0; i < nodes.length; i++) {
+              const node = nodes[i];
+
+              if (node.id === tempFileId) {
+                const updatedNode: FileNode = {
+                  id: response.data.id.toString(),
+                  label: file.name,
+                  type: "file",
+                  folderID: folderId,
+                  fileId: response.data.id,
+                  parentFolderID: folderId,
+                  metadata: {
+                    ...response.data,
+                    uploadStatus: "complete",
+                  },
+                };
+                nodes[i] = updatedNode;
+                return true;
+              }
+
+              if (node.children && node.children.length > 0) {
+                if (updateFile(node.children)) {
+                  return true;
+                }
+              }
+            }
+            return false;
+          };
+
+          updateFile(newData);
+          return newData;
+        });
+
         showSnackbar("File uploaded successfully", "success");
       }
 
       setUploadDialogOpen(false);
     } catch (error) {
-      console.error("Failed to upload file:", error);
+      console.error("Upload failed:", error);
+
+      // Remove the temporary file
+      setFileData((prevData) => {
+        const newData = JSON.parse(JSON.stringify(prevData));
+
+        const removeFile = (nodes: FileNode[]): void => {
+          for (let i = 0; i < nodes.length; i++) {
+            const node = nodes[i];
+
+            if (node.children) {
+              node.children = node.children.filter(
+                (child) => child.id !== tempFileId,
+              );
+              removeFile(node.children);
+            }
+          }
+        };
+
+        removeFile(newData);
+        return newData;
+      });
+
       showSnackbar("Failed to upload file", "danger");
+      setUploadDialogOpen(false);
     }
   };
 
-  const handleSearch = (
-    query: string,
-    searchType: string,
-    metadata: Record<string, unknown>,
-  ) => {
-    // Implement search logic here
-    console.log("Search:", { query, searchType, metadata });
+  const handleSearch = (query: string) => {
+    if (!query.trim()) {
+      setFilteredData(fileData);
+      return;
+    }
+
+    const lowerQuery = query.toLowerCase();
+
+    const searchRecursive = (nodes: FileNode[]): FileNode[] => {
+      return nodes.reduce<FileNode[]>((acc, node) => {
+        // Check if folder/file name matches
+        const matchesName = node.label.toLowerCase().includes(lowerQuery);
+
+        // For files, also check metadata
+        const searchMetadata = (obj: any): boolean => {
+          if (!obj) return false;
+          return Object.entries(obj).some(([_, value]) => {
+            if (typeof value === "object") return searchMetadata(value);
+            return value?.toString().toLowerCase().includes(lowerQuery);
+          });
+        };
+
+        const matchesMetadata =
+          node.type === "file" && node.metadata
+            ? searchMetadata(node.metadata)
+            : false;
+
+        // Recursively search children
+        const filteredChildren = node.children
+          ? searchRecursive(node.children)
+          : [];
+
+        // Include node if it matches or has matching children
+        if (matchesName || matchesMetadata || filteredChildren.length > 0) {
+          const searchNode: FileNode = {
+            ...node,
+            children: filteredChildren,
+            searchMatches: {
+              label: matchesName,
+              metadata: matchesMetadata,
+            },
+          };
+          acc.push(searchNode);
+        }
+
+        return acc;
+      }, []);
+    };
+
+    const filtered = searchRecursive(fileData);
+    console.log("Search results:", filtered); // Debug log
+    setFilteredData(filtered);
   };
 
   const navigateToFolder = async (folderId: number) => {
     try {
-      // Start with root
-      const newPath = [
-        { id: "0", label: "Root", type: "folder" as const, folderID: 0 },
-      ];
+      setCurrentFolderID(folderId);
+      setExpanded({}); // Reset expanded state when navigating
 
-      if (folderId !== 0) {
-        // Get all folders to build the path
-        const foldersResponse = await getFolders();
-        const folders = Array.isArray(foldersResponse)
-          ? foldersResponse
-          : foldersResponse.data || [];
-
-        // Find the target folder and its ancestors
-        const buildFolderPath = (folders: any[], targetId: number): any[] => {
-          const folder = folders.find((f) => f.folderID === targetId);
-          if (!folder) return [];
-
-          const path = [];
-          if (folder.parentFolderID) {
-            path.push(...buildFolderPath(folders, folder.parentFolderID));
+      const buildPath = (
+        nodes: FileNode[],
+        targetId: number,
+        path: FileNode[] = [],
+      ): FileNode[] | null => {
+        for (const node of nodes) {
+          if (node.folderID === targetId) {
+            return [...path, node];
           }
-          path.push({
-            id: folder.folderID.toString(),
-            label: folder.name,
-            type: "folder" as const,
-            folderID: folder.folderID,
-            parentFolderID: folder.parentFolderID,
-          });
-          return path;
-        };
+          if (node.children?.length) {
+            const result = buildPath(node.children, targetId, [...path, node]);
+            if (result) return result;
+          }
+        }
+        return null;
+      };
 
-        // Build path from root to target folder
-        const folderPath = buildFolderPath(folders, folderId);
-        newPath.push(...folderPath);
+      const rootNode: FileNode = {
+        id: "root", // Use consistent root ID
+        label: "Root",
+        type: "folder",
+        folderID: 0,
+      };
+
+      if (folderId === 0) {
+        setCurrentPath([rootNode]);
+      } else {
+        const pathToFolder = buildPath(fileData, folderId);
+        if (pathToFolder) {
+          setCurrentPath([rootNode, ...pathToFolder]);
+        }
       }
-
-      // Update current path
-      setCurrentPath(newPath);
-
-      // Fetch and display children of the target folder
-      const childFolders = fileData.filter(
-        (node) => node.parentFolderID === folderId,
-      );
-
-      // Expand the target folder
-      setExpanded((prev) => ({
-        ...prev,
-        [folderId.toString()]: true,
-      }));
-
-      return childFolders;
     } catch (error) {
-      console.error("Error navigating to folder:", error);
-      return [];
+      console.error("Failed to navigate to folder:", error);
+      showSnackbar("Failed to navigate to folder", "danger");
     }
   };
 
+  const handleRightClick = (event: React.MouseEvent, node: FileNode) => {
+    event.preventDefault();
+    setAnchorEl(event.currentTarget as HTMLElement);
+    setMenuTarget(node);
+  };
+
   const handleNodeClick = async (node: FileNode) => {
-    if (node.type === "folder") {
-      const folderId = node.folderID ?? 0;
-      await navigateToFolder(folderId);
-    } else if (node.type === "file") {
+    if (node.type === "folder" && typeof node.folderID === "number") {
+      await navigateToFolder(node.folderID);
+    } else if (node.type === "file" && node.fileId) {
       router.push(`/dashboard/folders/file/${node.fileId}`);
     }
   };
@@ -678,18 +911,48 @@ export default function FileExplorer() {
     await navigateToFolder(targetCrumb.folderID ?? 0);
   };
 
+  const getVisibleNodes = (
+    nodes: FileNode[],
+    currentFolderId: number,
+  ): FileNode[] => {
+    // For root level, only show top-level nodes
+    if (currentFolderId === 0) {
+      return nodes.filter(
+        (node) => !node.parentFolderID || node.parentFolderID === 0,
+      );
+    }
+
+    // For other folders, find the current folder and return its children
+    const findCurrentFolder = (nodeList: FileNode[]): FileNode[] => {
+      for (const node of nodeList) {
+        if (node.folderID === currentFolderId) {
+          return node.children || [];
+        }
+        if (node.children?.length) {
+          const result = findCurrentFolder(node.children);
+          if (result.length > 0) return result;
+        }
+      }
+      return [];
+    };
+
+    return findCurrentFolder(nodes);
+  };
+
   // Modify the renderTree function to only show children of current folder
   const renderTree = (nodes: FileNode[]) => {
+    const dataToRender = filteredData.length > 0 ? filteredData : nodes;
+    const visibleNodes = getVisibleNodes(nodes, currentFolderID || 0);
+
     const renderNode = (node: FileNode) => {
       const isFolder = node.type === "folder";
-      const isOpen = expanded[node.id] || false;
-      const children = node.children || [];
+      const isUploading = node.metadata?.uploadStatus === "uploading";
+      const nodeKey = `${node.type}-${node.folderID || node.fileId}-${node.id}`; // Create unique key
+      const matchesSearch = node.searchMatches?.label;
 
       return (
         <ListItem
-          key={node.id}
-          onClick={() => handleNodeClick(node)}
-          onContextMenu={(e) => handleRightClick(e, node)}
+          key={nodeKey}
           sx={{
             display: "flex",
             flexDirection: "column",
@@ -697,50 +960,50 @@ export default function FileExplorer() {
           }}
         >
           <ListItemButton
+            onClick={() => handleNodeClick(node)}
+            onContextMenu={(e) => handleRightClick(e, node)}
             sx={{
               display: "flex",
               alignItems: "center",
               width: "100%",
               padding: "8px",
+              backgroundColor: matchesSearch ? "action.selected" : undefined,
               "&:hover": { backgroundColor: "action.hover" },
+              ...(isUploading && {
+                backgroundColor: "background.level1",
+                opacity: 0.8,
+              }),
             }}
           >
             <div style={{ display: "flex", alignItems: "center" }}>
-              {isFolder && (
-                <IconButton
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleNode(node.id);
-                  }}
-                >
-                  {isOpen ? (
-                    <ChevronDown size={16} />
-                  ) : (
-                    <ChevronRight size={16} />
-                  )}
-                </IconButton>
-              )}
               {isFolder ? <Folder size={16} /> : <File size={16} />}
-              <Typography sx={{ ml: 1 }}>{node.label}</Typography>
+              <Typography
+                sx={{
+                  ml: 1,
+                  ...(isUploading && {
+                    fontStyle: "italic",
+                    color: "text.secondary",
+                  }),
+                  ...(matchesSearch && {
+                    fontWeight: "bold",
+                  }),
+                }}
+              >
+                {node.label}
+              </Typography>
             </div>
           </ListItemButton>
-
-          {isFolder && isOpen && children.length > 0 && (
-            <List sx={{ pl: 3, width: "100%" }}>
-              {children.map((child) => renderNode(child))}
-            </List>
-          )}
         </ListItem>
       );
     };
 
     return (
       <List sx={{ width: "100%" }}>
-        {nodes.map((node) => renderNode(node))}
+        {visibleNodes.map((node) => renderNode(node))}
       </List>
     );
   };
+
   return (
     <div className="min-h-screen bg-gray-100 p-4">
       <Card

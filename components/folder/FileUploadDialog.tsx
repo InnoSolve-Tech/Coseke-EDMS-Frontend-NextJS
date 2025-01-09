@@ -87,7 +87,7 @@ export default function FileUploadDialog({
       const file = event.target.files[0];
       if (validateFile(file)) {
         setFile(file);
-        simulateUploadProgress(); // Simulate upload progress
+        simulateUploadProgress();
       }
     }
   };
@@ -137,23 +137,15 @@ export default function FileUploadDialog({
 
       console.log("Payload being sent to API:", payload);
 
-      // Add more detailed error logging
       try {
         await addDocument(payload, file, folderID || 0);
-        console.log("Upload successful");
         onClose();
       } catch (apiError: any) {
-        console.error("Detailed API Error:", {
-          message: apiError.message,
-          response: apiError.response,
-          stack: apiError.stack,
-        });
         setError(
           apiError.message || "Failed to upload file. Please try again.",
         );
       }
     } catch (error: any) {
-      console.error("Payload preparation error:", error);
       setError("Failed to prepare upload. Please try again.");
     }
   };
@@ -186,9 +178,11 @@ export default function FileUploadDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-5xl p-0 max-h-[90vh] overflow-hidden flex flex-col bg-opacity-100 bg-white">
+      <DialogContent className="max-w-5xl p-0 max-h-[90vh] overflow-hidden flex flex-col bg-opacity-100 bg-white rounded-lg shadow-lg">
         <DialogHeader className="px-6 pt-6">
-          <DialogTitle>Document Upload & Preview</DialogTitle>
+          <DialogTitle className="text-lg font-semibold">
+            Upload Document
+          </DialogTitle>
         </DialogHeader>
 
         <div className="grid grid-cols-2 gap-6 p-6 overflow-y-auto">
@@ -250,68 +244,111 @@ export default function FileUploadDialog({
           <Card>
             <CardContent className="p-6">
               <div className="space-y-6">
+                {/* Document Type Dropdown */}
                 <div className="space-y-2">
-                  <Label>Document Type</Label>
-                  <Select
-                    value={selectedDocType?.id.toString()}
-                    onValueChange={(value) => {
-                      const docType = documentTypes.find(
-                        (dt) => dt.id.toString() === value,
-                      );
-                      setSelectedDocType(docType || null);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {documentTypes.map((type) => (
-                        <SelectItem key={type.id} value={type.id.toString()}>
-                          {type.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    onClick={() => setShowDocTypeDialog(true)}
-                  >
-                    <Plus />
-                  </Button>
+                  <Label className="text-sm font-semibold text-gray-700">
+                    Document Type
+                  </Label>
+                  <div className="flex gap-2 items-center">
+                    <Select
+                      value={selectedDocType?.id.toString()}
+                      onValueChange={(value) => {
+                        const docType = documentTypes.find(
+                          (dt) => dt.id.toString() === value,
+                        );
+                        setSelectedDocType(docType || null);
+                      }}
+                    >
+                      <SelectTrigger className="bg-white border-gray-300 rounded-md shadow-sm hover:border-gray-400 focus:ring-2 focus:ring-primary focus:ring-opacity-50">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white z-50 shadow-lg rounded-lg border border-gray-300">
+                        {documentTypes.map((type) => (
+                          <SelectItem
+                            key={type.id}
+                            value={type.id.toString()}
+                            className="bg-white px-4 py-2 text-sm hover:bg-gray-100 focus:bg-gray-100"
+                          >
+                            {type.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      onClick={() => setShowDocTypeDialog(true)}
+                      className="hover:bg-gray-200"
+                    >
+                      <Plus className="h-4 w-4 text-gray-500" />
+                    </Button>
+                  </div>
                 </div>
 
-                {selectedDocType?.metadata.map((field) => (
-                  <div key={field.name} className="space-y-2">
-                    <Label>{field.name}</Label>
-                    {field.type === "select" ? (
-                      <Select
-                        value={metadata[field.name] || ""}
-                        onValueChange={(value) =>
-                          handleMetadataChange(field.name, value)
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder={`Select ${field.name}`} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {field.options?.map((option: string) => (
-                            <SelectItem key={option} value={option}>
-                              {option}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <p className="text-gray-600">{metadata[field.name]}</p>
-                    )}
+                {/* Metadata Section */}
+                {selectedDocType && (
+                  <div className="space-y-4">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Metadata
+                    </Label>
+                    <div className="space-y-2 bg-gray-50 rounded-md p-4 border border-gray-200">
+                      {selectedDocType.metadata.map((field) => (
+                        <div
+                          key={field.name}
+                          className="flex justify-between items-center py-2 border-b border-gray-200 last:border-none"
+                        >
+                          <span className="font-medium text-gray-700">
+                            {field.name}
+                          </span>
+                          {field.type === "select" ? (
+                            <div className="w-1/2">
+                              <Select
+                                value={metadata[field.name] || ""}
+                                onValueChange={(value) =>
+                                  handleMetadataChange(field.name, value)
+                                }
+                              >
+                                <SelectTrigger className="bg-white border-gray-300 rounded-md shadow-sm hover:border-gray-400 focus:ring-2 focus:ring-primary focus:ring-opacity-50">
+                                  <SelectValue
+                                    placeholder={`Select ${field.name}`}
+                                  />
+                                </SelectTrigger>
+                                <SelectContent className="bg-white z-50 shadow-lg rounded-lg border border-gray-300">
+                                  {field.options?.map((option: string) => (
+                                    <SelectItem
+                                      key={option}
+                                      value={option}
+                                      className="bg-white px-4 py-2 text-sm hover:bg-gray-100 focus:bg-gray-100"
+                                    >
+                                      {option}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-gray-600">
+                              {field.value || "Not Provided"}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
+                )}
 
-                <div className="flex justify-end space-x-2 pt-4">
-                  <Button variant="outline" onClick={handleClose}>
+                {/* Save/Cancel Actions */}
+                <div className="flex justify-end gap-4 pt-6">
+                  {/* Cancel Button */}
+                  <Button
+                    variant="outline"
+                    onClick={handleClose}
+                    className="bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 transition-all duration-200 rounded-md px-6 py-2 font-medium"
+                  >
                     Cancel
                   </Button>
+
+                  {/* Save Button */}
                   <Button
                     onClick={handleUpload}
                     disabled={
@@ -323,6 +360,11 @@ export default function FileUploadDialog({
                       ) ||
                       uploadProgress < 100
                     }
+                    className={`${
+                      !file || !selectedDocType || uploadProgress < 100
+                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        : "bg-blue-600 text-white hover:bg-blue-700"
+                    } focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 rounded-md px-6 py-2 font-medium`}
                   >
                     <Save className="mr-2 h-4 w-4" />
                     Save
@@ -333,18 +375,6 @@ export default function FileUploadDialog({
           </Card>
         </div>
       </DialogContent>
-
-      <Dialog open={showDocTypeDialog} onOpenChange={setShowDocTypeDialog}>
-        <DialogContent>
-          <DocumentTypeCreation
-            onCreate={(newDocType) => {
-              handleCreateNewDocType(newDocType);
-              setShowDocTypeDialog(false);
-            }}
-            onCancel={() => setShowDocTypeDialog(false)}
-          />
-        </DialogContent>
-      </Dialog>
     </Dialog>
   );
 }
