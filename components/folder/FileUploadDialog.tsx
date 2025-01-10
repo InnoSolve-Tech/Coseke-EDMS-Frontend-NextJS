@@ -35,7 +35,7 @@ interface FileUploadDialogProps {
 }
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const ALLOWED_TYPES = [".pdf", ".doc", ".docx", ".txt"];
+const ALLOWED_TYPES = [".pdf", ".doc", ".docx", ".txt", ".jpg", ".png"];
 
 export default function FileUploadDialog({
   open,
@@ -44,6 +44,7 @@ export default function FileUploadDialog({
   folderID,
 }: FileUploadDialogProps) {
   const [file, setFile] = useState<File | null>(null);
+  const [previewURL, setPreviewURL] = useState<string | null>(null);
   const [documentTypes, setDocumentTypes] = useState<IDocumentType[]>([]);
   const [selectedDocType, setSelectedDocType] = useState<IDocumentType | null>(
     null,
@@ -56,6 +57,15 @@ export default function FileUploadDialog({
   useEffect(() => {
     fetchDocumentTypes();
   }, []);
+
+  useEffect(() => {
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setPreviewURL(url);
+    } else {
+      setPreviewURL(null);
+    }
+  }, [file]);
 
   useEffect(() => {
     if (selectedDocType) {
@@ -100,7 +110,9 @@ export default function FileUploadDialog({
     }
     const fileExtension = `.${file.name.split(".").pop()?.toLowerCase()}`;
     if (!ALLOWED_TYPES.includes(fileExtension)) {
-      setError("Invalid file type. Please upload PDF, DOC, DOCX, or TXT files");
+      setError(
+        "Invalid file type. Please upload PDF, DOC, DOCX, TXT, JPG, or PNG files",
+      );
       return false;
     }
     return true;
@@ -135,10 +147,9 @@ export default function FileUploadDialog({
         ),
       };
 
-      console.log("Payload being sent to API:", payload);
-
       try {
         await addDocument(payload, file, folderID || 0);
+        console.log("Upload successful");
         onClose();
       } catch (apiError: any) {
         setError(
@@ -165,6 +176,7 @@ export default function FileUploadDialog({
 
   const handleClose = () => {
     setFile(null);
+    setPreviewURL(null);
     setUploadProgress(0);
     setMetadata({});
     onClose();
@@ -181,12 +193,11 @@ export default function FileUploadDialog({
       <DialogContent className="max-w-5xl p-0 max-h-[90vh] overflow-hidden flex flex-col bg-opacity-100 bg-white rounded-lg shadow-lg">
         <DialogHeader className="px-6 pt-6">
           <DialogTitle className="text-lg font-semibold">
-            Upload Document
+            Document Upload & Preview
           </DialogTitle>
         </DialogHeader>
-
         <div className="grid grid-cols-2 gap-6 p-6 overflow-y-auto">
-          {/* Left Column - File Upload & Progress */}
+          {/* Left Column - File Upload & Preview */}
           <div className="space-y-4">
             {error && (
               <Alert variant="destructive">
@@ -214,13 +225,14 @@ export default function FileUploadDialog({
                   <p className="pl-1">or drag and drop</p>
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
-                  PDF, DOC, DOCX or TXT up to 10MB
+                  PDF, DOC, DOCX, TXT, JPG, or PNG up to 10MB
                 </p>
               </div>
             ) : (
-              <Card className="min-h-[400px] flex flex-col">
-                <CardContent className="flex-1 p-4">
-                  <div className="flex items-center justify-between mb-4">
+              <Card className="flex flex-col shadow-md">
+                <CardContent className="p-4 space-y-4">
+                  {/* File Information */}
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <FileText className="h-6 w-6 text-blue-500" />
                       <div>
@@ -234,147 +246,126 @@ export default function FileUploadDialog({
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
-                  <Progress value={uploadProgress} className="h-2 mb-4" />
+
+                  {/* File Preview */}
+                  {previewURL && (
+                    <div className="h-64 border border-gray-300 rounded-md overflow-hidden">
+                      <iframe
+                        src={previewURL}
+                        className="w-full h-full"
+                        title="File Preview"
+                      />
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
           </div>
 
           {/* Right Column - Metadata */}
-          <Card>
-            <CardContent className="p-6">
-              <div className="space-y-6">
-                {/* Document Type Dropdown */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700">
-                    Document Type
-                  </Label>
-                  <div className="flex gap-2 items-center">
+          <Card className="shadow-md">
+            <CardContent className="p-6 space-y-6">
+              <div>
+                <Label>Document Type</Label>
+                <div className="flex gap-2 items-center">
+                  <Select
+                    value={selectedDocType?.id.toString()}
+                    onValueChange={(value) => {
+                      const docType = documentTypes.find(
+                        (dt) => dt.id.toString() === value,
+                      );
+                      setSelectedDocType(docType || null);
+                    }}
+                  >
+                    <SelectTrigger className="bg-white border-gray-300 rounded-md">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white rounded-md">
+                      {documentTypes.map((type) => (
+                        <SelectItem key={type.id} value={type.id.toString()}>
+                          {type.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={() => setShowDocTypeDialog(true)}
+                  >
+                    <Plus />
+                  </Button>
+                </div>
+              </div>
+
+              {selectedDocType?.metadata.map((field) => (
+                <div key={field.name}>
+                  <Label>{field.name}</Label>
+                  {field.type === "select" ? (
                     <Select
-                      value={selectedDocType?.id.toString()}
-                      onValueChange={(value) => {
-                        const docType = documentTypes.find(
-                          (dt) => dt.id.toString() === value,
-                        );
-                        setSelectedDocType(docType || null);
-                      }}
+                      value={metadata[field.name] || ""}
+                      onValueChange={(value) =>
+                        handleMetadataChange(field.name, value)
+                      }
                     >
-                      <SelectTrigger className="bg-white border-gray-300 rounded-md shadow-sm hover:border-gray-400 focus:ring-2 focus:ring-primary focus:ring-opacity-50">
-                        <SelectValue placeholder="Select type" />
+                      <SelectTrigger className="bg-white border-gray-300 rounded-md">
+                        <SelectValue placeholder={`Select ${field.name}`} />
                       </SelectTrigger>
-                      <SelectContent className="bg-white z-50 shadow-lg rounded-lg border border-gray-300">
-                        {documentTypes.map((type) => (
-                          <SelectItem
-                            key={type.id}
-                            value={type.id.toString()}
-                            className="bg-white px-4 py-2 text-sm hover:bg-gray-100 focus:bg-gray-100"
-                          >
-                            {type.name}
+                      <SelectContent className="bg-white rounded-md">
+                        {field.options?.map((option: string) => (
+                          <SelectItem key={option} value={option}>
+                            {option}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      onClick={() => setShowDocTypeDialog(true)}
-                      className="hover:bg-gray-200"
-                    >
-                      <Plus className="h-4 w-4 text-gray-500" />
-                    </Button>
-                  </div>
+                  ) : (
+                    <p className="text-gray-600">{metadata[field.name]}</p>
+                  )}
                 </div>
+              ))}
 
-                {/* Metadata Section */}
-                {selectedDocType && (
-                  <div className="space-y-4">
-                    <Label className="text-sm font-semibold text-gray-700">
-                      Metadata
-                    </Label>
-                    <div className="space-y-2 bg-gray-50 rounded-md p-4 border border-gray-200">
-                      {selectedDocType.metadata.map((field) => (
-                        <div
-                          key={field.name}
-                          className="flex justify-between items-center py-2 border-b border-gray-200 last:border-none"
-                        >
-                          <span className="font-medium text-gray-700">
-                            {field.name}
-                          </span>
-                          {field.type === "select" ? (
-                            <div className="w-1/2">
-                              <Select
-                                value={metadata[field.name] || ""}
-                                onValueChange={(value) =>
-                                  handleMetadataChange(field.name, value)
-                                }
-                              >
-                                <SelectTrigger className="bg-white border-gray-300 rounded-md shadow-sm hover:border-gray-400 focus:ring-2 focus:ring-primary focus:ring-opacity-50">
-                                  <SelectValue
-                                    placeholder={`Select ${field.name}`}
-                                  />
-                                </SelectTrigger>
-                                <SelectContent className="bg-white z-50 shadow-lg rounded-lg border border-gray-300">
-                                  {field.options?.map((option: string) => (
-                                    <SelectItem
-                                      key={option}
-                                      value={option}
-                                      className="bg-white px-4 py-2 text-sm hover:bg-gray-100 focus:bg-gray-100"
-                                    >
-                                      {option}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          ) : (
-                            <span className="text-sm text-gray-600">
-                              {field.value || "Not Provided"}
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Save/Cancel Actions */}
-                <div className="flex justify-end gap-4 pt-6">
-                  {/* Cancel Button */}
-                  <Button
-                    variant="outline"
-                    onClick={handleClose}
-                    className="bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 transition-all duration-200 rounded-md px-6 py-2 font-medium"
-                  >
-                    Cancel
-                  </Button>
-
-                  {/* Save Button */}
-                  <Button
-                    onClick={handleUpload}
-                    disabled={
-                      !file ||
-                      !selectedDocType ||
-                      selectedDocType.metadata.some(
-                        (field) =>
-                          field.type === "select" && !metadata[field.name],
-                      ) ||
-                      uploadProgress < 100
-                    }
-                    className={`${
-                      !file || !selectedDocType || uploadProgress < 100
-                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                        : "bg-blue-600 text-white hover:bg-blue-700"
-                    } focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 rounded-md px-6 py-2 font-medium`}
-                  >
-                    <Save className="mr-2 h-4 w-4" />
-                    Save
-                  </Button>
-                </div>
+              <div className="flex justify-end gap-4">
+                <Button variant="outline" onClick={handleClose}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleUpload}
+                  disabled={
+                    !file ||
+                    !selectedDocType ||
+                    selectedDocType.metadata.some(
+                      (field) =>
+                        field.type === "select" && !metadata[field.name],
+                    ) ||
+                    uploadProgress < 100
+                  }
+                  className={`${
+                    !file || !selectedDocType || uploadProgress < 100
+                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                      : "bg-blue-600 text-white hover:bg-blue-700"
+                  }`}
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  Save
+                </Button>
               </div>
             </CardContent>
           </Card>
         </div>
       </DialogContent>
+
+      <Dialog open={showDocTypeDialog} onOpenChange={setShowDocTypeDialog}>
+        <DialogContent>
+          <DocumentTypeCreation
+            onCreate={(newDocType) => {
+              handleCreateNewDocType(newDocType);
+              setShowDocTypeDialog(false);
+            }}
+            onCancel={() => setShowDocTypeDialog(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
