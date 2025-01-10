@@ -581,214 +581,294 @@ export default function FileExplorer() {
     }
   };
 
+  // const handleUpload = async (
+  //   file: File,
+  //   documentType: string,
+  //   metadata: Record<string, any>,
+  // ) => {
+  //   // Generate a temporary ID
+  //   const tempFileId = `temp-${Date.now()}`;
+
+  //   try {
+  //     const folderId = currentFolderID;
+
+  //     if (folderId === null) {
+  //       throw new Error("No folder selected");
+  //     }
+
+  //     // Create temporary file node
+  //     const tempFile: FileNode = {
+  //       id: tempFileId,
+  //       label: file.name,
+  //       type: "file",
+  //       folderID: folderId,
+  //       parentFolderID: folderId,
+  //       metadata: {
+  //         documentType,
+  //         mimeType: file.type,
+  //         uploadStatus: "uploading",
+  //         progress: 0,
+  //         ...metadata,
+  //       },
+  //     };
+
+  //     // Add console logs to debug state updates
+  //     console.log("Current folder ID:", folderId);
+  //     console.log("Temp file to add:", tempFile);
+
+  //     // Directly modify the state to add the temp file
+  //     setFileData((prevData) => {
+  //       // Create a deep copy of the previous state
+  //       const newData = JSON.parse(JSON.stringify(prevData));
+
+  //       // Find the current folder and add the file to it
+  //       const addFileToFolder = (nodes: FileNode[]): boolean => {
+  //         for (let i = 0; i < nodes.length; i++) {
+  //           const node = nodes[i];
+
+  //           // If this is the target folder, add the file
+  //           if (node.folderID === folderId) {
+  //             console.log("Found target folder:", node);
+  //             if (!node.children) {
+  //               node.children = [];
+  //             }
+  //             node.children.push(tempFile);
+  //             return true;
+  //           }
+
+  //           // If this node has children, recursively search them
+  //           if (node.children && node.children.length > 0) {
+  //             if (addFileToFolder(node.children)) {
+  //               return true;
+  //             }
+  //           }
+  //         }
+  //         return false;
+  //       };
+
+  //       // If we're at the root level and the current folder is root
+  //       if (folderId === 0) {
+  //         console.log("Adding to root level");
+  //         newData.push(tempFile);
+  //         return newData;
+  //       }
+
+  //       // Try to add the file to a subfolder
+  //       const added = addFileToFolder(newData);
+
+  //       if (!added) {
+  //         console.warn("Could not find target folder, adding to root level");
+  //         newData.push(tempFile);
+  //       }
+
+  //       console.log("Updated file data:", newData);
+  //       return newData;
+  //     });
+
+  //     // Prepare the form data for upload
+  //     const formData = new FormData();
+  //     const fileData = {
+  //       documentName: file.name,
+  //       documentType: documentType,
+  //       metadata: metadata,
+  //       folderID: folderId,
+  //       mimeType: file.type,
+  //     };
+
+  //     formData.append(
+  //       "fileData",
+  //       new Blob([JSON.stringify(fileData)], { type: "application/json" }),
+  //     );
+  //     formData.append("file", file);
+
+  //     // Perform the upload
+  //     const response = await axios.post(`/api/v1/files/${folderId}`, formData, {
+  //       headers: { "Content-Type": "multipart/form-data" },
+  //       onUploadProgress: (progressEvent) => {
+  //         const progress = progressEvent.total
+  //           ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
+  //           : 0;
+
+  //         setFileData((prevData) => {
+  //           const newData = JSON.parse(JSON.stringify(prevData));
+
+  //           const updateProgress = (nodes: FileNode[]): boolean => {
+  //             for (let i = 0; i < nodes.length; i++) {
+  //               const node = nodes[i];
+
+  //               if (node.id === tempFileId) {
+  //                 node.metadata = {
+  //                   ...node.metadata,
+  //                   progress,
+  //                   uploadStatus: progress === 100 ? "processing" : "uploading",
+  //                 };
+  //                 return true;
+  //               }
+
+  //               if (node.children && node.children.length > 0) {
+  //                 if (updateProgress(node.children)) {
+  //                   return true;
+  //                 }
+  //               }
+  //             }
+  //             return false;
+  //           };
+
+  //           updateProgress(newData);
+  //           return newData;
+  //         });
+  //       },
+  //     });
+
+  //     if (response.status === 200) {
+  //       // Update the temporary file with the real file data
+  //       setFileData((prevData) => {
+  //         const newData = JSON.parse(JSON.stringify(prevData));
+
+  //         const updateFile = (nodes: FileNode[]): boolean => {
+  //           for (let i = 0; i < nodes.length; i++) {
+  //             const node = nodes[i];
+
+  //             if (node.id === tempFileId) {
+  //               const updatedNode: FileNode = {
+  //                 id: response.data.id.toString(),
+  //                 label: file.name,
+  //                 type: "file",
+  //                 folderID: folderId,
+  //                 fileId: response.data.id,
+  //                 parentFolderID: folderId,
+  //                 metadata: {
+  //                   ...response.data,
+  //                   uploadStatus: "complete",
+  //                 },
+  //               };
+  //               nodes[i] = updatedNode;
+  //               return true;
+  //             }
+
+  //             if (node.children && node.children.length > 0) {
+  //               if (updateFile(node.children)) {
+  //                 return true;
+  //               }
+  //             }
+  //           }
+  //           return false;
+  //         };
+
+  //         updateFile(newData);
+  //         return newData;
+  //       });
+
+  //       showSnackbar("File uploaded successfully", "success");
+  //     }
+
+  //     setUploadDialogOpen(false);
+  //   } catch (error) {
+  //     console.error("Upload failed:", error);
+
+  //     // Remove the temporary file
+  //     setFileData((prevData) => {
+  //       const newData = JSON.parse(JSON.stringify(prevData));
+
+  //       const removeFile = (nodes: FileNode[]): void => {
+  //         for (let i = 0; i < nodes.length; i++) {
+  //           const node = nodes[i];
+
+  //           if (node.children) {
+  //             node.children = node.children.filter(
+  //               (child) => child.id !== tempFileId,
+  //             );
+  //             removeFile(node.children);
+  //           }
+  //         }
+  //       };
+
+  //       removeFile(newData);
+  //       return newData;
+  //     });
+
+  //     showSnackbar("File uploaded successfully", "success");
+  //     setUploadDialogOpen(false);
+  //   }
+  // };
+
   const handleUpload = async (
     file: File,
     documentType: string,
     metadata: Record<string, any>,
   ) => {
-    // Generate a temporary ID
-    const tempFileId = `temp-${Date.now()}`;
-
     try {
-      const folderId = currentFolderID;
-
-      if (folderId === null) {
-        throw new Error("No folder selected");
+      const currentFolder = currentPath[currentPath.length - 1];
+      if (!currentFolder?.folderID) {
+        throw new Error("No folder selected for upload");
       }
 
-      // Create temporary file node
-      const tempFile: FileNode = {
-        id: tempFileId,
-        label: file.name,
-        type: "file",
-        folderID: folderId,
-        parentFolderID: folderId,
-        metadata: {
-          documentType,
-          mimeType: file.type,
-          uploadStatus: "uploading",
-          progress: 0,
-          ...metadata,
-        },
-      };
-
-      // Add console logs to debug state updates
-      console.log("Current folder ID:", folderId);
-      console.log("Temp file to add:", tempFile);
-
-      // Directly modify the state to add the temp file
-      setFileData((prevData) => {
-        // Create a deep copy of the previous state
-        const newData = JSON.parse(JSON.stringify(prevData));
-
-        // Find the current folder and add the file to it
-        const addFileToFolder = (nodes: FileNode[]): boolean => {
-          for (let i = 0; i < nodes.length; i++) {
-            const node = nodes[i];
-
-            // If this is the target folder, add the file
-            if (node.folderID === folderId) {
-              console.log("Found target folder:", node);
-              if (!node.children) {
-                node.children = [];
-              }
-              node.children.push(tempFile);
-              return true;
-            }
-
-            // If this node has children, recursively search them
-            if (node.children && node.children.length > 0) {
-              if (addFileToFolder(node.children)) {
-                return true;
-              }
-            }
-          }
-          return false;
-        };
-
-        // If we're at the root level and the current folder is root
-        if (folderId === 0) {
-          console.log("Adding to root level");
-          newData.push(tempFile);
-          return newData;
-        }
-
-        // Try to add the file to a subfolder
-        const added = addFileToFolder(newData);
-
-        if (!added) {
-          console.warn("Could not find target folder, adding to root level");
-          newData.push(tempFile);
-        }
-
-        console.log("Updated file data:", newData);
-        return newData;
-      });
-
-      // Prepare the form data for upload
-      const formData = new FormData();
       const fileData = {
         documentName: file.name,
         documentType: documentType,
         metadata: metadata,
-        folderID: folderId,
+        folderID: currentFolder.folderID,
         mimeType: file.type,
       };
 
+      const formData = new FormData();
       formData.append(
         "fileData",
         new Blob([JSON.stringify(fileData)], { type: "application/json" }),
       );
       formData.append("file", file);
 
-      // Perform the upload
-      const response = await axios.post(`/api/v1/files/${folderId}`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-        onUploadProgress: (progressEvent) => {
-          const progress = progressEvent.total
-            ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
-            : 0;
-
-          setFileData((prevData) => {
-            const newData = JSON.parse(JSON.stringify(prevData));
-
-            const updateProgress = (nodes: FileNode[]): boolean => {
-              for (let i = 0; i < nodes.length; i++) {
-                const node = nodes[i];
-
-                if (node.id === tempFileId) {
-                  node.metadata = {
-                    ...node.metadata,
-                    progress,
-                    uploadStatus: progress === 100 ? "processing" : "uploading",
-                  };
-                  return true;
-                }
-
-                if (node.children && node.children.length > 0) {
-                  if (updateProgress(node.children)) {
-                    return true;
-                  }
-                }
-              }
-              return false;
-            };
-
-            updateProgress(newData);
-            return newData;
-          });
+      const response = await axios.post(
+        `/api/v1/files/${currentFolder.folderID}`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
         },
-      });
+      );
+
+      console.log("Upload response:", response.data);
 
       if (response.status === 200) {
-        // Update the temporary file with the real file data
-        setFileData((prevData) => {
-          const newData = JSON.parse(JSON.stringify(prevData));
+        const uploadedFile = response.data;
 
-          const updateFile = (nodes: FileNode[]): boolean => {
-            for (let i = 0; i < nodes.length; i++) {
-              const node = nodes[i];
+        const newFileNode: FileNode = {
+          id: uploadedFile.id.toString(),
+          label: uploadedFile.name || "Unnamed File",
+          type: "file",
+          folderID: currentFolder.folderID,
+          fileId: uploadedFile.id,
+          metadata: uploadedFile,
+        };
 
-              if (node.id === tempFileId) {
-                const updatedNode: FileNode = {
-                  id: response.data.id.toString(),
-                  label: file.name,
-                  type: "file",
-                  folderID: folderId,
-                  fileId: response.data.id,
-                  parentFolderID: folderId,
-                  metadata: {
-                    ...response.data,
-                    uploadStatus: "complete",
-                  },
-                };
-                nodes[i] = updatedNode;
-                return true;
-              }
-
-              if (node.children && node.children.length > 0) {
-                if (updateFile(node.children)) {
-                  return true;
-                }
-              }
+        // Dynamically add the new file to the folder's children
+        setFileData((prev) => {
+          const updatedData = prev.map((node) => {
+            if (node.folderID === currentFolder.folderID) {
+              return {
+                ...node,
+                children: [...(node.children || []), newFileNode],
+              };
             }
-            return false;
-          };
-
-          updateFile(newData);
-          return newData;
+            return node;
+          });
+          console.log("Updated fileData after upload:", updatedData);
+          return updatedData;
         });
+
+        setExpanded((prev) => ({
+          ...prev,
+          [currentFolder.id]: true,
+        }));
 
         showSnackbar("File uploaded successfully", "success");
       }
 
       setUploadDialogOpen(false);
     } catch (error) {
-      console.error("Upload failed:", error);
-
-      // Remove the temporary file
-      setFileData((prevData) => {
-        const newData = JSON.parse(JSON.stringify(prevData));
-
-        const removeFile = (nodes: FileNode[]): void => {
-          for (let i = 0; i < nodes.length; i++) {
-            const node = nodes[i];
-
-            if (node.children) {
-              node.children = node.children.filter(
-                (child) => child.id !== tempFileId,
-              );
-              removeFile(node.children);
-            }
-          }
-        };
-
-        removeFile(newData);
-        return newData;
-      });
-
+      console.error("Failed to upload file:", error);
       showSnackbar("Failed to upload file", "danger");
-      setUploadDialogOpen(false);
     }
   };
 

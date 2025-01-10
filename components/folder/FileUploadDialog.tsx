@@ -35,7 +35,7 @@ interface FileUploadDialogProps {
 }
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const ALLOWED_TYPES = [".pdf", ".doc", ".docx", ".txt"];
+const ALLOWED_TYPES = [".pdf", ".doc", ".docx", ".txt", ".jpg", ".png"];
 
 export default function FileUploadDialog({
   open,
@@ -44,6 +44,7 @@ export default function FileUploadDialog({
   folderID,
 }: FileUploadDialogProps) {
   const [file, setFile] = useState<File | null>(null);
+  const [previewURL, setPreviewURL] = useState<string | null>(null);
   const [documentTypes, setDocumentTypes] = useState<IDocumentType[]>([]);
   const [selectedDocType, setSelectedDocType] = useState<IDocumentType | null>(
     null,
@@ -56,6 +57,15 @@ export default function FileUploadDialog({
   useEffect(() => {
     fetchDocumentTypes();
   }, []);
+
+  useEffect(() => {
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setPreviewURL(url);
+    } else {
+      setPreviewURL(null);
+    }
+  }, [file]);
 
   useEffect(() => {
     if (selectedDocType) {
@@ -100,7 +110,9 @@ export default function FileUploadDialog({
     }
     const fileExtension = `.${file.name.split(".").pop()?.toLowerCase()}`;
     if (!ALLOWED_TYPES.includes(fileExtension)) {
-      setError("Invalid file type. Please upload PDF, DOC, DOCX, or TXT files");
+      setError(
+        "Invalid file type. Please upload PDF, DOC, DOCX, TXT, JPG, or PNG files",
+      );
       return false;
     }
     return true;
@@ -138,7 +150,7 @@ export default function FileUploadDialog({
       console.log("Payload being sent to API:", payload);
 
       try {
-        await addDocument(payload, file, folderID || 0);
+        await onUpload(file, selectedDocType.name, metadata);
         onClose();
       } catch (apiError: any) {
         setError(
@@ -165,6 +177,7 @@ export default function FileUploadDialog({
 
   const handleClose = () => {
     setFile(null);
+    setPreviewURL(null);
     setUploadProgress(0);
     setMetadata({});
     onClose();
@@ -184,9 +197,8 @@ export default function FileUploadDialog({
             Upload Document
           </DialogTitle>
         </DialogHeader>
-
         <div className="grid grid-cols-2 gap-6 p-6 overflow-y-auto">
-          {/* Left Column - File Upload & Progress */}
+          {/* Left Column - File Upload & Preview */}
           <div className="space-y-4">
             {error && (
               <Alert variant="destructive">
@@ -218,9 +230,10 @@ export default function FileUploadDialog({
                 </p>
               </div>
             ) : (
-              <Card className="min-h-[400px] flex flex-col">
-                <CardContent className="flex-1 p-4">
-                  <div className="flex items-center justify-between mb-4">
+              <Card className="flex flex-col">
+                <CardContent className="p-4 space-y-4">
+                  {/* File Information */}
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <FileText className="h-6 w-6 text-blue-500" />
                       <div>
@@ -234,7 +247,17 @@ export default function FileUploadDialog({
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
-                  <Progress value={uploadProgress} className="h-2 mb-4" />
+
+                  {/* File Preview */}
+                  {previewURL && (
+                    <div className="h-64 border border-gray-300 rounded-md overflow-hidden">
+                      <iframe
+                        src={previewURL}
+                        className="w-full h-full"
+                        title="File Preview"
+                      />
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -339,7 +362,6 @@ export default function FileUploadDialog({
 
                 {/* Save/Cancel Actions */}
                 <div className="flex justify-end gap-4 pt-6">
-                  {/* Cancel Button */}
                   <Button
                     variant="outline"
                     onClick={handleClose}
@@ -347,8 +369,6 @@ export default function FileUploadDialog({
                   >
                     Cancel
                   </Button>
-
-                  {/* Save Button */}
                   <Button
                     onClick={handleUpload}
                     disabled={
@@ -375,6 +395,19 @@ export default function FileUploadDialog({
           </Card>
         </div>
       </DialogContent>
+
+      {/* Document Type Creation Dialog */}
+      <Dialog
+        open={showDocTypeDialog}
+        onOpenChange={() => setShowDocTypeDialog(false)}
+      >
+        <DialogContent className="max-w-md bg-white rounded-md shadow-lg p-6">
+          <DocumentTypeCreation
+            onCreate={handleCreateNewDocType}
+            onCancel={() => setShowDocTypeDialog(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
