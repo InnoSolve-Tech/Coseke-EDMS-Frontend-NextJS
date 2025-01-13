@@ -23,7 +23,6 @@ import { getAllForms } from "@/core/forms/api";
 import { toast } from "@/hooks/use-toast";
 import { FormRecord } from "@/lib/types/formRecords";
 import { Form, FormField } from "@/lib/types/forms";
-import { User } from "@/lib/types/user";
 import { useEffect, useState } from "react";
 
 export default function CreateFormRecord() {
@@ -91,17 +90,12 @@ export default function CreateFormRecord() {
         createdBy: user.id!,
         createdDate: new Date().toISOString(),
       });
-
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: "Form record created successfully!",
-        });
-        setFormValues({});
-        setSelectedForm(null);
-      } else {
-        throw new Error("Failed to create form record");
-      }
+      toast({
+        title: "Success",
+        description: "Form record created successfully!",
+      });
+      setFormValues({});
+      setSelectedForm(null);
     } catch (error) {
       console.error("Error submitting form:", error);
       toast({

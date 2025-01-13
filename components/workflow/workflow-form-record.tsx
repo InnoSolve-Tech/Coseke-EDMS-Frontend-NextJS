@@ -9,20 +9,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createFormRecord } from "@/core/formrecords/api";
+import { createFormRecord, getFormRecordById } from "@/core/formrecords/api";
 import { getAllForms } from "@/core/forms/api";
 import { useToast } from "@/hooks/use-toast";
 import { FormRecord } from "@/lib/types/formRecords";
 import { Form, FormField } from "@/lib/types/forms";
 import { useEffect, useState } from "react";
 import { getUserFromSessionStorage } from "../routes/sessionStorage";
+import { WorkflowInstance } from "@/lib/types/workflowInstance";
+import { updateWorkflowInstance } from "@/core/workflowInstance/api";
 
 const WorkflowFormRecord = ({
   formId,
   formInstanceId,
   forms,
+  currentStep,
   setForms,
   setSelectedForm,
+  workflowInstance,
   selectedForm,
   formValues,
   setFormValues,
@@ -30,8 +34,10 @@ const WorkflowFormRecord = ({
   formId?: string;
   formInstanceId?: string;
   forms: Form[];
+  currentStep: string;
   setForms: (forms: Form[]) => void;
   selectedForm: Form | null;
+  workflowInstance: WorkflowInstance;
   setSelectedForm: (form: Form | null) => void;
   formValues: Record<string, string>;
   setFormValues: (formValues: any) => void;
@@ -51,6 +57,21 @@ const WorkflowFormRecord = ({
         if (formId) {
           const form = response.find((f) => f.id === parseInt(formId));
           setSelectedForm(form || null);
+        }
+        if (formInstanceId) {
+          const formInstance = await getFormRecordById(
+            parseInt(formInstanceId),
+          );
+          if (formInstance && formInstance.formFieldValues) {
+            const initialFormValues = formInstance.formFieldValues.reduce(
+              (acc: Record<string, string>, fieldValue: any) => {
+                acc[fieldValue.formField.id] = fieldValue.value;
+                return acc;
+              },
+              {},
+            );
+            setFormValues(initialFormValues);
+          }
         }
       } catch (error) {
         console.error("Error fetching forms:", error);
@@ -94,6 +115,15 @@ const WorkflowFormRecord = ({
         createdBy: user.id,
         createdDate: new Date().toISOString(),
       } as FormRecord);
+
+      if (!workflowInstance.metadata) {
+        workflowInstance.metadata = {};
+      }
+      workflowInstance.metadata[currentStep.toString()] = response.id;
+      await updateWorkflowInstance(
+        workflowInstance.id!.toString(),
+        workflowInstance,
+      );
 
       if (response.ok) {
         toast({

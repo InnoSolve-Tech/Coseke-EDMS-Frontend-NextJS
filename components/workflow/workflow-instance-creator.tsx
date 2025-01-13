@@ -62,6 +62,7 @@ type WorkflowInstance = {
   startFormData?: Record<string, string>;
   currentStep?: string;
   workflow: Workflow;
+  metadata: Record<string, string>;
 };
 
 const formSchema = z.object({
@@ -474,6 +475,11 @@ export default function WorkflowInstanceCreator() {
                                     (node) => node.id === instance.currentStep,
                                   )?.data.formId
                                 }
+                                formInstanceId={
+                                  instance.metadata["formInstanceId"]
+                                }
+                                workflowInstance={instance}
+                                currentStep={instance.currentStep!}
                                 forms={forms}
                                 setForms={setForms}
                                 selectedForm={selectedForm}
