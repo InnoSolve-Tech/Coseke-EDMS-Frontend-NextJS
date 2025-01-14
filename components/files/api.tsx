@@ -404,3 +404,60 @@ export const addDocumentsByFolderId = async (
     throw error;
   }
 };
+
+export const updateMetadata = async (
+  fileId: number,
+  newMetadata: Record<string, unknown>,
+): Promise<ApiResponse<FileData>> => {
+  try {
+    const response = await AxiosInstance.post<ApiResponse<FileData>>(
+      `${ENDPOINT_URL}${fileId}/metadata`,
+      newMetadata,
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error updating metadata:", error);
+    throw error;
+  }
+};
+
+/**
+ * Delete specific metadata keys for a file.
+ * @param fileId - The ID of the file.
+ * @param keys - List of metadata keys to be removed.
+ */
+export const deleteMetadata = async (
+  fileId: number,
+  keys: string[],
+): Promise<ApiResponse<FileData>> => {
+  try {
+    const response = await AxiosInstance.delete<ApiResponse<FileData>>(
+      `${ENDPOINT_URL}${fileId}/metadata`,
+      {
+        data: keys,
+      },
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting metadata:", error);
+    throw error;
+  }
+};
+
+/**
+ * Clear all metadata for a file.
+ * @param fileId - The ID of the file.
+ */
+export const clearMetadata = async (
+  fileId: number,
+): Promise<ApiResponse<FileData>> => {
+  try {
+    const response = await AxiosInstance.delete<ApiResponse<FileData>>(
+      `${ENDPOINT_URL}${fileId}/metadata/all`,
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error clearing metadata:", error);
+    throw error;
+  }
+};
