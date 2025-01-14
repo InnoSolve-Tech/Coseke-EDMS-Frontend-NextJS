@@ -1,0 +1,30 @@
+# Ignore node_modules
+node_modules
+
+# Ignore build outputs
+.next
+out
+
+# Ignore logs and temporary files
+*.log
+*.cache
+.DS_Store
+
+# Ignore environment files (if applicable)
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# Ignore Git-related files
+.git
+.gitignore
+
+# Ignore Docker-related files that are not required
+.dockerignore
+Dockerfile*
+
+# Ignore any other files that are not needed for the build
+coverage
+tests
