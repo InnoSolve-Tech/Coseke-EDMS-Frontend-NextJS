@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { PlusIcon } from "lucide-react";
 import { EditFormDialog } from "@/components/forms/EditFormDialog";
+import { Button } from "@/components/ui/button";
+import { createForm } from "@/core/forms/api";
+import { toast } from "@/hooks/use-toast";
+import { PlusIcon } from "lucide-react";
+import { useState } from "react";
 
 export function CreateFormButton() {
   const [isOpen, setIsOpen] = useState(false);
@@ -16,8 +18,27 @@ export function CreateFormButton() {
       <EditFormDialog
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
-        onSave={(formData) => {
-          console.log("New form data:", formData);
+        onSave={async (formData) => {
+          formData.formFields = formData.formFields.map(({ id, ...field }) => ({
+            ...field,
+            type: field.type.toUpperCase().trim(),
+          })) as any;
+          try {
+            await createForm(formData);
+            toast({
+              title: "Success",
+              description: "Form created successfully!",
+            });
+            setIsOpen(false);
+          } catch (error) {
+            console.error("Error creating form", error);
+            toast({
+              title: "Error",
+              description: "Failed to create form. Please try again.",
+              variant: "destructive",
+            });
+          }
+          return;
           setIsOpen(false);
           // In a real application, you would save the new form data here
         }}

@@ -1,20 +1,22 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { CssVarsProvider } from "@mui/joy/styles";
-import CssBaseline from "@mui/joy/CssBaseline";
-import { Box, Button, IconButton, Avatar } from "@mui/joy";
-import { Notifications, Add } from "@mui/icons-material";
-import TaskTable from "@/components/task-table";
-import CalendarPage from "./CalendarPage";
-import ActivityPage from "./ActivityPage";
-import { DndContext, DragOverlay } from "@dnd-kit/core";
-import { KanbanColumn } from "../../Kanban/kanban-olumn";
-import { KanbanItem } from "../../Kanban/kanban-item";
 import TaskForm from "@/components/task-form";
+import { DndContext, DragOverlay } from "@dnd-kit/core";
+import { Add, Notifications } from "@mui/icons-material";
+import { CssBaseline } from "@mui/joy";
+import Avatar from "@mui/joy/Avatar";
+import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
+import IconButton from "@mui/joy/IconButton";
+import { CssVarsProvider } from "@mui/joy/styles";
+import { useEffect, useState } from "react";
 import { AxiosInstance } from "../../../../components/routes/api";
 import { Task } from "../../../../components/task";
-import { List } from "lucide-react";
+import { KanbanItem } from "../../Kanban/kanban-item";
+import { KanbanColumn } from "../../Kanban/kanban-olumn";
+import ActivityPage from "./ActivityPage";
+import CalendarPage from "./CalendarPage";
+import LeadsPage from "./List";
 
 interface Column {
   id: string;
@@ -25,7 +27,7 @@ export default function Home() {
   const [activePage, setActivePage] = useState<string>("kanban");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [columns] = useState<Column[]>([
-    { id: "contacted", title: "Contacted" },
+    { id: "contracted", title: "Contracted" },
     { id: "qualified", title: "Qualified" },
     { id: "closed", title: "Closed" },
   ]);
@@ -36,7 +38,7 @@ export default function Home() {
   useEffect(() => {
     const fetchTasks = async () => {
       try {
-        const response = await AxiosInstance.get("/api/v1/tasks/all");
+        const response = await AxiosInstance.get("tasks/api/v1/tasks/all");
         setTasks(response.data);
       } catch (error) {
         console.error("Error fetching tasks:", error);
@@ -129,7 +131,7 @@ export default function Home() {
         </Box>
 
         {/* Content Section */}
-        {activePage === "list" && <List />}
+        {activePage === "list" && <LeadsPage />}
         {activePage === "activities" && <ActivityPage />}
         {activePage === "calendar" && <CalendarPage />}
         {activePage === "kanban" && (

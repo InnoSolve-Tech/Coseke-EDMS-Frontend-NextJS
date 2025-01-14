@@ -1,3 +1,7 @@
+"use client";
+
+import { User } from "@/lib/types/user";
+
 export const metadataSplitter = (array: any[]) => {
   const length = array.length;
   const middleIndex = Math.ceil(length / 2);

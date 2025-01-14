@@ -9,49 +9,61 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { EditIcon } from "lucide-react";
-import { useState } from "react";
-
-const fieldTypes = [
-  "text",
-  "number",
-  "email",
-  "password",
-  "date",
-  "time",
-  "textarea",
-  "select",
-] as const;
-
-interface SelectOptions {
-  options: string[];
-}
-interface FieldDefinition {
-  type: (typeof fieldTypes)[number];
-  selectOptions?: SelectOptions;
-}
-
-export interface Form {
-  id?: number;
-  name: string;
-  description: string;
-  fieldDefinitions: Record<string, FieldDefinition>;
-}
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { updateForm, deleteForm } from "@/core/forms/api";
+import { Form } from "@/lib/types/forms";
+import { DeleteIcon, EditIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface FormListProps {
-  forms: Form[];
+  initialForms: Form[];
 }
 
-export function FormList({ forms: initialForms }: FormListProps) {
-  const [forms, setForms] = useState(initialForms);
+export function FormList({ initialForms }: FormListProps) {
+  const [forms, setForms] = useState<Form[]>([]);
   const [editingForm, setEditingForm] = useState<Form | null>(null);
+  const [deletingForm, setDeletingForm] = useState<Form | null>(null);
 
-  const handleSave = (updatedForm: Form) => {
-    setForms(
-      forms.map((form) => (form.id === updatedForm.id ? updatedForm : form)),
-    );
-    setEditingForm(null);
+  const handleSave = async (updatedForm: Form) => {
+    try {
+      updatedForm.formFields = updatedForm.formFields.map(
+        ({ id, ...field }) => ({
+          ...field,
+          type: field.type.toUpperCase().trim(),
+        }),
+      ) as any;
+      await updateForm(updatedForm.id!, updatedForm);
+      setForms(
+        forms.map((form) => (form.id === updatedForm.id ? updatedForm : form)),
+      );
+      setEditingForm(null);
+    } catch (error) {
+      console.error("Error updating form", error);
+    }
   };
+
+  const handleDelete = async (formId: number) => {
+    try {
+      await deleteForm(formId);
+      setForms(forms.filter((form) => form.id !== formId));
+      setDeletingForm(null);
+    } catch (error) {
+      console.error("Error deleting form", error);
+    }
+  };
+
+  useEffect(() => {
+    setForms(initialForms);
+  }, [initialForms]);
 
   return (
     <>
@@ -64,26 +76,33 @@ export function FormList({ forms: initialForms }: FormListProps) {
                   <CardTitle>{form.name}</CardTitle>
                   <CardDescription>{form.description}</CardDescription>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setEditingForm(form)}
-                >
-                  <EditIcon className="h-4 w-4" />
-                </Button>
+                <div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setEditingForm(form)}
+                  >
+                    <EditIcon className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setDeletingForm(form)}
+                  >
+                    <DeleteIcon className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground mb-2">Fields:</p>
               <ul className="list-disc list-inside">
-                {Object.entries(form.fieldDefinitions).map(
-                  ([fieldName, fieldType]) => (
-                    <li key={fieldName} className="text-sm">
-                      {fieldName}:{" "}
-                      <span className="font-mono">{fieldType.type}</span>
-                    </li>
-                  ),
-                )}
+                {form.formFields.map((field) => (
+                  <li key={field.name} className="text-sm">
+                    {field.name}:{" "}
+                    <span className="font-mono">{field.type}</span>
+                  </li>
+                ))}
               </ul>
             </CardContent>
           </Card>
@@ -97,6 +116,48 @@ export function FormList({ forms: initialForms }: FormListProps) {
           initialData={editingForm}
         />
       )}
+      <DeleteFormDialog
+        isOpen={!!deletingForm}
+        onClose={() => setDeletingForm(null)}
+        onDelete={() => deletingForm && handleDelete(deletingForm.id!)}
+        formName={deletingForm?.name || ""}
+      />
     </>
+  );
+}
+
+function DeleteFormDialog({
+  isOpen,
+  onClose,
+  onDelete,
+  formName,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onDelete: () => void;
+  formName: string;
+}) {
+  return (
+    <AlertDialog open={isOpen} onOpenChange={onClose}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This action cannot be undone. This will permanently delete the form
+            <span className="font-semibold"> {formName} </span>
+            and remove its data from our servers.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={onDelete}
+            className="bg-red-600 hover:bg-red-700"
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

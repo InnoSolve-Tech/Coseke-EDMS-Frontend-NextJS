@@ -20,23 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PlusIcon, TrashIcon, XIcon } from "lucide-react";
-
-interface SelectOptions {
-  options: string[];
-}
-
-interface FieldDefinition {
-  type: (typeof fieldTypes)[number];
-  selectOptions?: SelectOptions;
-}
-
-interface Form {
-  id?: number;
-  name: string;
-  description: string;
-  fieldDefinitions: Record<string, FieldDefinition>;
-  selectOptions?: SelectOptions;
-}
+import { Form, FormField } from "@/lib/types/forms";
 
 interface EditFormDialogProps {
   isOpen: boolean;
@@ -48,13 +32,19 @@ interface EditFormDialogProps {
 const fieldTypes = [
   "text",
   "number",
-  "email",
-  "password",
-  "date",
-  "time",
-  "textarea",
   "select",
+  "checkbox",
+  "radio",
+  "date",
+  "textarea",
 ] as const;
+
+// Default empty form state
+const defaultFormState: Form = {
+  name: "",
+  description: "",
+  formFields: [],
+};
 
 export function EditFormDialog({
   isOpen,
@@ -62,11 +52,8 @@ export function EditFormDialog({
   onSave,
   initialData,
 }: EditFormDialogProps) {
-  const [formData, setFormData] = useState<Form>({
-    name: "",
-    description: "",
-    fieldDefinitions: {},
-  });
+  // Initialize with defaultFormState
+  const [formData, setFormData] = useState<Form>(defaultFormState);
 
   const [newSelectOption, setNewSelectOption] = useState<{
     [key: string]: string;
@@ -74,16 +61,17 @@ export function EditFormDialog({
 
   useEffect(() => {
     if (initialData) {
-      setFormData(initialData);
-    } else {
+      // Ensure formFields is an array even if initialData.formFields is undefined
       setFormData({
-        name: "",
-        description: "",
-        fieldDefinitions: {},
+        ...initialData,
+        formFields: initialData.formFields || [],
       });
+    } else {
+      setFormData(defaultFormState);
     }
   }, [initialData, isOpen]);
 
+  // Rest of the component remains the same...
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
@@ -91,77 +79,73 @@ export function EditFormDialog({
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleFieldChange = (
-    fieldName: string,
-    fieldType: (typeof fieldTypes)[number],
-  ) => {
+  const handleFieldChange = (fieldId: string, updates: Partial<FormField>) => {
     setFormData((prev) => ({
       ...prev,
-      fieldDefinitions: {
-        ...prev.fieldDefinitions,
-        [fieldName]: {
-          type: fieldType,
-          value: "",
-        },
-      },
-      selectOptions: { options: [] },
+      formFields: prev.formFields.map((field) =>
+        field.id === fieldId ? { ...field, ...updates } : field,
+      ),
     }));
   };
 
-  const handleAddSelectOption = (fieldName: string) => {
-    const optionToAdd = newSelectOption[fieldName];
+  const handleAddSelectOption = (fieldId: string) => {
+    const optionToAdd = newSelectOption[fieldId];
     if (optionToAdd) {
-      setFormData((prev) => {
-        const currentOptions =
-          prev.fieldDefinitions[fieldName].selectOptions?.options || [];
-        return {
-          ...prev,
-          fieldDefinitions: {
-            ...prev.fieldDefinitions,
-            [fieldName]: {
-              ...prev.fieldDefinitions[fieldName],
-              selectOptions: {
-                options: [...currentOptions, optionToAdd],
-              },
-            },
-          },
-        };
-      });
+      setFormData((prev) => ({
+        ...prev,
+        formFields: prev.formFields.map((field) =>
+          field.id === fieldId
+            ? {
+                ...field,
+                selectOptions: [
+                  ...(field.selectOptions || []),
+                  {
+                    label: optionToAdd,
+                    value: optionToAdd.toLowerCase().replace(/\s+/g, "-"),
+                  },
+                ],
+              }
+            : field,
+        ),
+      }));
 
-      // Reset the new option input
-      setNewSelectOption((prev) => ({ ...prev, [fieldName]: "" }));
+      setNewSelectOption((prev) => ({ ...prev, [fieldId]: "" }));
     }
   };
 
-  const handleRemoveSelectOption = (
-    fieldName: string,
-    optionToRemove: string,
-  ) => {
+  const handleRemoveSelectOption = (fieldId: string, optionValue: string) => {
     setFormData((prev) => ({
       ...prev,
-      fieldDefinitions: {
-        ...prev.fieldDefinitions,
-        [fieldName]: {
-          ...prev.fieldDefinitions[fieldName],
-          selectOptions: {
-            options: (
-              prev.fieldDefinitions[fieldName].selectOptions?.options || []
-            ).filter((option) => option !== optionToRemove),
-          },
-        },
-      },
+      formFields: prev.formFields.map((field) =>
+        field.id === fieldId
+          ? {
+              ...field,
+              selectOptions: (field.selectOptions || []).filter(
+                (option) => option.value !== optionValue,
+              ),
+            }
+          : field,
+      ),
     }));
   };
 
   const handleAddField = () => {
-    const newFieldName = `field${Object.keys(formData.fieldDefinitions).length + 1}`;
-    handleFieldChange(newFieldName, "text");
+    const newField: FormField = {
+      id: `field-${Date.now()}`,
+      name: `Field ${formData.formFields.length + 1}`,
+      type: "text",
+    };
+    setFormData((prev) => ({
+      ...prev,
+      formFields: [...prev.formFields, newField],
+    }));
   };
 
-  const handleRemoveField = (fieldName: string) => {
-    const newFieldDefinitions = { ...formData.fieldDefinitions };
-    delete newFieldDefinitions[fieldName];
-    setFormData((prev) => ({ ...prev, fieldDefinitions: newFieldDefinitions }));
+  const handleRemoveField = (fieldId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      formFields: prev.formFields.filter((field) => field.id !== fieldId),
+    }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -203,32 +187,23 @@ export function EditFormDialog({
             </div>
             <div className="grid grid-cols-4 items-start gap-4">
               <Label className="text-right pt-2">Fields</Label>
-              <div className="col-span-3 space-y-2">
-                {Object.entries(formData.fieldDefinitions).map(
-                  ([fieldName, fieldData]) => (
-                    <div key={fieldName} className="flex items-center gap-2">
+              <div className="col-span-3 space-y-4">
+                {formData.formFields.map((field) => (
+                  <div key={field.id} className="space-y-2">
+                    <div className="flex items-center gap-2">
                       <Input
-                        value={fieldName}
-                        onChange={(e) => {
-                          const newFieldDefinitions = {
-                            ...formData.fieldDefinitions,
-                          };
-                          delete newFieldDefinitions[fieldName];
-                          newFieldDefinitions[e.target.value] = fieldData;
-                          setFormData((prev) => ({
-                            ...prev,
-                            fieldDefinitions: newFieldDefinitions,
-                          }));
-                        }}
+                        value={field.name}
+                        onChange={(e) =>
+                          handleFieldChange(field.id, { name: e.target.value })
+                        }
                         className="w-[120px]"
                       />
                       <Select
-                        value={fieldData.type}
+                        value={field.type.toLowerCase()}
                         onValueChange={(value) =>
-                          handleFieldChange(
-                            fieldName,
-                            value as (typeof fieldTypes)[number],
-                          )
+                          handleFieldChange(field.id, {
+                            type: value as (typeof fieldTypes)[number],
+                          })
                         }
                       >
                         <SelectTrigger className="w-[180px]">
@@ -236,8 +211,11 @@ export function EditFormDialog({
                         </SelectTrigger>
                         <SelectContent className="bg-white bg-opacity-100">
                           {fieldTypes.map((type) => (
-                            <SelectItem key={type} value={type}>
-                              {type}
+                            <SelectItem
+                              key={type.toLowerCase()}
+                              value={type.toLowerCase()}
+                            >
+                              {type.toLowerCase()}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -246,13 +224,64 @@ export function EditFormDialog({
                         type="button"
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleRemoveField(fieldName)}
+                        onClick={() => handleRemoveField(field.id)}
                       >
                         <TrashIcon className="h-4 w-4" />
                       </Button>
                     </div>
-                  ),
-                )}
+                    {field.type.toLowerCase() === "select" && (
+                      <div className="pl-4 border-l-2 border-gray-200">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Input
+                            value={newSelectOption[field.id] || ""}
+                            onChange={(e) =>
+                              setNewSelectOption((prev) => ({
+                                ...prev,
+                                [field.id]: e.target.value,
+                              }))
+                            }
+                            placeholder="Add option"
+                            className="w-[180px]"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleAddSelectOption(field.id)}
+                          >
+                            Add Option
+                          </Button>
+                        </div>
+                        {field.selectOptions &&
+                          field.selectOptions.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {field.selectOptions.map((option) => (
+                                <div
+                                  key={option.value}
+                                  className="flex items-center gap-1 bg-gray-100 rounded-md px-2 py-1"
+                                >
+                                  <span>{option.label}</span>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() =>
+                                      handleRemoveSelectOption(
+                                        field.id,
+                                        option.value,
+                                      )
+                                    }
+                                  >
+                                    <XIcon className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                      </div>
+                    )}
+                  </div>
+                ))}
                 <Button
                   type="button"
                   variant="outline"

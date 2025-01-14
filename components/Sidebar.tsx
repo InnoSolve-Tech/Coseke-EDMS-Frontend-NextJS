@@ -1,24 +1,27 @@
-import React, { useState, ReactNode } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { User as UserDetails } from "@/lib/types/user";
 import {
+  ChevronDown,
+  ChevronRight,
+  File,
   Folder,
+  HelpCircle,
   LayoutDashboard,
   List as ListIcon,
-  Workflow,
-  Users,
-  HelpCircle,
-  Settings,
   LogOut,
-  Sun,
-  Moon,
   Menu,
-  File,
-  X,
-  ChevronRight,
-  ChevronDown,
+  Settings,
   User,
+  Workflow,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import React, { ReactNode, useEffect, useState } from "react";
 import { Navbar } from "./dashboard/Navbar";
+import {
+  clearSessionStorage,
+  getUserFromSessionStorage,
+} from "./routes/sessionStorage";
 import ThemeToggle from "./ThemeToggle";
 
 // Define types for navigation and menu items
@@ -128,6 +131,16 @@ export default function Sidebar({ children }: SidebarLayoutProps) {
   const [openSubmenus, setOpenSubmenus] = useState<{ [key: string]: boolean }>(
     {},
   );
+  const [user, setUser] = useState<UserDetails>({
+    id: 0,
+    first_name: "",
+    last_name: "",
+    email: "",
+    phone: "",
+    address: "",
+    password: "",
+    roles: [],
+  });
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
@@ -141,6 +154,10 @@ export default function Sidebar({ children }: SidebarLayoutProps) {
       }));
     }
   };
+
+  useEffect(() => {
+    setUser(getUserFromSessionStorage());
+  }, []);
 
   const MenuItemWithTooltip: React.FC<MenuItemProps> = ({
     icon: Icon,
@@ -280,18 +297,21 @@ export default function Sidebar({ children }: SidebarLayoutProps) {
 
         {/* User Profile */}
         <div className="p-4 border-t border-gray-200 flex items-center">
-          <img
-            src="/api/placeholder/40/40"
-            alt="User"
-            className={`
-              rounded-full 
-              ${isCollapsed ? "mx-auto" : "mr-3"}
-            `}
-          />
+          <Avatar className="h-8 w-8 mr-2">
+            <AvatarImage
+              src={`https://api.dicebear.com/6.x/initials/svg?seed=${user.first_name} ${user.last_name}`}
+            />
+            <AvatarFallback>
+              {user.first_name[0]}
+              {user.last_name[0]}
+            </AvatarFallback>
+          </Avatar>
           {!isCollapsed && (
             <div className="flex-grow">
-              <div className="text-sm font-semibold">Siriwat K.</div>
-              <div className="text-xs text-gray-500">siriwatk@test.com</div>
+              <div className="text-sm font-semibold">
+                {user.first_name} {user.last_name}
+              </div>
+              <div className="text-xs text-gray-500">{user.email}</div>
             </div>
           )}
           {!isCollapsed && (
@@ -299,7 +319,7 @@ export default function Sidebar({ children }: SidebarLayoutProps) {
               className="hover:bg-gray-100 p-2 rounded-md"
               onClick={() => {
                 // Clear local storage and redirect to login page
-                sessionStorage.clear();
+                clearSessionStorage();
                 router.push("/");
               }}
             >

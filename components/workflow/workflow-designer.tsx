@@ -1,6 +1,7 @@
 "use client";
 
 import { useWorkflow } from "@/lib/contexts/workflow-context";
+import { Form } from "@/lib/types/forms";
 import { WorkflowNode as WorkflowNodeType } from "@/lib/types/workflow";
 import { Info } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -17,22 +18,11 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { v4 as uuidv4 } from "uuid";
-import { Button } from "../ui/button";
+import { Button } from "@/components/ui/button";
 import { NodeEditor } from "./node-editor";
 import { nodeTypes as nodeConfig } from "./node-types";
 import { WorkflowHelpDialog } from "./workflow-help-dialog";
-import { WorkflowJson } from "./workflow-json";
 import WorkflowNode from "./workflow-node";
-
-type NodeForm = {
-  id: string;
-  fields: Array<{
-    id: string;
-    type: "number" | "text" | "select" | "date" | "checkbox";
-    label: string;
-    required?: boolean;
-  }>;
-};
 
 type WorkflowNodeData = {
   label: string;
@@ -41,7 +31,7 @@ type WorkflowNodeData = {
   conditions?: { field: string; operator: string; value: string }[];
   assignee?: { assignee_type: "role" | "user"; assignee_id: string };
   dueDate?: string;
-  form?: NodeForm;
+  form?: Form;
   branches?: string[];
 };
 
@@ -50,8 +40,7 @@ const nodeTypes = {
   end: WorkflowNode,
   task: WorkflowNode,
   decision: WorkflowNode,
-  parallel: WorkflowNode,
-  merge: WorkflowNode,
+  form: WorkflowNode,
 };
 
 export function WorkflowDesigner() {
@@ -60,7 +49,7 @@ export function WorkflowDesigner() {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState<
     | (Node<WorkflowNodeData> & {
-        type: "start" | "end" | "task" | "decision" | "parallel" | "merge";
+        type: "start" | "end" | "task" | "decision" | "form";
       })
     | null
   >(null);
@@ -97,9 +86,10 @@ export function WorkflowDesigner() {
   const onNodeClick = (_: React.MouseEvent, node: Node<WorkflowNodeData>) => {
     setSelectedNode(
       node as Node<WorkflowNodeData> & {
-        type: "start" | "end" | "task" | "decision" | "parallel" | "merge";
+        type: "start" | "end" | "task" | "decision" | "form";
       },
     );
+    console.log("selected node:", node);
   };
 
   const updateNode = (updatedNode: Node<WorkflowNodeData>) => {
@@ -143,12 +133,6 @@ export function WorkflowDesigner() {
         </div>
         <div className="flex items-center gap-2">
           <WorkflowHelpDialog />
-          <WorkflowJson
-            workflow={{
-              nodes: nodes as unknown as WorkflowNodeType[],
-              edges,
-            }}
-          />
         </div>
       </div>
 

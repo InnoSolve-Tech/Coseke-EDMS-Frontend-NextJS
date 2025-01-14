@@ -1,16 +1,25 @@
 "use client";
 
-import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import { NodeAssignment } from "./node-assignment";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { getAllForms } from "@/core/forms/api";
+import { toast } from "@/hooks/use-toast";
+import { Form } from "@/lib/types/forms";
+import { WorkflowNode } from "@/lib/types/workflow";
+import { useEffect, useState } from "react";
 import { Button } from "../ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Textarea } from "../ui/textarea";
-import { WorkflowNode } from "@/lib/types/workflow";
+import { NodeAssignment } from "./node-assignment";
 import { nodeTypes } from "./node-types";
-import { TaskForm, DecisionForm, ParallelForm } from "./node-forms";
 
 interface NodeEditorProps {
   node: WorkflowNode;
@@ -25,6 +34,8 @@ export function NodeEditor({
   onClose,
   onUpdate,
 }: NodeEditorProps) {
+  const [forms, setForms] = useState<Form[]>([]);
+  const [selectedForm, setSelectedForm] = useState<Form | null>(null);
   const [editedNode, setEditedNode] = useState<WorkflowNode>(node);
   const nodeConfig = nodeTypes[node.type as keyof typeof nodeTypes];
 
@@ -33,9 +44,41 @@ export function NodeEditor({
     onClose();
   };
 
+  const fetchForms = async () => {
+    try {
+      const response = await getAllForms();
+      setForms(response);
+      setSelectedForm(
+        response.find((f) => f.id === parseInt(node.data.formId!)),
+      );
+    } catch (error) {
+      console.error("Error fetching forms:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch forms. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (node.type === "form") {
+      fetchForms();
+    }
+  }, []);
+
+  const handleFormSelect = (formId: string) => {
+    const form = forms.find((f) => f.id === parseInt(formId));
+    setEditedNode({
+      ...editedNode,
+      data: { ...editedNode.data, formId: formId },
+    });
+    setSelectedForm(form || null);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl bg-white bg-opacity-100 text-black">
+      <DialogContent className="max-w-2xl bg-white bg-opacity-100 text-black max-h-[700px] min-h-[300px] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <nodeConfig.icon className="h-5 w-5" />
@@ -46,11 +89,11 @@ export function NodeEditor({
         <Tabs defaultValue="details" className="w-full">
           <TabsList>
             <TabsTrigger value="details">Details</TabsTrigger>
-            {node.type === "task" && (
-              <TabsTrigger value="form">Form</TabsTrigger>
-            )}
             {node.type === "decision" && (
               <TabsTrigger value="conditions">Conditions</TabsTrigger>
+            )}
+            {node.type === "form" && (
+              <TabsTrigger value="form">Form</TabsTrigger>
             )}
             <TabsTrigger value="assignment">Assignment</TabsTrigger>
           </TabsList>
@@ -87,84 +130,23 @@ export function NodeEditor({
             </div>
           </TabsContent>
 
-          {node.type === "task" && (
+          {node.type === "form" && (
             <TabsContent value="form">
-              <TaskForm
-                fields={editedNode.data.form?.fields || []}
-                onUpdate={(fields) =>
-                  setEditedNode({
-                    ...editedNode,
-                    data: {
-                      ...editedNode.data,
-                      form: {
-                        ...editedNode.data.form,
-                        id: editedNode.data.form?.id || crypto.randomUUID(),
-                        fields: fields.map((field) => ({
-                          ...field,
-                          type: field.type as
-                            | "number"
-                            | "checkbox"
-                            | "date"
-                            | "text"
-                            | "select",
-                          id: crypto.randomUUID(),
-                        })),
-                      },
-                    },
-                  })
-                }
-              />
-            </TabsContent>
-          )}
-
-          {node.type === "parallel" && (
-            <TabsContent value="branches">
-              <ParallelForm
-                branches={
-                  editedNode.data.branches?.map(
-                    (branch: string | { id: string; label: string }) => ({
-                      id: typeof branch === "string" ? branch : branch.id,
-                      label: typeof branch === "string" ? branch : branch.label,
-                      name: typeof branch === "string" ? branch : branch.label,
-                    }),
-                  ) || []
-                }
-                onUpdate={(branches) =>
-                  setEditedNode({
-                    ...editedNode,
-                    data: {
-                      ...editedNode.data,
-                      branches: branches.map((branch) => branch.id),
-                    },
-                  })
-                }
-              />
-            </TabsContent>
-          )}
-
-          {node.type === "decision" && (
-            <TabsContent value="conditions">
-              <DecisionForm
-                conditions={(editedNode.data.conditions || []).map((c) => ({
-                  field: c.field,
-                  operator: c.operator,
-                  value: c.value,
-                  id: crypto.randomUUID(),
-                }))}
-                fields={editedNode.data.form?.fields || []}
-                onUpdate={(conditions) =>
-                  setEditedNode({
-                    ...editedNode,
-                    data: {
-                      ...editedNode.data,
-                      conditions: conditions.map((c) => ({
-                        ...c,
-                        id: crypto.randomUUID(),
-                      })),
-                    },
-                  })
-                }
-              />
+              <Select
+                value={selectedForm?.id?.toString()}
+                onValueChange={handleFormSelect}
+              >
+                <SelectTrigger className="w-full my-10">
+                  <SelectValue placeholder="Select a form" />
+                </SelectTrigger>
+                <SelectContent className="bg-white bg-opacity-100">
+                  {forms.map((form) => (
+                    <SelectItem key={form.id} value={form.id!.toString()}>
+                      {form.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </TabsContent>
           )}
 
