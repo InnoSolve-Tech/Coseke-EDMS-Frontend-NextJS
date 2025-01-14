@@ -75,8 +75,8 @@ export interface FileManagerData {
 }
 
 export const addDocument = async (
-  data: any,
   file: File,
+  data: any,
   folderId: number,
 ): Promise<void> => {
   let token = getTokenFromSessionStorage();
