@@ -6,8 +6,8 @@ export interface IDocumentType {
   id: number;
   name: string;
   metadata: MetadataItem[];
-  createdDate: number[];
-  lastModifiedDateTime: number[];
+  createdDate?: string;
+  lastModifiedDateTime?: string;
 }
 
 export interface IDocumentTypeForm {
@@ -16,7 +16,7 @@ export interface IDocumentTypeForm {
 }
 
 export interface MetadataItem {
-  options: any;
+  options?: string[];
   name: string;
   type: string;
   value: string;
@@ -51,5 +51,40 @@ export async function updateDocumentType(
 }
 
 export async function deleteDocumentType(id: number): Promise<void> {
-  await AxiosInstance.delete(`file-management/api/v1/document-types/${id}`);
+  await AxiosInstance.delete(
+    `file-management/api/v1/document-types/delete/${id}`,
+  );
+}
+
+export async function addMetadata(
+  id: number,
+  metadata: MetadataItem,
+): Promise<IDocumentType> {
+  const { data: response } = await AxiosInstance.post(
+    `file-management/api/v1/document-types/${id}/add-metadata`,
+    metadata,
+  );
+  return response;
+}
+
+export async function updateMetadata(
+  id: number,
+  metadataId: number,
+  metadata: MetadataItem,
+): Promise<IDocumentType> {
+  const { data: response } = await AxiosInstance.put(
+    `file-management/api/v1/document-types/${id}/update-metadata/${metadataId}`,
+    metadata,
+  );
+  return response;
+}
+
+export async function deleteMetadata(
+  id: number,
+  metadataId: number,
+): Promise<IDocumentType> {
+  const { data: response } = await AxiosInstance.delete(
+    `file-management/api/v1/document-types/${id}/delete-metadata/${metadataId}`,
+  );
+  return response;
 }

@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, FileText, Plus, Save, Upload, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { addDocument } from "../files/api";
 import { IDocumentType, getDocumentTypes } from "./api";
 import { DocumentTypeCreation } from "./DocumentTypes";
 
@@ -53,6 +52,7 @@ export default function FileUploadDialog({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [showDocTypeDialog, setShowDocTypeDialog] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     fetchDocumentTypes();
@@ -123,41 +123,38 @@ export default function FileUploadDialog({
   };
 
   const handleUpload = async () => {
-    if (!file) {
-      setError("No file selected");
+    if (!file || !selectedDocType || !folderID) {
+      setError("Missing required information");
       return;
     }
 
-    if (!selectedDocType) {
-      setError("No document type selected");
-      return;
-    }
+    setIsUploading(true);
+    setError(null);
 
     try {
-      const payload = {
-        documentName: file.name,
-        mimeType: file.type,
+      // Prepare the data object for the API
+      const uploadData = {
         documentType: selectedDocType.name,
-        metadata: selectedDocType.metadata.reduce(
-          (acc, field) => {
-            acc[field.name] = metadata[field.name] || "";
-            return acc;
-          },
-          {} as Record<string, string>,
-        ),
+        metadata: metadata,
+        mimeType: file.type,
+        fileName: file.name,
       };
 
-      try {
-        await addDocument(payload, file, folderID || 0);
-        console.log("Upload successful");
-        onClose();
-      } catch (apiError: any) {
-        setError(
-          apiError.message || "Failed to upload file. Please try again.",
-        );
-      }
-    } catch (error: any) {
-      setError("Failed to prepare upload. Please try again.");
+      // Call the parent onUpload for any additional handling
+      await onUpload(file, selectedDocType.name, metadata);
+
+      // Reset the dialog state
+      setFile(null);
+      setPreviewURL(null);
+      setSelectedDocType(null);
+      setMetadata({});
+      setUploadProgress(100);
+      onClose();
+    } catch (error) {
+      console.error("Upload failed:", error);
+      setError("Failed to upload file. Please try again.");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -291,12 +288,25 @@ export default function FileUploadDialog({
                   <Button
                     size="icon"
                     variant="outline"
-                    onClick={() => setShowDocTypeDialog(true)}
+                    onClick={() => setShowDocTypeDialog(!showDocTypeDialog)}
                   >
                     <Plus />
                   </Button>
                 </div>
               </div>
+
+              {/* Embed DocumentTypeCreation directly */}
+              {showDocTypeDialog && (
+                <div className="mt-4 p-4 border border-gray-200 rounded-md">
+                  <DocumentTypeCreation
+                    onCreate={(newDocType) => {
+                      handleCreateNewDocType(newDocType);
+                      setShowDocTypeDialog(false);
+                    }}
+                    onCancel={() => setShowDocTypeDialog(false)}
+                  />
+                </div>
+              )}
 
               {selectedDocType?.metadata.map((field) => (
                 <div key={field.name}>
@@ -354,18 +364,6 @@ export default function FileUploadDialog({
           </Card>
         </div>
       </DialogContent>
-
-      <Dialog open={showDocTypeDialog} onOpenChange={setShowDocTypeDialog}>
-        <DialogContent>
-          <DocumentTypeCreation
-            onCreate={(newDocType) => {
-              handleCreateNewDocType(newDocType);
-              setShowDocTypeDialog(false);
-            }}
-            onCancel={() => setShowDocTypeDialog(false)}
-          />
-        </DialogContent>
-      </Dialog>
     </Dialog>
   );
 }
