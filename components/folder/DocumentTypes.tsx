@@ -13,10 +13,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Plus, Edit3 } from "lucide-react";
 import {
-  IDocumentTypeForm,
-  MetadataItem,
   createDocumentType,
   IDocumentType,
+  IDocumentTypeForm,
+  MetadataItem,
 } from "./api";
 
 interface DocumentTypeCreationProps {
@@ -81,7 +81,9 @@ export function DocumentTypeCreation({
     setInputValue(field.name);
     setIsSelectField(field.type === "select");
     setTextValue(field.type === "text" ? field.value : "");
-    setSelectOptions(field.type === "select" ? field.options.join(", ") : "");
+    setSelectOptions(
+      field.type === "select" ? field.options?.join(", ") || "" : "",
+    );
     setEditingIndex(index);
   };
 

@@ -1,6 +1,5 @@
 "use client";
 
-import { getFilesByHash, getFilesById } from "@/components/files/api";
 import {
   Close as CloseIcon,
   Description as DescriptionIcon,
@@ -9,6 +8,8 @@ import {
   Edit as EditIcon,
   TableChartOutlined as ExcelIcon,
   PictureAsPdfOutlined as PdfIcon,
+  Add as AddIcon,
+  Delete as DeleteIcon,
 } from "@mui/icons-material";
 import {
   Box,
@@ -25,12 +26,31 @@ import {
   Snackbar,
   Stack,
   Typography,
+  Modal,
+  ModalDialog,
+  ModalClose,
 } from "@mui/joy";
 import { ColorPaletteProp } from "@mui/joy/styles";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
 import DocViewer, { DocViewerRenderers } from "react-doc-viewer";
+import {
+  getFilesByHash,
+  getFilesById,
+  updateMetadata,
+  deleteMetadata,
+  clearMetadata,
+  deleteFile,
+} from "@/components/files/api";
+import { getDocumentTypes } from "@/components/folder/api";
+
+interface MetadataItem {
+  name: string;
+  type: string;
+  value: string;
+  options?: any;
+}
 
 interface Metadata {
   [key: string]: string | string[];
@@ -78,17 +98,19 @@ const FileViewPage = () => {
   const [fileURL, setFileURL] = useState<string | null>(null);
   const [googleFileId, setGoogleFileId] = useState<string | null>(null);
   const [showInstallMessage, setShowInstallMessage] = useState(false);
+  const [openNewMetadataModal, setOpenNewMetadataModal] = useState(false);
+  const [newMetadata, setNewMetadata] = useState<MetadataItem>({
+    name: "",
+    type: "text",
+    value: "",
+    options: null,
+  });
 
-  // Fetch file details on component mount
   useEffect(() => {
     const fetchFileDetails = async () => {
       try {
         const res = await getFilesById(parseInt(id as string));
         const response = await getFilesByHash(res.hashName);
-        console.log("File details response:", response);
-
-        // Extract unique document types from the initial response
-        const availableDocumentTypes = [res.documentType]; // Start with the current document's type
 
         if (response) {
           const fileData = {
@@ -96,20 +118,19 @@ const FileViewPage = () => {
             fileLink: URL.createObjectURL(
               new Blob([response], { type: res.mimeType }),
             ),
-            mimeType: res.mimeType,
           };
-
           setDocument(fileData);
-
-          // If you want to add a list of document types for the Select component
-          setDocumentTypes(availableDocumentTypes);
         } else {
           throw new Error("No file found");
         }
       } catch (err) {
         console.error("Error fetching file details:", err);
         setError("Failed to load file details");
-        showSnackbar("Failed to load file details", "danger");
+        setSnackbar({
+          open: true,
+          message: "Failed to load file details",
+          color: "danger",
+        });
       } finally {
         setLoading(false);
       }
@@ -118,7 +139,6 @@ const FileViewPage = () => {
     fetchFileDetails();
   }, [id]);
 
-  // Parse Excel files
   useEffect(() => {
     const parseExcelFile = async () => {
       if (
@@ -156,12 +176,82 @@ const FileViewPage = () => {
     });
   };
 
-  const handleSubmit = () => {
+  const handleDeleteMetadata = async (key: string) => {
     if (!document) return;
 
-    console.log("Updated document:", document);
-    showSnackbar("Document metadata updated successfully", "success");
-    // TODO: Implement actual metadata update API call
+    try {
+      // Use deleteMetadata API to remove specific metadata
+      await deleteMetadata(document.id, [key]);
+
+      // Update local state
+      const newMetadata = { ...document.metadata };
+      delete newMetadata[key];
+      setDocument({
+        ...document,
+        metadata: newMetadata,
+      });
+
+      showSnackbar("Metadata field deleted", "success");
+    } catch (error) {
+      console.error("Error deleting metadata field:", error);
+      showSnackbar("Failed to delete metadata field", "danger");
+    }
+  };
+
+  const handleDeleteDocument = async () => {
+    if (!document) return;
+
+    try {
+      // Use deleteFile API to delete the document
+      await deleteFile(document.id);
+
+      showSnackbar("Document deleted successfully", "success");
+      setDocument(null);
+    } catch (error) {
+      console.error("Error deleting document:", error);
+      showSnackbar("Failed to delete document", "danger");
+    }
+  };
+
+  const handleAddMetadata = () => {
+    if (!document || !newMetadata.name.trim()) return;
+
+    // Validate the new metadata field
+    const newFieldName = newMetadata.name.trim();
+    if (document.metadata.hasOwnProperty(newFieldName)) {
+      showSnackbar("Metadata field already exists", "danger");
+      return;
+    }
+
+    // Append the new metadata field
+    setDocument({
+      ...document,
+      metadata: {
+        ...document.metadata,
+        [newFieldName]: newMetadata.value,
+      },
+    });
+
+    // Reset modal state
+    setOpenNewMetadataModal(false);
+    setNewMetadata({ name: "", type: "text", value: "", options: null });
+
+    // Notify the user
+    showSnackbar("New metadata field added", "success");
+  };
+
+  const handleSubmit = async () => {
+    if (!document) return;
+
+    try {
+      // Send only the metadata object directly, avoiding nested structure
+      await updateMetadata(document.id, document.metadata);
+
+      showSnackbar("Document metadata updated successfully", "success");
+    } catch (error) {
+      console.error("Error updating metadata:", error);
+      showSnackbar("Failed to update metadata", "danger");
+    }
   };
 
   const showSnackbar = (message: string, color: ColorPaletteProp) => {
@@ -238,7 +328,6 @@ const FileViewPage = () => {
 
     const mimeType = document.mimeType.toLowerCase();
 
-    // Handle PDF files with iframe
     if (mimeType === "application/pdf") {
       return (
         <Card
@@ -277,7 +366,6 @@ const FileViewPage = () => {
       );
     }
 
-    // Use react-doc-viewer for other file types (e.g., .docx, .xlsx)
     const docs = [
       {
         uri: document.fileLink,
@@ -324,84 +412,242 @@ const FileViewPage = () => {
   };
 
   return (
-    <Box
+    <Card
       sx={{
         display: "flex",
         flexDirection: { xs: "column", md: "row" },
         height: "100vh",
         bgcolor: "background.body",
+        overflow: "hidden", // Prevents overflow
       }}
     >
-      <Box sx={{ flex: 1, p: 3, overflow: "auto" }}>
+      {/* Left Section - File Preview */}
+      <Card
+        sx={{
+          flex: 1,
+          p: 3,
+          overflow: "auto",
+          borderRight: { md: "1px solid", xs: "none" }, // Divider for larger screens
+          borderColor: "divider",
+        }}
+      >
         <Typography level="h2" sx={{ mb: 2 }}>
           File Preview
         </Typography>
         {renderPreview()}
-      </Box>
-      <Divider orientation="vertical" />
-      <Box
+      </Card>
+
+      {/* Right Section - Metadata */}
+      <Card
         sx={{
           width: { xs: "100%", md: 400 },
           p: 3,
           bgcolor: "background.level1",
+          overflow: "auto", // Ensure scrollable content
         }}
+        variant="outlined"
       >
-        <Card variant="outlined">
-          <CardContent
-            sx={{ display: "flex", flexDirection: "column", gap: 2 }}
-          >
-            <Typography level="h3" startDecorator={<EditIcon />}>
-              Edit Metadata
-            </Typography>
-            <FormControl>
-              <FormLabel>Document Name</FormLabel>
-              <Input
-                value={document.documentName}
-                onChange={(e) =>
-                  setDocument({ ...document, documentName: e.target.value })
-                }
-              />
-            </FormControl>
-            <FormControl>
-              <FormLabel>Document Type</FormLabel>
-              <Select
-                value={document.documentType}
-                onChange={(_, value) =>
-                  setDocument({ ...document, documentType: value as string })
-                }
-              >
-                {documentTypes.map((type) => (
-                  <Option key={type} value={type}>
-                    {type}
-                  </Option>
-                ))}
-              </Select>
-            </FormControl>
-            <Divider />
-            <Typography level="title-md">Additional Metadata</Typography>
-            <Stack spacing={2}>
-              {Object.entries(document.metadata).map(([key, value]) => (
-                <FormControl key={key}>
-                  <FormLabel>
-                    {key.charAt(0).toUpperCase() + key.slice(1)}
-                  </FormLabel>
-                  <Input
-                    value={typeof value === "object" ? value.join(", ") : value}
-                    onChange={(e) => handleMetadataChange(key, e.target.value)}
-                  />
+        <CardContent sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          {/* Header Section */}
+          <Typography level="h3" startDecorator={<EditIcon />} sx={{ mb: 2 }}>
+            Edit Metadata
+          </Typography>
+
+          {/* Document Details Section */}
+          <Card>
+            <CardContent>
+              <Typography level="h1" sx={{ mb: 1 }}>
+                Document Details
+              </Typography>
+              <FormControl>
+                <FormLabel>Document Name</FormLabel>
+                <Input
+                  placeholder="Enter document name"
+                  value={document.filename || ""}
+                  onChange={(e) =>
+                    setDocument({ ...document, filename: e.target.value })
+                  }
+                />
+              </FormControl>
+            </CardContent>
+          </Card>
+
+          {/* Document Type Section */}
+          <Card>
+            <CardContent>
+              <FormControl>
+                <FormLabel>Document Type</FormLabel>
+                <Input
+                  value={document.documentType || "N/A"}
+                  readOnly
+                  variant="soft"
+                />
+              </FormControl>
+            </CardContent>
+          </Card>
+
+          <Divider sx={{ my: 2 }} />
+
+          {/* File Information Section */}
+          <Card>
+            <CardContent>
+              <Typography level="h4" sx={{ mb: 2 }}>
+                File Information
+              </Typography>
+              <Stack spacing={2}>
+                <Stack direction="row" spacing={2}>
+                  <Card>
+                    <CardContent>
+                      <Typography
+                        level="body-sm"
+                        sx={{ color: "text.secondary", mb: 0.5 }}
+                      >
+                        Created Date
+                      </Typography>
+                      <Typography level="body-md">
+                        {new Date(document.createdDate).toLocaleString()}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent>
+                      <Typography
+                        level="body-sm"
+                        sx={{ color: "text.secondary", mb: 0.5 }}
+                      >
+                        Last Modified
+                      </Typography>
+                      <Typography level="body-md">
+                        {new Date(
+                          document.lastModifiedDateTime,
+                        ).toLocaleString()}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Stack>
+
+                <FormControl>
+                  <FormLabel>MIME Type</FormLabel>
+                  <Input value={document.mimeType} readOnly variant="soft" />
                 </FormControl>
-              ))}
-            </Stack>
+              </Stack>
+            </CardContent>
+          </Card>
+
+          <Divider sx={{ my: 2 }} />
+
+          {/* Additional Metadata Section */}
+          <Card>
+            <CardContent>
+              <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+              >
+                <Typography level="h2">Additional Metadata</Typography>
+                <Button
+                  size="sm"
+                  startDecorator={<AddIcon />}
+                  onClick={() => setOpenNewMetadataModal(true)}
+                >
+                  Add Field
+                </Button>
+              </Stack>
+              <Stack spacing={2} sx={{ mt: 2 }}>
+                {document &&
+                  Object.entries(document.metadata).map(([key, value]) => (
+                    <FormControl key={key}>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Card sx={{ flexGrow: 1 }}>
+                          <CardContent>
+                            <FormLabel>{key}</FormLabel>
+                            <Input
+                              placeholder={`Enter value for ${key}`}
+                              value={
+                                typeof value === "object"
+                                  ? value.join(", ")
+                                  : value
+                              }
+                              onChange={(e) =>
+                                handleMetadataChange(key, e.target.value)
+                              }
+                            />
+                          </CardContent>
+                        </Card>
+                        <IconButton
+                          size="sm"
+                          variant="plain"
+                          color="danger"
+                          onClick={() => handleDeleteMetadata(key)}
+                          sx={{ mt: 2 }}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Stack>
+                    </FormControl>
+                  ))}
+              </Stack>
+            </CardContent>
+          </Card>
+
+          {/* Actions Section */}
+          <Stack direction="row" spacing={2}>
             <Button
               onClick={handleSubmit}
-              sx={{ mt: 2 }}
               startDecorator={<EditIcon />}
+              variant="soft"
             >
               Update Metadata
             </Button>
-          </CardContent>
-        </Card>
-      </Box>
+            <Button
+              onClick={handleDeleteDocument}
+              startDecorator={<DeleteIcon />}
+              variant="solid"
+              color="danger"
+            >
+              Delete Document
+            </Button>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      {/* Add Field Modal */}
+      <Modal
+        open={openNewMetadataModal}
+        onClose={() => setOpenNewMetadataModal(false)}
+      >
+        <ModalDialog>
+          <ModalClose />
+          <Typography level="h4">Add New Metadata Field</Typography>
+          <Stack spacing={2} sx={{ mt: 2 }}>
+            <FormControl>
+              <FormLabel>Field Name</FormLabel>
+              <Input
+                value={newMetadata.name}
+                onChange={(e) =>
+                  setNewMetadata({ ...newMetadata, name: e.target.value })
+                }
+                placeholder="Enter field name"
+              />
+            </FormControl>
+            <FormControl>
+              <FormLabel>Field Value</FormLabel>
+              <Input
+                value={newMetadata.value}
+                onChange={(e) =>
+                  setNewMetadata({ ...newMetadata, value: e.target.value })
+                }
+                placeholder="Enter field value"
+              />
+            </FormControl>
+            <Button onClick={handleAddMetadata} disabled={!newMetadata.name}>
+              Add Field
+            </Button>
+          </Stack>
+        </ModalDialog>
+      </Modal>
+
+      {/* Snackbar Notifications */}
       <Snackbar
         variant="soft"
         color={snackbar.color}
@@ -422,7 +668,7 @@ const FileViewPage = () => {
       >
         {snackbar.message}
       </Snackbar>
-    </Box>
+    </Card>
   );
 };
 

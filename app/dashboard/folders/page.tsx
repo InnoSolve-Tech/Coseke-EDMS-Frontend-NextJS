@@ -26,21 +26,18 @@ import SearchBar from "@/components/folder/SearchBar";
 import {
   getFiles,
   getFolders,
-  addDocumentsByFolderId,
   createFolders,
   deleteFile,
   deleteFolder,
   DirectoryData,
   createSubFolders,
-  fetchChildFolders,
-  getFilesByFolderID,
   getDocumentTypes,
-  getFilesByHash,
   editFolder,
 } from "@/components/files/api";
-import { ChevronDown, ChevronRight, File, Folder } from "lucide-react";
-import axios from "axios";
+import { File, Folder } from "lucide-react";
 import { ColorPaletteProp } from "@mui/joy/styles";
+import { AxiosInstance } from "@/components/routes/api";
+import { addDocument } from "@/components/files/api";
 
 interface SearchMatchInfo {
   label: boolean;
@@ -147,9 +144,7 @@ export default function FileExplorer() {
       const folderMap = new Map();
       const rootNodes: FileNode[] = [];
 
-      // First pass: Create folder nodes and store them in the map
       for (const folder of folders) {
-        // Convert files array to FileNode array
         const fileNodes: FileNode[] = (folder.files || []).map(
           (file: FileData) => ({
             id: file.id.toString(),
@@ -162,20 +157,18 @@ export default function FileExplorer() {
           }),
         );
 
-        // Create folder node with its files
         const folderNode: FileNode = {
           id: folder.folderID?.toString() || "",
           label: folder.name,
           type: "folder",
           folderID: folder.folderID,
           parentFolderID: folder.parentFolderID || 0,
-          children: fileNodes, // Include files as children
+          children: fileNodes,
         };
 
         folderMap.set(folder.folderID, folderNode);
       }
 
-      // Second pass: Build the folder hierarchy
       for (const folder of folders) {
         const folderNode = folderMap.get(folder.folderID);
         if (folder.parentFolderID && folderMap.has(folder.parentFolderID)) {
@@ -189,7 +182,6 @@ export default function FileExplorer() {
         }
       }
 
-      // Sort children within each folder (folders first, then files)
       const sortChildren = (node: FileNode) => {
         if (node.children) {
           node.children.sort((a, b) => {
@@ -212,7 +204,6 @@ export default function FileExplorer() {
     }
   };
 
-  // Add this helper function to recursively find a folder by ID
   const findFolderById = (
     nodes: FileNode[],
     folderId: number,
@@ -234,7 +225,6 @@ export default function FileExplorer() {
       const data = await loadFoldersAndFiles();
       setFileData(data);
 
-      // Update counts
       const countFolders = (nodes: FileNode[]): number => {
         return nodes.reduce((count, node) => {
           if (node.type === "folder") {
@@ -341,9 +331,9 @@ export default function FileExplorer() {
       case "Rename":
         try {
           if (menuTarget?.type === "folder" && menuTarget.folderID) {
-            setFolderToRename(menuTarget); // Set the folder to rename
-            setRenameFolderName(menuTarget.label || ""); // Pre-fill the current folder name
-            setIsRenameModalOpen(true); // Open the rename dialog
+            setFolderToRename(menuTarget);
+            setRenameFolderName(menuTarget.label || "");
+            setIsRenameModalOpen(true);
           }
         } catch (error) {
           console.error("Failed to open rename dialog:", error);
@@ -351,13 +341,11 @@ export default function FileExplorer() {
         }
         break;
       case "CreateSubfolder":
-        // Set the context for subfolder creation
         setCurrentFolderID(menuTarget.folderID ?? null);
         setIsSubfolderMode(true);
         setIsCreateFolderModalOpen(true);
         break;
       case "UploadFile":
-        // Pass the current folder's ID when opening the upload dialog
         setCurrentFolderID(menuTarget.folderID ?? null);
         setUploadDialogOpen(true);
         break;
@@ -370,11 +358,11 @@ export default function FileExplorer() {
         try {
           if (menuTarget.type === "folder" && menuTarget.folderID) {
             await deleteFolder(menuTarget.folderID);
-            await refreshCurrentFolder(); // Refresh after deletion
+            await refreshCurrentFolder();
             showSnackbar("Folder deleted successfully", "success");
           } else if (menuTarget.type === "file" && menuTarget.fileId) {
             await deleteFile(menuTarget.fileId);
-            await refreshCurrentFolder(); // Refresh after deletion
+            await refreshCurrentFolder();
             showSnackbar("File deleted successfully", "success");
           }
         } catch (error) {
@@ -392,7 +380,7 @@ export default function FileExplorer() {
         const folderId = folderToRename.folderID;
         if (folderId) {
           await editFolder(folderId, renameFolderName.trim());
-          await refreshCurrentFolder(); // Refresh the folder contents
+          await refreshCurrentFolder();
           setIsRenameModalOpen(false);
           setRenameFolderName("");
           setFolderToRename(null);
@@ -413,7 +401,6 @@ export default function FileExplorer() {
     try {
       const parentFolderID = currentPath[currentPath.length - 1]?.folderID || 0;
 
-      // Create temporary folder for optimistic update
       const tempFolder: FileNode = {
         id: `temp-${Date.now()}`,
         label: newFolderName.trim(),
@@ -422,25 +409,19 @@ export default function FileExplorer() {
         parentFolderID: parentFolderID,
       };
 
-      // Optimistically add the temporary folder
       setFileData((prev) => [...prev, tempFolder]);
 
-      // Prepare the new folder data
       const newFolder: Omit<DirectoryData, "id"> = {
         name: newFolderName.trim(),
         folderID: parentFolderID,
       };
 
-      // Call the API to create the folder
       const createdFolder = await createFolders(newFolder);
 
-      // Remove the temporary folder
       setFileData((prev) => prev.filter((item) => item.id !== tempFolder.id));
 
-      // Refresh the current folder to show the new folder
       await refreshCurrentFolder();
 
-      // Expand the parent folder to show the newly created folder
       setExpanded((prev) => ({
         ...prev,
         [parentFolderID.toString()]: true,
@@ -471,13 +452,11 @@ export default function FileExplorer() {
 
   const handleCreateSubFolder = async () => {
     try {
-      // Early return with type guard for currentFolderID
       if (!currentFolderID || typeof currentFolderID !== "number") {
         showSnackbar("No parent folder selected", "danger");
         return;
       }
 
-      // Create temporary subfolder for optimistic update
       const tempSubFolder: FileNode = {
         id: `temp-${Date.now().toString()}`,
         label: newFolderName.trim(),
@@ -487,10 +466,8 @@ export default function FileExplorer() {
         children: [],
       };
 
-      // Optimistically add the temporary subfolder by updating parent's children
       setFileData((prev) => {
         return prev.map((item) => {
-          // Convert currentFolderID to string for comparison since item.id is string
           if (item.id === currentFolderID.toString()) {
             return {
               ...item,
@@ -501,16 +478,13 @@ export default function FileExplorer() {
         });
       });
 
-      // Prepare the new subfolder data
       const newFolder: DirectoryData = {
         name: newFolderName.trim(),
         parentFolderID: currentFolderID,
       };
 
-      // Call the API to create the subfolder
       const createdFolder = await createSubFolders(newFolder);
 
-      // Create the actual folder node
       const actualSubFolder: FileNode = {
         id: createdFolder.id.toString(),
         label: createdFolder.name,
@@ -520,7 +494,6 @@ export default function FileExplorer() {
         children: [],
       };
 
-      // Update the parent folder's children with the actual subfolder
       setFileData((prev) => {
         return prev.map((item) => {
           if (item.id === currentFolderID.toString()) {
@@ -538,7 +511,6 @@ export default function FileExplorer() {
         });
       });
 
-      // Expand the parent folder
       setExpanded((prev) => ({
         ...prev,
         [currentFolderID.toString()]: true,
@@ -546,7 +518,6 @@ export default function FileExplorer() {
 
       showSnackbar("Subfolder created successfully", "success");
 
-      // Reset the state
       setIsCreateFolderModalOpen(false);
       setNewFolderName("");
       setIsSubfolderMode(false);
@@ -555,7 +526,6 @@ export default function FileExplorer() {
       console.error("Failed to create subfolder:", error);
 
       if (currentFolderID) {
-        // Remove the temporary subfolder from parent's children
         setFileData((prev) => {
           return prev.map((item) => {
             if (item.id === currentFolderID.toString()) {
@@ -573,7 +543,6 @@ export default function FileExplorer() {
 
       showSnackbar("Subfolder created successfully", "success");
 
-      // Reset the state
       setIsCreateFolderModalOpen(false);
       setNewFolderName("");
       setIsSubfolderMode(false);
@@ -586,209 +555,99 @@ export default function FileExplorer() {
     documentType: string,
     metadata: Record<string, any>,
   ) => {
-    // Generate a temporary ID
     const tempFileId = `temp-${Date.now()}`;
+    const folderId = currentFolderID;
+
+    if (folderId === null) {
+      showSnackbar("No folder selected", "danger");
+      return;
+    }
+
+    const isFileUploading = (prevData: any[]) => {
+      const folder = prevData.find((node) => node.folderID === folderId);
+      return folder?.children?.some(
+        (child: { label: string; metadata: { uploadStatus: string } }) =>
+          child.label === file.name &&
+          child.metadata?.uploadStatus === "uploading",
+      );
+    };
+
+    setFileData((prevData) => {
+      if (isFileUploading(prevData)) {
+        return prevData;
+      }
+
+      const newData = [...prevData];
+      const folder = newData.find((node) => node.folderID === folderId);
+      if (folder) {
+        const tempFile: FileNode = {
+          id: tempFileId,
+          label: file.name,
+          type: "file",
+          folderID: folderId,
+          metadata: { uploadStatus: "uploading", ...metadata },
+        };
+
+        folder.children = [
+          ...(folder.children?.filter(
+            (child) =>
+              !(
+                child.label === file.name &&
+                child.metadata?.uploadStatus === "uploading"
+              ),
+          ) || []),
+          tempFile,
+        ];
+      }
+      return newData;
+    });
 
     try {
-      const folderId = currentFolderID;
-
-      if (folderId === null) {
-        throw new Error("No folder selected");
-      }
-
-      // Create temporary file node
-      const tempFile: FileNode = {
-        id: tempFileId,
-        label: file.name,
-        type: "file",
-        folderID: folderId,
-        parentFolderID: folderId,
-        metadata: {
-          documentType,
-          mimeType: file.type,
-          uploadStatus: "uploading",
-          progress: 0,
-          ...metadata,
-        },
-      };
-
-      // Add console logs to debug state updates
-      console.log("Current folder ID:", folderId);
-      console.log("Temp file to add:", tempFile);
-
-      // Directly modify the state to add the temp file
-      setFileData((prevData) => {
-        // Create a deep copy of the previous state
-        const newData = JSON.parse(JSON.stringify(prevData));
-
-        // Find the current folder and add the file to it
-        const addFileToFolder = (nodes: FileNode[]): boolean => {
-          for (let i = 0; i < nodes.length; i++) {
-            const node = nodes[i];
-
-            // If this is the target folder, add the file
-            if (node.folderID === folderId) {
-              console.log("Found target folder:", node);
-              if (!node.children) {
-                node.children = [];
-              }
-              node.children.push(tempFile);
-              return true;
-            }
-
-            // If this node has children, recursively search them
-            if (node.children && node.children.length > 0) {
-              if (addFileToFolder(node.children)) {
-                return true;
-              }
-            }
-          }
-          return false;
-        };
-
-        // If we're at the root level and the current folder is root
-        if (folderId === 0) {
-          console.log("Adding to root level");
-          newData.push(tempFile);
-          return newData;
-        }
-
-        // Try to add the file to a subfolder
-        const added = addFileToFolder(newData);
-
-        if (!added) {
-          console.warn("Could not find target folder, adding to root level");
-          newData.push(tempFile);
-        }
-
-        console.log("Updated file data:", newData);
-        return newData;
-      });
-
-      // Prepare the form data for upload
-      const formData = new FormData();
-      const fileData = {
-        documentName: file.name,
+      const data = {
         documentType: documentType,
         metadata: metadata,
-        folderID: folderId,
         mimeType: file.type,
+        fileName: file.name,
       };
 
-      formData.append(
-        "fileData",
-        new Blob([JSON.stringify(fileData)], { type: "application/json" }),
-      );
-      formData.append("file", file);
+      await addDocument(file, data, folderId);
 
-      // Perform the upload
-      const response = await axios.post(`/api/v1/files/${folderId}`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-        onUploadProgress: (progressEvent) => {
-          const progress = progressEvent.total
-            ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
-            : 0;
-
-          setFileData((prevData) => {
-            const newData = JSON.parse(JSON.stringify(prevData));
-
-            const updateProgress = (nodes: FileNode[]): boolean => {
-              for (let i = 0; i < nodes.length; i++) {
-                const node = nodes[i];
-
-                if (node.id === tempFileId) {
-                  node.metadata = {
-                    ...node.metadata,
-                    progress,
-                    uploadStatus: progress === 100 ? "processing" : "uploading",
-                  };
-                  return true;
-                }
-
-                if (node.children && node.children.length > 0) {
-                  if (updateProgress(node.children)) {
-                    return true;
-                  }
-                }
-              }
-              return false;
+      setFileData((prevData) =>
+        prevData.map((node) => {
+          if (node.folderID === folderId) {
+            return {
+              ...node,
+              children: node.children?.map((child) =>
+                child.id === tempFileId
+                  ? {
+                      ...child,
+                      id: `${Date.now()}`,
+                      metadata: { ...child.metadata, uploadStatus: "complete" },
+                    }
+                  : child,
+              ),
             };
-
-            updateProgress(newData);
-            return newData;
-          });
-        },
-      });
-
-      if (response.status === 200) {
-        // Update the temporary file with the real file data
-        setFileData((prevData) => {
-          const newData = JSON.parse(JSON.stringify(prevData));
-
-          const updateFile = (nodes: FileNode[]): boolean => {
-            for (let i = 0; i < nodes.length; i++) {
-              const node = nodes[i];
-
-              if (node.id === tempFileId) {
-                const updatedNode: FileNode = {
-                  id: response.data.id.toString(),
-                  label: file.name,
-                  type: "file",
-                  folderID: folderId,
-                  fileId: response.data.id,
-                  parentFolderID: folderId,
-                  metadata: {
-                    ...response.data,
-                    uploadStatus: "complete",
-                  },
-                };
-                nodes[i] = updatedNode;
-                return true;
-              }
-
-              if (node.children && node.children.length > 0) {
-                if (updateFile(node.children)) {
-                  return true;
-                }
-              }
-            }
-            return false;
-          };
-
-          updateFile(newData);
-          return newData;
-        });
-
-        showSnackbar("File uploaded successfully", "success");
-      }
-
-      setUploadDialogOpen(false);
+          }
+          return node;
+        }),
+      );
+      showSnackbar("File uploaded successfully", "success");
     } catch (error) {
       console.error("Upload failed:", error);
-
-      // Remove the temporary file
-      setFileData((prevData) => {
-        const newData = JSON.parse(JSON.stringify(prevData));
-
-        const removeFile = (nodes: FileNode[]): void => {
-          for (let i = 0; i < nodes.length; i++) {
-            const node = nodes[i];
-
-            if (node.children) {
-              node.children = node.children.filter(
+      setFileData((prevData) =>
+        prevData.map((node) => {
+          if (node.folderID === folderId) {
+            return {
+              ...node,
+              children: node.children?.filter(
                 (child) => child.id !== tempFileId,
-              );
-              removeFile(node.children);
-            }
+              ),
+            };
           }
-        };
-
-        removeFile(newData);
-        return newData;
-      });
-
+          return node;
+        }),
+      );
       showSnackbar("Failed to upload file", "danger");
-      setUploadDialogOpen(false);
     }
   };
 
@@ -802,10 +661,8 @@ export default function FileExplorer() {
 
     const searchRecursive = (nodes: FileNode[]): FileNode[] => {
       return nodes.reduce<FileNode[]>((acc, node) => {
-        // Check if folder/file name matches
         const matchesName = node.label.toLowerCase().includes(lowerQuery);
 
-        // For files, also check metadata
         const searchMetadata = (obj: any): boolean => {
           if (!obj) return false;
           return Object.entries(obj).some(([_, value]) => {
@@ -819,12 +676,10 @@ export default function FileExplorer() {
             ? searchMetadata(node.metadata)
             : false;
 
-        // Recursively search children
         const filteredChildren = node.children
           ? searchRecursive(node.children)
           : [];
 
-        // Include node if it matches or has matching children
         if (matchesName || matchesMetadata || filteredChildren.length > 0) {
           const searchNode: FileNode = {
             ...node,
@@ -842,14 +697,14 @@ export default function FileExplorer() {
     };
 
     const filtered = searchRecursive(fileData);
-    console.log("Search results:", filtered); // Debug log
+    console.log("Search results:", filtered);
     setFilteredData(filtered);
   };
 
   const navigateToFolder = async (folderId: number) => {
     try {
       setCurrentFolderID(folderId);
-      setExpanded({}); // Reset expanded state when navigating
+      setExpanded({});
 
       const buildPath = (
         nodes: FileNode[],
@@ -869,7 +724,7 @@ export default function FileExplorer() {
       };
 
       const rootNode: FileNode = {
-        id: "root", // Use consistent root ID
+        id: "root",
         label: "Root",
         type: "folder",
         folderID: 0,
@@ -907,7 +762,6 @@ export default function FileExplorer() {
     const targetCrumb = currentPath[index];
     if (!targetCrumb) return;
 
-    // If clicking root or any folder, navigate to that folder
     await navigateToFolder(targetCrumb.folderID ?? 0);
   };
 
@@ -915,14 +769,12 @@ export default function FileExplorer() {
     nodes: FileNode[],
     currentFolderId: number,
   ): FileNode[] => {
-    // For root level, only show top-level nodes
     if (currentFolderId === 0) {
       return nodes.filter(
         (node) => !node.parentFolderID || node.parentFolderID === 0,
       );
     }
 
-    // For other folders, find the current folder and return its children
     const findCurrentFolder = (nodeList: FileNode[]): FileNode[] => {
       for (const node of nodeList) {
         if (node.folderID === currentFolderId) {
@@ -939,7 +791,6 @@ export default function FileExplorer() {
     return findCurrentFolder(nodes);
   };
 
-  // Modify the renderTree function to only show children of current folder
   const renderTree = (nodes: FileNode[]) => {
     const dataToRender = filteredData.length > 0 ? filteredData : nodes;
     const visibleNodes = getVisibleNodes(nodes, currentFolderID || 0);
@@ -1020,7 +871,7 @@ export default function FileExplorer() {
             display: "flex",
             flexDirection: "column",
             gap: 2,
-            overflowY: "auto", // Enables vertical scrolling
+            overflowY: "auto",
           }}
         >
           <Breadcrumbs
@@ -1051,7 +902,7 @@ export default function FileExplorer() {
               variant="outlined"
               sx={{
                 flexGrow: 1,
-                overflowY: "auto", // Enables vertical scrolling
+                overflowY: "auto",
                 height: "100%",
                 padding: "8px",
               }}
