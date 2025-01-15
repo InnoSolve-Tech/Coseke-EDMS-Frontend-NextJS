@@ -93,7 +93,7 @@ export function NodeEditor({
     const formNodes: WorkflowNode[] = [];
 
     for (const node of precedingNodes) {
-      if (node.type === "form") {
+      if (node.type === "form" && node.data.formId) {
         formNodes.push(node);
       } else {
         const precedingForms = tracePrecedingForms(node, workflow, visited);

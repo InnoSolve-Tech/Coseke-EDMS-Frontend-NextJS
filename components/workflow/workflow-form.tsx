@@ -142,6 +142,8 @@ export function WorkflowForm() {
 
       await createWorkflow(wf);
 
+      return;
+
       toast({
         title: "Success",
         color: "success",
