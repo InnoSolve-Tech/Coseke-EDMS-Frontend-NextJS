@@ -119,11 +119,6 @@ const WorkflowFormRecord = ({
       if (!workflowInstance.metadata) {
         workflowInstance.metadata = {};
       }
-      workflowInstance.metadata[currentStep.toString()] = response.id;
-      await updateWorkflowInstance(
-        workflowInstance.id!.toString(),
-        workflowInstance,
-      );
 
       if (response.ok) {
         toast({

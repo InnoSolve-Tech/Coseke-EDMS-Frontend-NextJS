@@ -10,7 +10,7 @@ import {
 import { getAllForms } from "@/core/forms/api";
 import { toast } from "@/hooks/use-toast";
 import { Form } from "@/lib/types/forms";
-import { WorkflowNode } from "@/lib/types/workflow";
+import { Workflow, WorkflowNode } from "@/lib/types/workflow";
 import { useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
@@ -20,16 +20,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Textarea } from "../ui/textarea";
 import { NodeAssignment } from "./node-assignment";
 import { nodeTypes } from "./node-types";
+import { DecisionConditions } from "./descision-conditions";
+import { uuid } from "uuidv4";
 
 interface NodeEditorProps {
   node: WorkflowNode;
   isOpen: boolean;
+  workflow: Partial<Workflow>;
   onClose: () => void;
   onUpdate: (node: WorkflowNode) => void;
 }
 
 export function NodeEditor({
   node,
+  workflow,
   isOpen,
   onClose,
   onUpdate,
@@ -37,6 +41,9 @@ export function NodeEditor({
   const [forms, setForms] = useState<Form[]>([]);
   const [selectedForm, setSelectedForm] = useState<Form | null>(null);
   const [editedNode, setEditedNode] = useState<WorkflowNode>(node);
+  const [precedingFormNodes, setPrecedingFormNodes] = useState<WorkflowNode[]>(
+    [],
+  );
   const nodeConfig = nodeTypes[node.type as keyof typeof nodeTypes];
 
   const handleSave = () => {
@@ -47,10 +54,16 @@ export function NodeEditor({
   const fetchForms = async () => {
     try {
       const response = await getAllForms();
+      console.log(workflow);
       setForms(response);
-      setSelectedForm(
-        response.find((f) => f.id === parseInt(node.data.formId!)),
-      );
+      if (node.data.formId) {
+        const form = response.find(
+          (f) => f.id?.toString() === node.data.formId,
+        );
+        if (form) {
+          setSelectedForm(form);
+        }
+      }
     } catch (error) {
       console.error("Error fetching forms:", error);
       toast({
@@ -61,19 +74,91 @@ export function NodeEditor({
     }
   };
 
-  useEffect(() => {
-    if (node.type === "form") {
-      fetchForms();
+  const tracePrecedingForms = (
+    currentNode: WorkflowNode,
+    workflow: Partial<Workflow>,
+    visited: Set<string> = new Set(),
+  ): WorkflowNode[] => {
+    if (!currentNode.id || visited.has(currentNode.id)) {
+      return [];
     }
-  }, []);
+    visited.add(currentNode.id);
+
+    const incomingEdges =
+      workflow.edges?.filter((e) => e.target === currentNode.id) || [];
+    const precedingNodes = incomingEdges
+      .map((e) => workflow.nodes?.find((n) => n.id === e.source))
+      .filter((n): n is WorkflowNode => n !== undefined);
+
+    const formNodes: WorkflowNode[] = [];
+
+    for (const node of precedingNodes) {
+      if (node.type === "form") {
+        formNodes.push(node);
+      } else {
+        const precedingForms = tracePrecedingForms(node, workflow, visited);
+        formNodes.push(...precedingForms);
+      }
+    }
+
+    return Array.from(
+      new Map(formNodes.map((node) => [node.id, node])).values(),
+    );
+  };
+
+  useEffect(() => {
+    fetchForms();
+
+    if (node.type === "decision") {
+      const precedingFormNodes = tracePrecedingForms(node, workflow);
+      setPrecedingFormNodes(precedingFormNodes);
+    }
+  }, [node, workflow]);
 
   const handleFormSelect = (formId: string) => {
-    const form = forms.find((f) => f.id === parseInt(formId));
+    const selectedFormData = forms.find((f) => f.id?.toString() === formId);
+    if (selectedFormData) {
+      setSelectedForm(selectedFormData);
+      setEditedNode({
+        ...editedNode,
+        data: {
+          ...editedNode.data,
+          formId: formId,
+          form: selectedFormData,
+        },
+      });
+    }
+  };
+
+  const handleConditionsChange = (condition: any[]) => {
+    condition.map((cond) => ({ ...cond, id: uuid() }));
     setEditedNode({
       ...editedNode,
-      data: { ...editedNode.data, formId: formId },
+      data: { ...editedNode.data, condition },
     });
-    setSelectedForm(form || null);
+  };
+
+  const renderFormOptions = () => {
+    if (node.type === "form") {
+      return forms.map((form) => (
+        <SelectItem
+          key={form.id?.toString() || ""}
+          value={form.id?.toString() || ""}
+        >
+          {form.name || "Unnamed Form"}
+        </SelectItem>
+      ));
+    } else {
+      return precedingFormNodes.map((formNode) => (
+        <SelectItem
+          key={formNode.data.formId || ""}
+          value={formNode.data.formId || ""}
+        >
+          {forms.find((f) => f.id?.toString() === formNode.data.formId)?.name ||
+            "Unnamed Form"}
+        </SelectItem>
+      ));
+    }
   };
 
   return (
@@ -92,7 +177,7 @@ export function NodeEditor({
             {node.type === "decision" && (
               <TabsTrigger value="conditions">Conditions</TabsTrigger>
             )}
-            {node.type === "form" && (
+            {(node.type === "form" || node.type === "decision") && (
               <TabsTrigger value="form">Form</TabsTrigger>
             )}
             <TabsTrigger value="assignment">Assignment</TabsTrigger>
@@ -104,7 +189,7 @@ export function NodeEditor({
                 <Label htmlFor="label">Label</Label>
                 <Input
                   id="label"
-                  value={editedNode.data.label}
+                  value={editedNode.data.label || ""}
                   onChange={(e) =>
                     setEditedNode({
                       ...editedNode,
@@ -130,21 +215,30 @@ export function NodeEditor({
             </div>
           </TabsContent>
 
-          {node.type === "form" && (
+          {node.type === "decision" && (
+            <TabsContent value="conditions">
+              <DecisionConditions
+                conditions={editedNode.data.condition || []}
+                onConditionsChange={handleConditionsChange}
+                availableFields={
+                  selectedForm?.formFields?.map((field: any) => field.name) ||
+                  []
+                }
+              />
+            </TabsContent>
+          )}
+
+          {(node.type === "form" || node.type === "decision") && (
             <TabsContent value="form">
               <Select
-                value={selectedForm?.id?.toString()}
+                value={editedNode.data.formId?.toString() || ""}
                 onValueChange={handleFormSelect}
               >
                 <SelectTrigger className="w-full my-10">
                   <SelectValue placeholder="Select a form" />
                 </SelectTrigger>
                 <SelectContent className="bg-white bg-opacity-100">
-                  {forms.map((form) => (
-                    <SelectItem key={form.id} value={form.id!.toString()}>
-                      {form.name}
-                    </SelectItem>
-                  ))}
+                  {renderFormOptions()}
                 </SelectContent>
               </Select>
             </TabsContent>

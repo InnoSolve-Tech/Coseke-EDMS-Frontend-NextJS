@@ -98,6 +98,37 @@ export function WorkflowForm() {
       let end = wf.nodes.find((node: any) => node.type === "end");
       let edges = wf.edges;
 
+      // Check for shared target nodes
+      const targetCounts = edges.reduce(
+        (acc: { [key: string]: string[] }, edge: any) => {
+          if (!acc[edge.source]) {
+            acc[edge.source] = [];
+          }
+          acc[edge.source].push(edge.target);
+          return acc;
+        },
+        {},
+      );
+
+      // Validate shared targets
+      for (const [targetId, targets] of Object.entries(targetCounts) as [
+        string,
+        string[],
+      ][]) {
+        if (targets.length > 1) {
+          const targetNode = wf.nodes.find((node: any) => node.id === targetId);
+          if (!targetNode) {
+            throw new Error(`Invalid target node: ${targetId}`);
+          }
+
+          if (targetNode.type !== "decision") {
+            throw new Error(
+              `Node "${targetNode.data?.label || targetId}" has multiple outgoing connections, consider using a decision node.`,
+            );
+          }
+        }
+      }
+
       if (!traceEdges(edges, start, end)) {
         throw new Error("Workflow must have a path from start to end.");
       }
