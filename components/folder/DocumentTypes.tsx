@@ -307,7 +307,7 @@ export function DocumentTypeCreation({
               Cancel
             </Button>
             <Button onClick={handleSubmit(handleCreateNewDocType)}>
-              Create Document Type
+              Create
             </Button>
           </div>
         </div>
