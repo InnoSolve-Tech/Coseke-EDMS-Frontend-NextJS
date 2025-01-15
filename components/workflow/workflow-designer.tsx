@@ -2,7 +2,10 @@
 
 import { useWorkflow } from "@/lib/contexts/workflow-context";
 import { Form } from "@/lib/types/forms";
-import { WorkflowNode as WorkflowNodeType } from "@/lib/types/workflow";
+import {
+  Workflow,
+  WorkflowNode as WorkflowNodeType,
+} from "@/lib/types/workflow";
 import { Info } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import ReactFlow, {
@@ -28,7 +31,7 @@ type WorkflowNodeData = {
   label: string;
   description?: string;
   nodeId: string;
-  conditions?: { field: string; operator: string; value: string }[];
+  conditions?: { id: string; field: string; operator: string; value: string }[];
   assignee?: { assignee_type: "role" | "user"; assignee_id: string };
   dueDate?: string;
   form?: Form;
@@ -171,6 +174,7 @@ export function WorkflowDesigner() {
       {selectedNode && (
         <NodeEditor
           node={{ ...selectedNode }}
+          workflow={{ edges, nodes: nodes as any[] }}
           isOpen={true}
           onClose={() => setSelectedNode(null)}
           onUpdate={updateNode}

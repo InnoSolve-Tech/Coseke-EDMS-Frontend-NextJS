@@ -35,7 +35,7 @@ type WorkflowNodeData = {
   nodeId: any;
   label: string;
   description?: string;
-  conditions?: { field: string; operator: string; value: string }[];
+  conditions?: { id: string; field: string; operator: string; value: string }[];
   assignee?: { assignee_type: "role" | "user"; assignee_id: string };
   dueDate?: string;
   form?: Form;
@@ -66,7 +66,7 @@ const ClientSideOnly = ({ children }: { children: React.ReactNode }) => {
 };
 
 export function WorkflowDesigner({ id }: WorkflowDesignerProps) {
-  const { workflow, updateWorkflow } = useWorkflow();
+  const { updateWorkflow } = useWorkflow();
   const [nodes, setNodes, onNodesChange] = useNodesState<WorkflowNodeData>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState<
@@ -75,8 +75,6 @@ export function WorkflowDesigner({ id }: WorkflowDesignerProps) {
       })
     | null
   >(null);
-  const [name, setName] = useState(workflow.name || "");
-  const [description, setDescription] = useState(workflow.description || "");
 
   const onConnect = useCallback(
     (params: Connection | Edge) => {
@@ -150,7 +148,7 @@ export function WorkflowDesigner({ id }: WorkflowDesignerProps) {
     }, 100);
 
     return () => clearTimeout(timeoutId);
-  }, [nodes, edges, updateWorkflow]);
+  }, [nodes, edges]);
 
   return (
     <div className="space-y-4">
@@ -219,6 +217,7 @@ export function WorkflowDesigner({ id }: WorkflowDesignerProps) {
       {selectedNode && (
         <NodeEditor
           node={selectedNode}
+          workflow={{ edges, nodes: nodes as any[] }}
           isOpen={true}
           onClose={() => setSelectedNode(null)}
           onUpdate={updateNode}
