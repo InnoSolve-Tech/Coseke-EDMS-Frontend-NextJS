@@ -193,9 +193,9 @@ export default function FileUploadDialog({
             Document Upload & Preview
           </DialogTitle>
         </DialogHeader>
-        <div className="grid grid-cols-2 gap-6 p-6 overflow-y-auto">
-          {/* Left Column - File Upload & Preview */}
-          <div className="space-y-4">
+        <div className="flex gap-6">
+          {/* File Upload Section */}
+          <div className="flex flex-col flex-grow basis-2/3 space-y-8">
             {error && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
@@ -203,7 +203,7 @@ export default function FileUploadDialog({
               </Alert>
             )}
             {!file ? (
-              <div className="relative border-2 border-dashed rounded-lg p-6 text-center min-h-[400px] flex flex-col items-center justify-center border-gray-300">
+              <div className="relative border-2 border-dashed rounded-lg p-6 text-center min-h-[400px] flex flex-col items-center justify-center border-gray-300 overflow-y-auto">
                 <Upload className="h-12 w-12 text-gray-400" />
                 <div className="mt-4">
                   <Label
@@ -226,7 +226,7 @@ export default function FileUploadDialog({
                 </p>
               </div>
             ) : (
-              <Card className="flex flex-col shadow-md">
+              <Card className="flex flex-col shadow-md overflow-y-auto max-h-[400px]">
                 <CardContent className="p-4 space-y-4">
                   {/* File Information */}
                   <div className="flex items-center justify-between">
@@ -259,8 +259,8 @@ export default function FileUploadDialog({
             )}
           </div>
 
-          {/* Right Column - Metadata */}
-          <Card className="shadow-md">
+          {/* Metadata Section */}
+          <Card className="shadow-md flex-grow basis-1/3 overflow-y-auto max-h-[500px]">
             <CardContent className="p-6 space-y-6">
               <div>
                 <Label>Document Type</Label>
@@ -295,7 +295,7 @@ export default function FileUploadDialog({
                 </div>
               </div>
 
-              {/* Embed DocumentTypeCreation directly */}
+              {/* DocumentTypeCreation */}
               {showDocTypeDialog && (
                 <div className="mt-4 p-4 border border-gray-200 rounded-md">
                   <DocumentTypeCreation
@@ -308,9 +308,10 @@ export default function FileUploadDialog({
                 </div>
               )}
 
+              {/* Metadata Fields */}
               {selectedDocType?.metadata.map((field) => (
-                <div key={field.name}>
-                  <Label>{field.name}</Label>
+                <div key={field.name} className="space-y-2">
+                  <Label className="text-sm font-semibold">{field.name}</Label>
                   {field.type === "select" ? (
                     <Select
                       value={metadata[field.name] || ""}
@@ -318,7 +319,7 @@ export default function FileUploadDialog({
                         handleMetadataChange(field.name, value)
                       }
                     >
-                      <SelectTrigger className="bg-white border-gray-300 rounded-md">
+                      <SelectTrigger className="bg-white border-gray-300 rounded-md h-12">
                         <SelectValue placeholder={`Select ${field.name}`} />
                       </SelectTrigger>
                       <SelectContent className="bg-white rounded-md">
@@ -330,7 +331,14 @@ export default function FileUploadDialog({
                       </SelectContent>
                     </Select>
                   ) : (
-                    <p className="text-gray-600">{metadata[field.name]}</p>
+                    <Input
+                      className="bg-gray-50 border border-gray-300 rounded-md text-lg h-12 px-4 focus:ring-2 focus:ring-blue-500"
+                      placeholder={`Enter value for ${field.name}`}
+                      value={metadata[field.name] || ""}
+                      onChange={(e) =>
+                        handleMetadataChange(field.name, e.target.value)
+                      }
+                    />
                   )}
                 </div>
               ))}

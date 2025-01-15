@@ -34,7 +34,8 @@ import { ColorPaletteProp } from "@mui/joy/styles";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
-import DocViewer, { DocViewerRenderers } from "react-doc-viewer";
+import { DocViewerRenderers } from "react-doc-viewer";
+import dynamic from "next/dynamic";
 import {
   getFilesByHash,
   getFilesById,
@@ -74,7 +75,7 @@ interface Document {
 
 const FileViewPage = () => {
   const { id } = useParams();
-  const [documentTypes, setDocumentTypes] = useState<string[]>([]);
+  const DocViewer = dynamic(() => import("react-doc-viewer"), { ssr: false });
   const [document, setDocument] = useState<Document | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

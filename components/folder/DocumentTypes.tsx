@@ -153,42 +153,110 @@ export function DocumentTypeCreation({
 
           <div>
             <Label>Metadata Fields</Label>
-            <div className="flex items-center gap-4">
-              <Input
-                placeholder="Metadata Field Name"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-              />
-              <Select
-                value={isSelectField ? "select" : "text"}
-                onValueChange={(value) => setIsSelectField(value === "select")}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Field Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="text">Text</SelectItem>
-                  <SelectItem value="select">Select</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="space-y-4">
+              {/* Metadata Input Section */}
+              <div className="space-y-2">
+                <Label htmlFor="metadataFieldName">Metadata Field Name</Label>
+                <Input
+                  id="metadataFieldName"
+                  placeholder="Enter Metadata Field Name"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="metadataFieldType">Field Type</Label>
+                <Select
+                  value={isSelectField ? "select" : "text"}
+                  onValueChange={(value) =>
+                    setIsSelectField(value === "select")
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Field Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="text">Text</SelectItem>
+                    <SelectItem value="select">Select</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               {isSelectField ? (
-                <Input
-                  placeholder="Enter options (comma-separated)"
-                  value={selectOptions}
-                  onChange={(e) => setSelectOptions(e.target.value)}
-                />
+                <div className="space-y-2">
+                  <Label htmlFor="selectOptions">
+                    Options (Comma-Separated)
+                  </Label>
+                  <Input
+                    id="selectOptions"
+                    placeholder="Enter options (comma-separated)"
+                    value={selectOptions}
+                    onChange={(e) => setSelectOptions(e.target.value)}
+                  />
+                </div>
               ) : (
-                <Input
-                  placeholder="Default Value"
-                  value={textValue}
-                  onChange={(e) => setTextValue(e.target.value)}
-                />
+                <div className="space-y-2">
+                  <Label htmlFor="defaultValue">Default Value</Label>
+                  <Input
+                    id="defaultValue"
+                    placeholder="Enter Default Value"
+                    value={textValue}
+                    onChange={(e) => setTextValue(e.target.value)}
+                  />
+                </div>
               )}
-              <Button onClick={handleAddMetadataField}>
+
+              <Button className="w-full mt-4" onClick={handleAddMetadataField}>
                 <Plus className="mr-1 h-4 w-4" />
                 {editingIndex !== null ? "Update Field" : "Add Field"}
               </Button>
             </div>
+
+            {/* Added Metadata Fields */}
+            {metadataOptions.length > 0 && (
+              <div className="mt-6">
+                <Label>Added Metadata Fields</Label>
+                <div className="mt-4 space-y-4">
+                  {metadataOptions.map((field, index) => (
+                    <div
+                      key={index}
+                      className="flex flex-col gap-2 p-4 bg-gray-50 rounded-lg shadow-sm"
+                    >
+                      <div>
+                        <p className="font-semibold">{field.name}</p>
+                        <p className="text-sm text-gray-500">
+                          Type: {field.type}
+                          {field.type === "select" &&
+                            ` (Options: ${field.options?.join(", ")})`}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditMetadataField(index)}
+                        >
+                          <Edit3 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() =>
+                            setMetadataOptions((prev) =>
+                              prev.filter((_, i) => i !== index),
+                            )
+                          }
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {metadataOptions.length > 0 && (
