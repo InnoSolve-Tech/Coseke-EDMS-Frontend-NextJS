@@ -412,39 +412,50 @@ const FileViewPage = () => {
   };
 
   return (
-    <Box
+    <Card
       sx={{
         display: "flex",
         flexDirection: { xs: "column", md: "row" },
         height: "100vh",
         bgcolor: "background.body",
+        overflow: "hidden", // Prevents overflow
       }}
     >
-      <Box sx={{ flex: 1, p: 3, overflow: "auto" }}>
+      {/* Left Section - File Preview */}
+      <Card
+        sx={{
+          flex: 1,
+          p: 3,
+          overflow: "auto",
+          borderRight: { md: "1px solid", xs: "none" }, // Divider for larger screens
+          borderColor: "divider",
+        }}
+      >
         <Typography level="h2" sx={{ mb: 2 }}>
           File Preview
         </Typography>
         {renderPreview()}
-      </Box>
-      <Divider orientation="vertical" />
-      <Box
+      </Card>
+
+      {/* Right Section - Metadata */}
+      <Card
         sx={{
           width: { xs: "100%", md: 400 },
           p: 3,
           bgcolor: "background.level1",
+          overflow: "auto", // Ensure scrollable content
         }}
+        variant="outlined"
       >
-        <Card variant="outlined">
-          <CardContent
-            sx={{ display: "flex", flexDirection: "column", gap: 2 }}
-          >
-            {/* Header Section */}
-            <Typography level="h3" startDecorator={<EditIcon />} sx={{ mb: 2 }}>
-              Edit Metadata
-            </Typography>
+        <CardContent sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          {/* Header Section */}
+          <Typography level="h3" startDecorator={<EditIcon />} sx={{ mb: 2 }}>
+            Edit Metadata
+          </Typography>
 
-            {/* Document Details Section */}
-            <Box>
+          {/* Document Details Section */}
+          <Card>
+            <CardContent>
               <Typography level="h1" sx={{ mb: 1 }}>
                 Document Details
               </Typography>
@@ -458,10 +469,12 @@ const FileViewPage = () => {
                   }
                 />
               </FormControl>
-            </Box>
+            </CardContent>
+          </Card>
 
-            {/* Document Type Section */}
-            <Box>
+          {/* Document Type Section */}
+          <Card>
+            <CardContent>
               <FormControl>
                 <FormLabel>Document Type</FormLabel>
                 <Input
@@ -470,39 +483,47 @@ const FileViewPage = () => {
                   variant="soft"
                 />
               </FormControl>
-            </Box>
+            </CardContent>
+          </Card>
 
-            <Divider sx={{ my: 2 }} />
+          <Divider sx={{ my: 2 }} />
 
-            {/* File Information Section */}
-            <Box>
+          {/* File Information Section */}
+          <Card>
+            <CardContent>
               <Typography level="h4" sx={{ mb: 2 }}>
                 File Information
               </Typography>
               <Stack spacing={2}>
                 <Stack direction="row" spacing={2}>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography
-                      level="body-sm"
-                      sx={{ color: "text.secondary", mb: 0.5 }}
-                    >
-                      Created Date
-                    </Typography>
-                    <Typography level="body-md">
-                      {new Date(document.createdDate).toLocaleString()}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography
-                      level="body-sm"
-                      sx={{ color: "text.secondary", mb: 0.5 }}
-                    >
-                      Last Modified
-                    </Typography>
-                    <Typography level="body-md">
-                      {new Date(document.lastModifiedDateTime).toLocaleString()}
-                    </Typography>
-                  </Box>
+                  <Card>
+                    <CardContent>
+                      <Typography
+                        level="body-sm"
+                        sx={{ color: "text.secondary", mb: 0.5 }}
+                      >
+                        Created Date
+                      </Typography>
+                      <Typography level="body-md">
+                        {new Date(document.createdDate).toLocaleString()}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent>
+                      <Typography
+                        level="body-sm"
+                        sx={{ color: "text.secondary", mb: 0.5 }}
+                      >
+                        Last Modified
+                      </Typography>
+                      <Typography level="body-md">
+                        {new Date(
+                          document.lastModifiedDateTime,
+                        ).toLocaleString()}
+                      </Typography>
+                    </CardContent>
+                  </Card>
                 </Stack>
 
                 <FormControl>
@@ -510,12 +531,14 @@ const FileViewPage = () => {
                   <Input value={document.mimeType} readOnly variant="soft" />
                 </FormControl>
               </Stack>
-            </Box>
+            </CardContent>
+          </Card>
 
-            <Divider sx={{ my: 2 }} />
+          <Divider sx={{ my: 2 }} />
 
-            {/* Additional Metadata Section */}
-            <Box>
+          {/* Additional Metadata Section */}
+          <Card>
+            <CardContent>
               <Stack
                 direction="row"
                 justifyContent="space-between"
@@ -535,20 +558,22 @@ const FileViewPage = () => {
                   Object.entries(document.metadata).map(([key, value]) => (
                     <FormControl key={key}>
                       <Stack direction="row" spacing={1} alignItems="center">
-                        <Box sx={{ flexGrow: 1 }}>
-                          <FormLabel>{key}</FormLabel>
-                          <Input
-                            placeholder={`Enter value for ${key}`}
-                            value={
-                              typeof value === "object"
-                                ? value.join(", ")
-                                : value
-                            }
-                            onChange={(e) =>
-                              handleMetadataChange(key, e.target.value)
-                            }
-                          />
-                        </Box>
+                        <Card sx={{ flexGrow: 1 }}>
+                          <CardContent>
+                            <FormLabel>{key}</FormLabel>
+                            <Input
+                              placeholder={`Enter value for ${key}`}
+                              value={
+                                typeof value === "object"
+                                  ? value.join(", ")
+                                  : value
+                              }
+                              onChange={(e) =>
+                                handleMetadataChange(key, e.target.value)
+                              }
+                            />
+                          </CardContent>
+                        </Card>
                         <IconButton
                           size="sm"
                           variant="plain"
@@ -562,32 +587,31 @@ const FileViewPage = () => {
                     </FormControl>
                   ))}
               </Stack>
-            </Box>
+            </CardContent>
+          </Card>
 
-            <Divider sx={{ my: 2 }} />
+          {/* Actions Section */}
+          <Stack direction="row" spacing={2}>
+            <Button
+              onClick={handleSubmit}
+              startDecorator={<EditIcon />}
+              variant="soft"
+            >
+              Update Metadata
+            </Button>
+            <Button
+              onClick={handleDeleteDocument}
+              startDecorator={<DeleteIcon />}
+              variant="solid"
+              color="danger"
+            >
+              Delete Document
+            </Button>
+          </Stack>
+        </CardContent>
+      </Card>
 
-            {/* Actions Section */}
-            <Stack direction="row" spacing={2}>
-              <Button
-                onClick={handleSubmit}
-                startDecorator={<EditIcon />}
-                variant="soft"
-              >
-                Update Metadata
-              </Button>
-              <Button
-                onClick={handleDeleteDocument}
-                startDecorator={<DeleteIcon />}
-                variant="solid"
-                color="danger"
-              >
-                Delete Document
-              </Button>
-            </Stack>
-          </CardContent>
-        </Card>
-      </Box>
-
+      {/* Add Field Modal */}
       <Modal
         open={openNewMetadataModal}
         onClose={() => setOpenNewMetadataModal(false)}
@@ -623,6 +647,7 @@ const FileViewPage = () => {
         </ModalDialog>
       </Modal>
 
+      {/* Snackbar Notifications */}
       <Snackbar
         variant="soft"
         color={snackbar.color}
@@ -643,7 +668,7 @@ const FileViewPage = () => {
       >
         {snackbar.message}
       </Snackbar>
-    </Box>
+    </Card>
   );
 };
 
