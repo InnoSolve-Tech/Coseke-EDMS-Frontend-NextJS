@@ -187,7 +187,7 @@ export default function FileUploadDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-5xl p-0 max-h-[90vh] overflow-hidden flex flex-col bg-opacity-100 bg-white rounded-lg shadow-lg">
+      <DialogContent className="max-w-7xl p-0 max-h-[90vh] overflow-hidden flex flex-col bg-opacity-100 bg-white rounded-lg shadow-lg">
         <DialogHeader className="px-6 pt-6">
           <DialogTitle className="text-lg font-semibold">
             Document Upload & Preview

@@ -109,10 +109,7 @@ const FileViewPage = () => {
   useEffect(() => {
     const fetchFileDetails = async () => {
       try {
-        const [res, docTypes] = await Promise.all([
-          getFilesById(parseInt(id as string)),
-          getDocumentTypes(),
-        ]);
+        const res = await getFilesById(parseInt(id as string));
         const response = await getFilesByHash(res.hashName);
 
         if (response) {
@@ -122,16 +119,18 @@ const FileViewPage = () => {
               new Blob([response], { type: res.mimeType }),
             ),
           };
-
           setDocument(fileData);
-          setDocumentTypes(docTypes.map((dt) => dt.name));
         } else {
           throw new Error("No file found");
         }
       } catch (err) {
         console.error("Error fetching file details:", err);
         setError("Failed to load file details");
-        showSnackbar("Failed to load file details", "danger");
+        setSnackbar({
+          open: true,
+          message: "Failed to load file details",
+          color: "danger",
+        });
       } finally {
         setLoading(false);
       }
@@ -179,11 +178,11 @@ const FileViewPage = () => {
 
   const handleDeleteMetadata = async (key: string) => {
     if (!document) return;
-  
+
     try {
       // Use deleteMetadata API to remove specific metadata
       await deleteMetadata(document.id, [key]);
-  
+
       // Update local state
       const newMetadata = { ...document.metadata };
       delete newMetadata[key];
@@ -191,7 +190,7 @@ const FileViewPage = () => {
         ...document,
         metadata: newMetadata,
       });
-  
+
       showSnackbar("Metadata field deleted", "success");
     } catch (error) {
       console.error("Error deleting metadata field:", error);
@@ -201,11 +200,11 @@ const FileViewPage = () => {
 
   const handleDeleteDocument = async () => {
     if (!document) return;
-  
+
     try {
       // Use deleteFile API to delete the document
       await deleteFile(document.id);
-  
+
       showSnackbar("Document deleted successfully", "success");
       setDocument(null);
     } catch (error) {
@@ -215,18 +214,29 @@ const FileViewPage = () => {
   };
 
   const handleAddMetadata = () => {
-    if (!document || !newMetadata.name) return;
+    if (!document || !newMetadata.name.trim()) return;
 
+    // Validate the new metadata field
+    const newFieldName = newMetadata.name.trim();
+    if (document.metadata.hasOwnProperty(newFieldName)) {
+      showSnackbar("Metadata field already exists", "danger");
+      return;
+    }
+
+    // Append the new metadata field
     setDocument({
       ...document,
       metadata: {
         ...document.metadata,
-        [newMetadata.name]: newMetadata.value,
+        [newFieldName]: newMetadata.value,
       },
     });
 
+    // Reset modal state
     setOpenNewMetadataModal(false);
     setNewMetadata({ name: "", type: "text", value: "", options: null });
+
+    // Notify the user
     showSnackbar("New metadata field added", "success");
   };
 
@@ -234,15 +244,8 @@ const FileViewPage = () => {
     if (!document) return;
 
     try {
-      await updateMetadata(document.id, {
-        name: document.documentType,
-        metadata: Object.entries(document.metadata).map(([name, value]) => ({
-          name,
-          type: "text",
-          value: Array.isArray(value) ? value.join(", ") : value,
-          options: [], // Ensure options is always an empty array when not used
-        })),
-      });
+      // Send only the metadata object directly, avoiding nested structure
+      await updateMetadata(document.id, document.metadata);
 
       showSnackbar("Document metadata updated successfully", "success");
     } catch (error) {
@@ -435,89 +438,160 @@ const FileViewPage = () => {
           <CardContent
             sx={{ display: "flex", flexDirection: "column", gap: 2 }}
           >
-            <Typography level="h3" startDecorator={<EditIcon />}>
+            {/* Header Section */}
+            <Typography level="h3" startDecorator={<EditIcon />} sx={{ mb: 2 }}>
               Edit Metadata
             </Typography>
-            <FormControl>
-              <FormLabel>Document Name</FormLabel>
-              <Input
-                value={document.documentName}
-                onChange={(e) =>
-                  setDocument({ ...document, documentName: e.target.value })
-                }
-              />
-            </FormControl>
-            <FormControl>
-              <FormLabel>Document Type</FormLabel>
-              <Select
-                value={document.documentType}
-                onChange={(_, value) =>
-                  setDocument({ ...document, documentType: value as string })
-                }
+
+            {/* Document Details Section */}
+            <Box>
+              <Typography level="h1" sx={{ mb: 1 }}>
+                Document Details
+              </Typography>
+              <FormControl>
+                <FormLabel>Document Name</FormLabel>
+                <Input
+                  placeholder="Enter document name"
+                  value={document.filename || ""}
+                  onChange={(e) =>
+                    setDocument({ ...document, filename: e.target.value })
+                  }
+                />
+              </FormControl>
+            </Box>
+
+            {/* Document Type Section */}
+            <Box>
+              <FormControl>
+                <FormLabel>Document Type</FormLabel>
+                <Input
+                  value={document.documentType || "N/A"}
+                  readOnly
+                  variant="soft"
+                />
+              </FormControl>
+            </Box>
+
+            <Divider sx={{ my: 2 }} />
+
+            {/* File Information Section */}
+            <Box>
+              <Typography level="h4" sx={{ mb: 2 }}>
+                File Information
+              </Typography>
+              <Stack spacing={2}>
+                <Stack direction="row" spacing={2}>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography
+                      level="body-sm"
+                      sx={{ color: "text.secondary", mb: 0.5 }}
+                    >
+                      Created Date
+                    </Typography>
+                    <Typography level="body-md">
+                      {new Date(document.createdDate).toLocaleString()}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography
+                      level="body-sm"
+                      sx={{ color: "text.secondary", mb: 0.5 }}
+                    >
+                      Last Modified
+                    </Typography>
+                    <Typography level="body-md">
+                      {new Date(document.lastModifiedDateTime).toLocaleString()}
+                    </Typography>
+                  </Box>
+                </Stack>
+
+                <FormControl>
+                  <FormLabel>MIME Type</FormLabel>
+                  <Input value={document.mimeType} readOnly variant="soft" />
+                </FormControl>
+              </Stack>
+            </Box>
+
+            <Divider sx={{ my: 2 }} />
+
+            {/* Additional Metadata Section */}
+            <Box>
+              <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
               >
-                {documentTypes.map((type) => (
-                  <Option key={type} value={type}>
-                    {type}
-                  </Option>
-                ))}
-              </Select>
-            </FormControl>
-            <Divider />
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography level="title-md">Additional Metadata</Typography>
+                <Typography level="h2">Additional Metadata</Typography>
+                <Button
+                  size="sm"
+                  startDecorator={<AddIcon />}
+                  onClick={() => setOpenNewMetadataModal(true)}
+                >
+                  Add Field
+                </Button>
+              </Stack>
+              <Stack spacing={2} sx={{ mt: 2 }}>
+                {document &&
+                  Object.entries(document.metadata).map(([key, value]) => (
+                    <FormControl key={key}>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Box sx={{ flexGrow: 1 }}>
+                          <FormLabel>{key}</FormLabel>
+                          <Input
+                            placeholder={`Enter value for ${key}`}
+                            value={
+                              typeof value === "object"
+                                ? value.join(", ")
+                                : value
+                            }
+                            onChange={(e) =>
+                              handleMetadataChange(key, e.target.value)
+                            }
+                          />
+                        </Box>
+                        <IconButton
+                          size="sm"
+                          variant="plain"
+                          color="danger"
+                          onClick={() => handleDeleteMetadata(key)}
+                          sx={{ mt: 2 }}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Stack>
+                    </FormControl>
+                  ))}
+              </Stack>
+            </Box>
+
+            <Divider sx={{ my: 2 }} />
+
+            {/* Actions Section */}
+            <Stack direction="row" spacing={2}>
               <Button
-                size="sm"
-                startDecorator={<AddIcon />}
-                onClick={() => setOpenNewMetadataModal(true)}
+                onClick={handleSubmit}
+                startDecorator={<EditIcon />}
+                variant="soft"
               >
-                Add Field
+                Update Metadata
+              </Button>
+              <Button
+                onClick={handleDeleteDocument}
+                startDecorator={<DeleteIcon />}
+                variant="solid"
+                color="danger"
+              >
+                Delete Document
               </Button>
             </Stack>
-            <Stack spacing={2}>
-              {document &&
-                Object.entries(document.metadata).map(([key, value]) => (
-                  <FormControl key={key}>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <Box sx={{ flexGrow: 1 }}>
-                        <FormLabel>{key}</FormLabel>
-                        <Input
-                          value={typeof value === "object" ? value.join(", ") : value}
-                          onChange={(e) => handleMetadataChange(key, e.target.value)}
-                        />
-                      </Box>
-                      <IconButton
-                        size="sm"
-                        variant="plain"
-                        color="danger"
-                        onClick={() => handleDeleteMetadata(key)}
-                        sx={{ mt: 3 }}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Stack>
-                  </FormControl>
-                ))}
-            </Stack>
-            <Button
-              onClick={handleSubmit}
-              sx={{ mt: 2 }}
-              startDecorator={<EditIcon />}
-            >
-              Update Metadata
-            </Button>
-            <Button
-              onClick={handleDeleteDocument}
-              sx={{ mt: 2 }}
-              startDecorator={<DeleteIcon />}
-              color="danger"
-            >
-              Delete Document
-            </Button>
           </CardContent>
         </Card>
       </Box>
 
-      <Modal open={openNewMetadataModal} onClose={() => setOpenNewMetadataModal(false)}>
+      <Modal
+        open={openNewMetadataModal}
+        onClose={() => setOpenNewMetadataModal(false)}
+      >
         <ModalDialog>
           <ModalClose />
           <Typography level="h4">Add New Metadata Field</Typography>
@@ -526,7 +600,9 @@ const FileViewPage = () => {
               <FormLabel>Field Name</FormLabel>
               <Input
                 value={newMetadata.name}
-                onChange={(e) => setNewMetadata({ ...newMetadata, name: e.target.value })}
+                onChange={(e) =>
+                  setNewMetadata({ ...newMetadata, name: e.target.value })
+                }
                 placeholder="Enter field name"
               />
             </FormControl>
@@ -534,14 +610,13 @@ const FileViewPage = () => {
               <FormLabel>Field Value</FormLabel>
               <Input
                 value={newMetadata.value}
-                onChange={(e) => setNewMetadata({ ...newMetadata, value: e.target.value })}
+                onChange={(e) =>
+                  setNewMetadata({ ...newMetadata, value: e.target.value })
+                }
                 placeholder="Enter field value"
               />
             </FormControl>
-            <Button
-              onClick={handleAddMetadata}
-              disabled={!newMetadata.name}
-            >
+            <Button onClick={handleAddMetadata} disabled={!newMetadata.name}>
               Add Field
             </Button>
           </Stack>
