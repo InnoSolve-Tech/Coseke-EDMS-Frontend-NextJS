@@ -259,49 +259,6 @@ export function DocumentTypeCreation({
             )}
           </div>
 
-          {metadataOptions.length > 0 && (
-            <div>
-              <Label>Added Metadata Fields</Label>
-              <div className="mt-4 space-y-2">
-                {metadataOptions.map((field, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-3 bg-gray-100 rounded-md"
-                  >
-                    <div>
-                      <p className="font-semibold">{field.name}</p>
-                      <p className="text-sm text-gray-500">
-                        Type: {field.type}
-                        {field.type === "select" &&
-                          ` (Options: ${field.options?.join(", ")})`}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditMetadataField(index)}
-                      >
-                        <Edit3 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() =>
-                          setMetadataOptions((prev) =>
-                            prev.filter((_, i) => i !== index),
-                          )
-                        }
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           <div className="flex justify-end gap-4">
             <Button variant="outline" onClick={handleCancel}>
               Cancel
