@@ -7,9 +7,13 @@ import { toast } from "@/hooks/use-toast";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 
-export function CreateFormButton() {
-  const [isOpen, setIsOpen] = useState(false);
-
+export function CreateFormButton({
+  isOpen,
+  setIsOpen,
+}: {
+  isOpen: boolean;
+  setIsOpen: (isOpen: boolean) => void;
+}) {
   return (
     <>
       <Button onClick={() => setIsOpen(true)}>

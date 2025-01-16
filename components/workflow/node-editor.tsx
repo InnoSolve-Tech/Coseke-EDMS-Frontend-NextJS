@@ -45,9 +45,31 @@ export function NodeEditor({
     [],
   );
   const nodeConfig = nodeTypes[node.type as keyof typeof nodeTypes];
+  const [ifTrueNode, setIfTrueNode] = useState<string | undefined>(
+    node.data.ifTrue,
+  );
+  const [ifFalseNode, setIfFalseNode] = useState<string | undefined>(
+    node.data.ifFalse,
+  );
+
+  const getConnectedNodes = () => {
+    if (!workflow.edges) return [];
+    return workflow.edges
+      .filter((edge) => edge.source === node.id)
+      .map((edge) => workflow.nodes?.find((n) => n.id === edge.target))
+      .filter((n): n is WorkflowNode => n !== undefined);
+  };
 
   const handleSave = () => {
-    onUpdate(editedNode);
+    const updatedNode = {
+      ...editedNode,
+      data: {
+        ...editedNode.data,
+        ifTrue: ifTrueNode,
+        ifFalse: ifFalseNode,
+      },
+    };
+    onUpdate(updatedNode);
     onClose();
   };
 
@@ -138,6 +160,22 @@ export function NodeEditor({
     });
   };
 
+  const handleIfTrueChange = (nodeId: string) => {
+    setIfTrueNode(nodeId);
+    setEditedNode({
+      ...editedNode,
+      data: { ...editedNode.data, ifTrue: nodeId },
+    });
+  };
+
+  const handleIfFalseChange = (nodeId: string) => {
+    setIfFalseNode(nodeId);
+    setEditedNode({
+      ...editedNode,
+      data: { ...editedNode.data, ifFalse: nodeId },
+    });
+  };
+
   const renderFormOptions = () => {
     if (node.type === "form") {
       return forms.map((form) => (
@@ -176,6 +214,9 @@ export function NodeEditor({
             <TabsTrigger value="details">Details</TabsTrigger>
             {node.type === "decision" && (
               <TabsTrigger value="conditions">Conditions</TabsTrigger>
+            )}
+            {node.type === "decision" && (
+              <TabsTrigger value="truefalse">True/False</TabsTrigger>
             )}
             {(node.type === "form" || node.type === "decision") && (
               <TabsTrigger value="form">Form</TabsTrigger>
@@ -225,6 +266,48 @@ export function NodeEditor({
                   []
                 }
               />
+            </TabsContent>
+          )}
+          {node.type === "decision" && (
+            <TabsContent value="truefalse" className="space-y-4">
+              <div className="grid w-full gap-4">
+                <div>
+                  <Label htmlFor="ifTrue">If True, go to:</Label>
+                  <Select
+                    value={ifTrueNode || ""}
+                    onValueChange={handleIfTrueChange}
+                  >
+                    <SelectTrigger id="ifTrue" className="w-full mt-2">
+                      <SelectValue placeholder="Select a node" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white bg-opacity-100">
+                      {getConnectedNodes().map((n) => (
+                        <SelectItem key={n.id} value={n.id || ""}>
+                          {n.data.label || "Unnamed Node"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="ifFalse">If False, go to:</Label>
+                  <Select
+                    value={ifFalseNode || ""}
+                    onValueChange={handleIfFalseChange}
+                  >
+                    <SelectTrigger id="ifFalse" className="w-full mt-2">
+                      <SelectValue placeholder="Select a node" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white bg-opacity-100">
+                      {getConnectedNodes().map((n) => (
+                        <SelectItem key={n.id} value={n.id || ""}>
+                          {n.data.label || "Unnamed Node"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </TabsContent>
           )}
 

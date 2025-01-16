@@ -39,6 +39,7 @@ import {
   createWorkflowInstance,
   getAllWorkflowInstances,
   updateWorkflowInstance,
+  updateWorkflowInstanceStep,
 } from "@/core/workflowInstance/api";
 import { getAllWorkflows } from "@/core/workflows/api";
 import { useToast } from "@/hooks/use-toast";
@@ -275,16 +276,10 @@ export default function WorkflowInstanceCreator() {
           throw new Error("No valid paths found from current step");
         }
       } else if (possibleEdges.length === 1) {
-        const nextNode = instance.workflow.nodes.find(
-          (node: any) => node.id === possibleEdges[0].target,
+        await updateWorkflowInstanceStep(
+          instance.id.toString(),
+          possibleEdges[0].target,
         );
-        const updatedInstance = {
-          ...instance,
-          currentStep: possibleEdges[0].target,
-          status: nextNode?.type! as any,
-        };
-
-        await updateWorkflowInstance(instance.id.toString(), updatedInstance);
         await fetchInstances();
 
         toast({

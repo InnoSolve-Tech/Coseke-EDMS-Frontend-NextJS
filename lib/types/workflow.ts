@@ -21,6 +21,8 @@ export interface WorkflowNode {
       operator: string;
       value: string;
     }[];
+    ifFalse?: string;
+    ifTrue?: string;
     formId?: string;
     assignee?: { assignee_type: "role" | "user"; assignee_id: string };
     dueDate?: string;

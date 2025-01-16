@@ -140,6 +140,12 @@ export function WorkflowForm() {
             throw new Error(
               `Node "${targetNode.data?.label || targetId}" has multiple outgoing connections, consider using a decision node.`,
             );
+          } else if (targetNode.type === "decision") {
+            if (targets.length !== 2) {
+              throw new Error(
+                `Decision node "${targetNode.data?.label || targetId}" must have exactly 2 outgoing connections.`,
+              );
+            }
           }
         }
       }

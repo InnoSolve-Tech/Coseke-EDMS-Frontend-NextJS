@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { PlusIcon, TrashIcon, XIcon } from "lucide-react";
 import { Form, FormField } from "@/lib/types/forms";
+import { toast } from "@/hooks/use-toast";
 
 interface EditFormDialogProps {
   isOpen: boolean;
@@ -44,6 +45,17 @@ const defaultFormState: Form = {
   name: "",
   description: "",
   formFields: [],
+};
+
+const validateFormFields = (fields: FormField[]): string | null => {
+  const fieldNames = new Set();
+  for (const field of fields) {
+    if (fieldNames.has(field.name)) {
+      return `Duplicate field name: ${field.name}`;
+    }
+    fieldNames.add(field.name);
+  }
+  return null;
 };
 
 export function EditFormDialog({
@@ -150,6 +162,15 @@ export function EditFormDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const error = validateFormFields(formData.formFields);
+    if (error) {
+      toast({
+        title: "Error",
+        description: error,
+        variant: "destructive",
+      });
+      return;
+    }
     onSave(formData);
   };
 
