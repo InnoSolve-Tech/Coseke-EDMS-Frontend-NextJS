@@ -9,12 +9,25 @@ export interface FormField {
 
 export interface WorkflowNode {
   id: string;
-  type: "start" | "end" | "task" | "decision" | "form";
+  type:
+    | "start"
+    | "end"
+    | "task"
+    | "decision"
+    | "form"
+    | "approval"
+    | "notification";
   position: { x: number; y: number };
   data: {
     label: string;
     description?: string;
     nodeId: string;
+    notification?: {
+      id?: number;
+      type: string;
+      subject: string;
+      body: string;
+    };
     condition?: {
       id: string;
       field: string;

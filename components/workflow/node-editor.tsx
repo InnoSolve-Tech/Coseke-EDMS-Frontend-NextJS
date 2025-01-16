@@ -1,5 +1,6 @@
 "use client";
 
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -12,16 +13,16 @@ import { toast } from "@/hooks/use-toast";
 import { Form } from "@/lib/types/forms";
 import { Workflow, WorkflowNode } from "@/lib/types/workflow";
 import { useEffect, useState } from "react";
+import { uuid } from "uuidv4";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Input } from "../ui/input";
-import { Label } from "../ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Textarea } from "../ui/textarea";
+import { DecisionConditions } from "./descision-conditions";
 import { NodeAssignment } from "./node-assignment";
 import { nodeTypes } from "./node-types";
-import { DecisionConditions } from "./descision-conditions";
-import { uuid } from "uuidv4";
+import { NotificationsTab } from "./notifications-tab";
 
 interface NodeEditorProps {
   node: WorkflowNode;
@@ -104,25 +105,32 @@ export function NodeEditor({
     if (!currentNode.id || visited.has(currentNode.id)) {
       return [];
     }
+
     visited.add(currentNode.id);
 
+    // Get all incoming edges targeting the current node
     const incomingEdges =
       workflow.edges?.filter((e) => e.target === currentNode.id) || [];
+
+    // Find all nodes connected as sources in these edges
     const precedingNodes = incomingEdges
       .map((e) => workflow.nodes?.find((n) => n.id === e.source))
       .filter((n): n is WorkflowNode => n !== undefined);
 
+    // Collect all form nodes
     const formNodes: WorkflowNode[] = [];
 
     for (const node of precedingNodes) {
-      if (node.type === "form" && node.data.formId) {
+      if (node.type === "form" && node.data?.formId) {
+        // If the node is a form, add it directly
         formNodes.push(node);
-      } else {
-        const precedingForms = tracePrecedingForms(node, workflow, visited);
-        formNodes.push(...precedingForms);
       }
+      // Recur for all preceding nodes
+      const precedingForms = tracePrecedingForms(node, workflow, visited);
+      formNodes.push(...precedingForms);
     }
 
+    // Remove duplicates by creating a map of nodes by their IDs
     return Array.from(
       new Map(formNodes.map((node) => [node.id, node])).values(),
     );
@@ -131,7 +139,7 @@ export function NodeEditor({
   useEffect(() => {
     fetchForms();
 
-    if (node.type === "decision") {
+    if (node.type === "decision" || node.type === "approval") {
       const precedingFormNodes = tracePrecedingForms(node, workflow);
       setPrecedingFormNodes(precedingFormNodes);
     }
@@ -218,9 +226,14 @@ export function NodeEditor({
             {node.type === "decision" && (
               <TabsTrigger value="truefalse">True/False</TabsTrigger>
             )}
-            {(node.type === "form" || node.type === "decision") && (
+            {(node.type === "form" ||
+              node.type === "decision" ||
+              node.type === "approval") && (
               <TabsTrigger value="form">Form</TabsTrigger>
             )}
+            {node.type === "notification" ? (
+              <TabsTrigger value="notifications">Notifications</TabsTrigger>
+            ) : null}
             <TabsTrigger value="assignment">Assignment</TabsTrigger>
           </TabsList>
 
@@ -311,7 +324,9 @@ export function NodeEditor({
             </TabsContent>
           )}
 
-          {(node.type === "form" || node.type === "decision") && (
+          {(node.type === "form" ||
+            node.type === "decision" ||
+            node.type === "approval") && (
             <TabsContent value="form">
               <Select
                 value={editedNode.data.formId?.toString() || ""}
@@ -326,8 +341,23 @@ export function NodeEditor({
               </Select>
             </TabsContent>
           )}
+          <TabsContent value="notifications">
+            <NotificationsTab
+              notification={editedNode.data.notification}
+              onNotificationsChange={(notification) =>
+                setEditedNode({
+                  ...editedNode,
+                  data: { ...editedNode.data, notification: notification },
+                })
+              }
+            />
+          </TabsContent>
 
           <TabsContent value="assignment">
+            {node.type === "notification" ? (
+              <div className="grid w-full gap-4 my-4">Message goes to?:</div>
+            ) : null}
+
             <NodeAssignment
               value={editedNode.data.assignee}
               onChange={(assignee) =>
