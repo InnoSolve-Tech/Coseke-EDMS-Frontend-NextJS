@@ -93,51 +93,84 @@ export function WorkflowForm() {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      let wf = {
+      let wf: any = {
         ...workflow,
         ...values,
       };
+      updateWorkflow(wf);
+      console.log(wf);
 
-      if (wf.nodes!.filter((node: any) => node.type === "start").length === 0) {
+      if (wf.nodes.filter((node: any) => node.type === "start").length === 0) {
         throw new Error("Workflow must have a start node.");
       }
 
-      let start = wf.nodes!.find((node: any) => node.type === "start");
+      let start = wf.nodes.find((node: any) => node.type === "start");
 
-      if (wf.nodes!.filter((node: any) => node.type === "end").length === 0) {
+      if (wf.nodes.filter((node: any) => node.type === "end").length === 0) {
         throw new Error("Workflow must have an end node.");
       }
 
-      let end = wf.nodes!.find((node: any) => node.type === "end");
+      let end = wf.nodes.find((node: any) => node.type === "end");
       let edges = wf.edges;
 
-      if (!traceEdges(edges!, start, end)) {
+      // Check for shared target nodes
+      const targetCounts = edges.reduce(
+        (acc: { [key: string]: string[] }, edge: any) => {
+          if (!acc[edge.source]) {
+            acc[edge.source] = [];
+          }
+          acc[edge.source].push(edge.target);
+          return acc;
+        },
+        {},
+      );
+
+      // Validate shared targets
+      for (const [targetId, targets] of Object.entries(targetCounts) as [
+        string,
+        string[],
+      ][]) {
+        if (targets.length > 1) {
+          const targetNode = wf.nodes.find((node: any) => node.id === targetId);
+          if (!targetNode) {
+            throw new Error(`Invalid target node: ${targetId}`);
+          }
+
+          if (targetNode.type !== "decision") {
+            throw new Error(
+              `Node "${targetNode.data?.label || targetId}" has multiple outgoing connections, consider using a decision node.`,
+            );
+          }
+        }
+      }
+
+      if (!traceEdges(edges, start, end)) {
         throw new Error("Workflow must have a path from start to end.");
       }
 
       if (
-        wf.nodes!.map((node: any) => node.data.assignee).includes(null) ||
-        wf.nodes!.map((node: any) => node.data.assignee).includes(undefined)
+        wf.nodes.map((node: any) => node.data.assignee).includes(null) ||
+        wf.nodes.map((node: any) => node.data.assignee).includes(undefined)
       ) {
         throw new Error("Workflow must have assignee for each node.");
       }
 
-      updateWorkflow(wf);
-      await editWorkflow(wf as Workflow);
+      await editWorkflow(wf);
 
       toast({
         title: "Success",
-        description: "Workflow has been updated successfully.",
+        color: "success",
+        description: "Workflow has been saved successfully.",
       });
 
       router.push("/dashboard/workflows");
     } catch (error) {
-      console.error("Failed to update workflow:", error);
+      console.error("Failed to create workflow:", error);
       toast({
         variant: "destructive",
         title: "Error",
         description:
-          error instanceof Error ? error.message : "Failed to update workflow",
+          error instanceof Error ? error.message : "Failed to create workflow",
       });
     }
   };

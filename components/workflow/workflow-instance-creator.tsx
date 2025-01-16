@@ -113,7 +113,9 @@ export default function WorkflowInstanceCreator() {
     }
   };
 
-  const handleFormSubmit = async (formData: FormRecord) => {
+  const handleFormSubmit = async (
+    formData: FormRecord,
+  ): Promise<FormRecord | null> => {
     setIsSubmitting(true);
     try {
       const response = await createFormRecord(formData);
@@ -124,7 +126,7 @@ export default function WorkflowInstanceCreator() {
       });
       setFormValues({});
       setSelectedForm(null);
-      return true;
+      return response;
     } catch (error) {
       console.error("Error submitting form:", error);
       toast({
@@ -132,7 +134,7 @@ export default function WorkflowInstanceCreator() {
         description: "Failed to create form record. Please try again.",
         variant: "destructive",
       });
-      return false;
+      return null;
     } finally {
       setIsSubmitting(false);
     }
@@ -248,6 +250,9 @@ export default function WorkflowInstanceCreator() {
         if (!formSubmitted) {
           return;
         }
+        instance.metadata[instance.currentStep!.toString()] =
+          formSubmitted.id?.toString() || "";
+        await updateWorkflowInstance(instance.id!.toString(), instance);
       }
 
       if (possibleEdges.length === 0) {

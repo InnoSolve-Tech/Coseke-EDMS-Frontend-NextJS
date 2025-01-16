@@ -20,7 +20,7 @@ interface WorkflowNodeData {
   nodeId: string;
   assignee?: { type: "role" | "user"; id: string };
   form?: { fields: any[] };
-  conditions?: any[];
+  condition?: any[];
   branches?: { id: string; name: string }[];
 }
 
@@ -100,9 +100,7 @@ const WorkflowNode = memo(({ data, type }: NodeProps<WorkflowNodeData>) => {
         {type === "decision" && (
           <div className="flex items-center gap-2 text-xs text-gray-600">
             <GitFork className="h-3.5 w-3.5" />
-            <span>
-              {data.conditions ? data.conditions.length : 0} conditions
-            </span>
+            <span>{data.condition ? data.condition.length : 0} conditions</span>
           </div>
         )}
 
