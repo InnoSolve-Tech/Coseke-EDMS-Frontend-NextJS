@@ -139,7 +139,7 @@ const ViewFormRecord = ({
             description: "This workflow instance has reached its end node.",
           });
         } else {
-          throw new Error("No valid paths found from current step");
+          throw new Error("No valid paths found from current step.");
         }
       } else if (possibleEdges.length === 1) {
         await updateWorkflowInstanceStep(
