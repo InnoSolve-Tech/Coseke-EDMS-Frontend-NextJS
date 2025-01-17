@@ -38,6 +38,7 @@ interface Metadata {
 }
 
 type ApiResponse<T> = {
+  length: number;
   map(
     arg0: (folder: any) => {
       id: any;
@@ -458,6 +459,18 @@ export const clearMetadata = async (
     return response.data;
   } catch (error) {
     console.error("Error clearing metadata:", error);
+    throw error;
+  }
+};
+
+export const getAllFiles = async (): Promise<ApiResponse<FileData[]>> => {
+  try {
+    const response = await AxiosInstance.get<ApiResponse<FileData[]>>(
+      `${ENDPOINT_URL}allfiles`,
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching all files:", error);
     throw error;
   }
 };
