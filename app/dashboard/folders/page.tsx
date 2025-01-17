@@ -33,6 +33,7 @@ import {
   createSubFolders,
   getDocumentTypes,
   editFolder,
+  getAllFiles,
 } from "@/components/files/api";
 import { File, Folder } from "lucide-react";
 import { ColorPaletteProp } from "@mui/joy/styles";
@@ -302,8 +303,8 @@ export default function FileExplorer() {
   useEffect(() => {
     const fetchFileCount = async () => {
       try {
-        const filesResponse = await getFiles();
-        const files = filesResponse.data || [];
+        const filesResponse = await getAllFiles(); // Fetch all files
+        const files = filesResponse || [];
         setFileCount(files.length > 0 ? files.length.toLocaleString() : "0");
       } catch (error) {
         console.error("Error fetching file data:", error);

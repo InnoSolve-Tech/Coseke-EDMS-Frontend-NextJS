@@ -91,7 +91,7 @@
     "sonner": "^1.7.1",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
-    "uuid": "^11.0.3",
+    "uuid": "^11.0.5",
     "uuidv4": "^6.2.13",
     "vaul": "^1.1.2",
     "xlsx": "^0.18.5",
