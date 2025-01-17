@@ -35,6 +35,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { createFormRecord } from "@/core/formrecords/api";
 import {
   createWorkflowInstance,
   getAllWorkflowInstances,
@@ -43,25 +44,24 @@ import {
 } from "@/core/workflowInstance/api";
 import { getAllWorkflows } from "@/core/workflows/api";
 import { useToast } from "@/hooks/use-toast";
-import { User } from "@/lib/types/user";
-import { Edge, Workflow } from "@/lib/types/workflow";
+import { FormRecord } from "@/lib/types/formRecords";
+import { Edge, Workflow, WorkflowType } from "@/lib/types/workflow";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FileText } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { getUserFromSessionStorage } from "../routes/sessionStorage";
+import ViewFormRecord from "./view-form-record";
 import WorkflowFormRecord from "./workflow-form-record";
-import { createFormRecord } from "@/core/formrecords/api";
-import { FormRecord } from "@/lib/types/formRecords";
 
 type WorkflowInstance = {
   id: number;
   workflowId: number;
   name: string;
-  status: "Active" | "Completed" | "Suspended";
+  status: WorkflowType | "Completed" | "Active";
   startFormData?: Record<string, string>;
-  currentStep?: string;
+  currentStep: string;
   workflow: Workflow;
   metadata: Record<string, string>;
 };
@@ -89,7 +89,6 @@ export default function WorkflowInstanceCreator() {
 
   const [existingWorkflows, setExistingWorkflows] = useState<Workflow[]>([]);
   const { toast } = useToast();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [user, setUser] = useState<any>();
 
   useEffect(() => {
@@ -426,74 +425,84 @@ export default function WorkflowInstanceCreator() {
                             <DialogHeader>
                               <DialogTitle>Instance Details</DialogTitle>
                             </DialogHeader>
-                            <div className="space-y-4">
-                              <div>
-                                <h4 className="font-semibold">Workflow</h4>
-                                <p>{instance.workflow?.name}</p>
-                              </div>
-                              <div>
-                                <h4 className="font-semibold">Instance Name</h4>
-                                <p>{instance.name}</p>
-                              </div>
-                              <div>
-                                <h4 className="font-semibold">Status</h4>
-                                <Badge
-                                  variant={
-                                    instance.status === "Active"
-                                      ? "default"
-                                      : instance.status === "Completed"
-                                        ? "secondary"
-                                        : "destructive"
-                                  }
-                                >
-                                  {instance.status}
-                                </Badge>
-                              </div>
-                              {instance.startFormData && (
-                                <div>
-                                  <h4 className="font-semibold">
-                                    Start Form Data
-                                  </h4>
-                                  <div className="bg-muted p-4 rounded-md">
-                                    {Object.entries(instance.startFormData).map(
-                                      ([key, value]) => (
-                                        <p key={key}>
-                                          <strong>{key}:</strong> {value}
-                                        </p>
-                                      ),
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                            {instance.workflow.nodes.find(
-                              (node) => node.id === instance.currentStep,
-                            )?.data.formId && (
-                              <WorkflowFormRecord
-                                formId={
-                                  instance.workflow.nodes.find(
-                                    (node) => node.id === instance.currentStep,
-                                  )?.data.formId
-                                }
-                                formInstanceId={
-                                  instance.metadata["formInstanceId"]
-                                }
-                                workflowInstance={instance}
-                                currentStep={instance.currentStep!}
+                            {instance.status === "approval" ? (
+                              <ViewFormRecord
+                                instance={instance}
                                 forms={forms}
                                 setForms={setForms}
-                                selectedForm={selectedForm}
-                                setSelectedForm={setSelectedForm}
-                                formValues={formValues}
-                                setFormValues={setFormValues}
                               />
+                            ) : (
+                              <div>
+                                <div className="space-y-4">
+                                  <div>
+                                    <h4 className="font-semibold">Workflow</h4>
+                                    <p>{instance.workflow?.name}</p>
+                                  </div>
+                                  <div>
+                                    <h4 className="font-semibold">
+                                      Instance Name
+                                    </h4>
+                                    <p>{instance.name}</p>
+                                  </div>
+                                  <div>
+                                    <h4 className="font-semibold">Status</h4>
+                                    <Badge
+                                      variant={
+                                        instance.status === "Active"
+                                          ? "default"
+                                          : instance.status === "Completed"
+                                            ? "secondary"
+                                            : "destructive"
+                                      }
+                                    >
+                                      {instance.status}
+                                    </Badge>
+                                  </div>
+                                  {instance.startFormData && (
+                                    <div>
+                                      <h4 className="font-semibold">
+                                        Start Form Data
+                                      </h4>
+                                      <div className="bg-muted p-4 rounded-md">
+                                        {Object.entries(
+                                          instance.startFormData,
+                                        ).map(([key, value]) => (
+                                          <p key={key}>
+                                            <strong>{key}:</strong> {value}
+                                          </p>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                                {instance.workflow.nodes.find(
+                                  (node) => node.id === instance.currentStep,
+                                )?.data.formId && (
+                                  <WorkflowFormRecord
+                                    formId={
+                                      instance.workflow.nodes.find(
+                                        (node) =>
+                                          node.id === instance.currentStep,
+                                      )?.data.formId
+                                    }
+                                    workflowInstance={instance}
+                                    currentStep={instance.currentStep!}
+                                    forms={forms}
+                                    setForms={setForms}
+                                    selectedForm={selectedForm}
+                                    setSelectedForm={setSelectedForm}
+                                    formValues={formValues}
+                                    setFormValues={setFormValues}
+                                  />
+                                )}
+                                <Button
+                                  onClick={() => moveToNextStep(instance)}
+                                  disabled={!canInteractWithStep(instance)}
+                                >
+                                  Move to Next Step
+                                </Button>
+                              </div>
                             )}
-                            <Button
-                              onClick={() => moveToNextStep(instance)}
-                              disabled={!canInteractWithStep(instance)}
-                            >
-                              Move to Next Step
-                            </Button>
                           </DialogContent>
                         </Dialog>
                       </TableCell>

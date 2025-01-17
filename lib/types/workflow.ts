@@ -1,5 +1,13 @@
 import { Form } from "./forms";
 
+export type WorkflowType =
+  | "approval"
+  | "notification"
+  | "form"
+  | "decision"
+  | "task"
+  | "start"
+  | "end";
 export interface FormField {
   id: string;
   type: "text" | "number" | "select" | "date" | "checkbox";
@@ -9,14 +17,7 @@ export interface FormField {
 
 export interface WorkflowNode {
   id: string;
-  type:
-    | "start"
-    | "end"
-    | "task"
-    | "decision"
-    | "form"
-    | "approval"
-    | "notification";
+  type: WorkflowType;
   position: { x: number; y: number };
   data: {
     label: string;
