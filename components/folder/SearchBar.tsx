@@ -57,8 +57,8 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="simple">Simple</SelectItem>
-          <SelectItem value="fullText">Full Text</SelectItem>
-          <SelectItem value="metadata">Metadata</SelectItem>
+          {/* <SelectItem value="fullText">Full Text</SelectItem>
+          <SelectItem value="metadata">Metadata</SelectItem> */}
         </SelectContent>
       </Select>
 

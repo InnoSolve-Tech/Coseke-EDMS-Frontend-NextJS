@@ -127,11 +127,6 @@ const FileViewPage = () => {
       } catch (err) {
         console.error("Error fetching file details:", err);
         setError("Failed to load file details");
-        setSnackbar({
-          open: true,
-          message: "Failed to load file details",
-          color: "danger",
-        });
       } finally {
         setLoading(false);
       }
