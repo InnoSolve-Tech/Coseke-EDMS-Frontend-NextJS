@@ -32,10 +32,11 @@ import {
 } from "@mui/joy";
 import { ColorPaletteProp } from "@mui/joy/styles";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import * as XLSX from "xlsx";
 import { DocViewerRenderers } from "react-doc-viewer";
 import dynamic from "next/dynamic";
+import { renderAsync } from "docx-preview";
 import {
   getFilesByHash,
   getFilesById,
@@ -106,6 +107,7 @@ const FileViewPage = () => {
     value: "",
     options: null,
   });
+  const docxContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const fetchFileDetails = async () => {
@@ -121,6 +123,17 @@ const FileViewPage = () => {
             ),
           };
           setDocument(fileData);
+
+          // Handle rendering of .docx files
+          if (
+            fileData.mimeType ===
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          ) {
+            const arrayBuffer = await response.arrayBuffer();
+            if (docxContainerRef.current) {
+              renderAsync(arrayBuffer, docxContainerRef.current);
+            }
+          }
         } else {
           throw new Error("No file found");
         }
@@ -356,6 +369,44 @@ const FileViewPage = () => {
               sx={{ mt: 2 }}
             >
               Download PDF
+            </Button>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (
+      mimeType ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ) {
+      return (
+        <Card
+          variant="outlined"
+          sx={{ height: "calc(100% - 60px)", overflow: "auto" }}
+        >
+          <CardContent
+            sx={{
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <div
+              ref={docxContainerRef}
+              className="w-full h-full overflow-auto"
+            />
+
+            <Typography level="body-lg" textAlign="center" sx={{ mt: 2 }}>
+              {document.filename}
+            </Typography>
+            <Button
+              onClick={handleDownload}
+              startDecorator={<DownloadIcon />}
+              sx={{ mt: 2 }}
+            >
+              Download File
             </Button>
           </CardContent>
         </Card>

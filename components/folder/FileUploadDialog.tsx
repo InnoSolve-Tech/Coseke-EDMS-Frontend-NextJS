@@ -18,9 +18,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AlertCircle, FileText, Plus, Save, Upload, X } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { IDocumentType, getDocumentTypes } from "./api";
 import { DocumentTypeCreation } from "./DocumentTypes";
+import { renderAsync } from "docx-preview";
 
 interface FileUploadDialogProps {
   open: boolean;
@@ -34,7 +35,16 @@ interface FileUploadDialogProps {
 }
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const ALLOWED_TYPES = [".pdf", ".doc", ".docx", ".txt", ".jpg", ".png"];
+const ALLOWED_TYPES = [
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".txt",
+  ".jpg",
+  ".png",
+  ".xls",
+  ".xlsx",
+];
 
 export default function FileUploadDialog({
   open,
@@ -53,6 +63,7 @@ export default function FileUploadDialog({
   const [error, setError] = useState<string | null>(null);
   const [showDocTypeDialog, setShowDocTypeDialog] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const docxContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     fetchDocumentTypes();
@@ -62,6 +73,18 @@ export default function FileUploadDialog({
     if (file) {
       const url = URL.createObjectURL(file);
       setPreviewURL(url);
+
+      // Handle rendering of .docx files
+      if (
+        file.type ===
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      ) {
+        file.arrayBuffer().then((buffer) => {
+          if (docxContainerRef.current) {
+            renderAsync(buffer, docxContainerRef.current);
+          }
+        });
+      }
     } else {
       setPreviewURL(null);
     }
@@ -185,6 +208,67 @@ export default function FileUploadDialog({
     setShowDocTypeDialog(false);
   };
 
+  const renderPreview = () => {
+    const fileType = file?.type || "";
+
+    if (fileType === "application/pdf") {
+      return (
+        <iframe
+          src={previewURL || undefined}
+          className="w-full h-full"
+          title="PDF Preview"
+        />
+      );
+    }
+
+    if (
+      fileType ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ) {
+      return (
+        <div ref={docxContainerRef} className="w-full h-full overflow-auto" />
+      );
+    }
+
+    if (
+      fileType === "application/vnd.ms-excel" ||
+      fileType ===
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    ) {
+      return (
+        <iframe
+          src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(
+            previewURL || "",
+          )}`}
+          className="w-full h-full"
+          title="Excel File Preview"
+        />
+      );
+    }
+
+    if (fileType.startsWith("image/")) {
+      return (
+        <img
+          src={previewURL || undefined}
+          alt="Uploaded File Preview"
+          className="w-full h-full"
+        />
+      );
+    }
+
+    if (fileType === "text/plain") {
+      return (
+        <iframe
+          src={previewURL || undefined}
+          className="w-full h-full"
+          title="Text File Preview"
+        />
+      );
+    }
+
+    return <p>Preview not available for this file type.</p>;
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-7xl p-0 max-h-[180vh] overflow-hidden flex flex-col bg-opacity-100 bg-white rounded-lg shadow-lg">
@@ -239,7 +323,15 @@ export default function FileUploadDialog({
                         </p>
                       </div>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={handleClose}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setFile(null);
+                        setPreviewURL(null);
+                        setUploadProgress(0);
+                      }}
+                    >
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
@@ -247,11 +339,7 @@ export default function FileUploadDialog({
                   {/* File Preview */}
                   {previewURL && (
                     <div className="h-64 border border-gray-300 rounded-md overflow-hidden">
-                      <iframe
-                        src={previewURL}
-                        className="w-full h-full"
-                        title="File Preview"
-                      />
+                      {renderPreview()}
                     </div>
                   )}
                 </CardContent>

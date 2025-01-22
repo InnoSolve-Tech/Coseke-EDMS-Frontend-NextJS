@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { FileText, FileImage, FileSpreadsheet, FileCode } from "lucide-react";
+import { FileText, FileImage, FileSpreadsheet } from "lucide-react";
 import { getAllFiles } from "@/components/files/api";
 
 interface FileData {
@@ -40,18 +42,18 @@ const mimeTypeToType: Record<string, string> = {
 function getFileIcon(mimeType: string) {
   switch (mimeType) {
     case "application/pdf":
-      return <FileText className="h-5 w-5 text-red-500" />;
+      return <FileText className="h-4 w-4 text-red-500" />;
     case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
     case "application/vnd.ms-powerpoint":
-      return <FileImage className="h-5 w-5 text-orange-500" />;
+      return <FileImage className="h-4 w-4 text-orange-500" />;
     case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
     case "application/vnd.ms-excel":
-      return <FileSpreadsheet className="h-5 w-5 text-green-500" />;
+      return <FileSpreadsheet className="h-4 w-4 text-green-500" />;
     case "application/msword":
     case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-      return <FileText className="h-5 w-5 text-blue-500" />;
+      return <FileText className="h-4 w-4 text-blue-500" />;
     default:
-      return <FileText className="h-5 w-5 text-gray-500" />;
+      return <FileText className="h-4 w-4 text-gray-500" />;
   }
 }
 
@@ -90,13 +92,13 @@ function getTimeAgo(dateString: string): string {
     return "Just now";
   } else if (diffInSeconds < 3600) {
     const minutes = Math.floor(diffInSeconds / 60);
-    return `${minutes}m ago`;
+    return `${minutes}m`;
   } else if (diffInSeconds < 86400) {
     const hours = Math.floor(diffInSeconds / 3600);
-    return `${hours}h ago`;
+    return `${hours}h`;
   } else if (diffInSeconds < 604800) {
     const days = Math.floor(diffInSeconds / 86400);
-    return `${days}d ago`;
+    return `${days}d`;
   } else {
     return formatDateTime(dateString).date;
   }
@@ -117,13 +119,11 @@ export function RecentFilesCard() {
       try {
         const response = await getAllFiles();
         const fileData = Array.isArray(response) ? response : response.data;
-
         const sortedFiles = fileData.sort(
           (a, b) =>
             new Date(b.lastModifiedDateTime).getTime() -
             new Date(a.lastModifiedDateTime).getTime(),
         );
-
         setFiles(sortedFiles.slice(0, 5));
       } catch (err) {
         console.error("Error fetching files:", err);
@@ -138,13 +138,13 @@ export function RecentFilesCard() {
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Files</CardTitle>
+      <Card className="w-full max-w-2xl">
+        <CardHeader className="p-4">
+          <CardTitle className="text-lg">Recent Files</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex justify-center items-center h-32">
-            <p className="text-gray-500">Loading recent files...</p>
+        <CardContent className="p-2">
+          <div className="flex justify-center items-center h-20">
+            <p className="text-gray-500 text-sm">Loading recent files...</p>
           </div>
         </CardContent>
       </Card>
@@ -153,30 +153,30 @@ export function RecentFilesCard() {
 
   if (error) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Files</CardTitle>
+      <Card className="w-full max-w-2xl">
+        <CardHeader className="p-4">
+          <CardTitle className="text-lg">Recent Files</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="text-red-500 text-center">{error}</div>
+        <CardContent className="p-2">
+          <div className="text-red-500 text-sm text-center">{error}</div>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Recent Files</CardTitle>
+    <Card className="w-full max-w-2xl">
+      <CardHeader className="p-4">
+        <CardTitle className="text-lg">Recent Files</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-2">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead>Last Modified</TableHead>
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="p-2">Name</TableHead>
+              <TableHead className="p-2 w-20">Type</TableHead>
+              <TableHead className="p-2 w-32">Created</TableHead>
+              <TableHead className="p-2 w-32">Modified</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -193,49 +193,31 @@ export function RecentFilesCard() {
                   className="cursor-pointer hover:bg-gray-50"
                   onClick={() => handleFileClick(file.id)}
                 >
-                  <TableCell className="font-medium">
-                    <div className="flex items-center">
+                  <TableCell className="p-2">
+                    <div className="flex items-center gap-2">
                       {getFileIcon(file.mimeType)}
                       <span
-                        className="ml-2 truncate max-w-md"
+                        className="truncate max-w-[200px] text-sm"
                         title={file.filename}
                       >
                         {file.filename}
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="p-2 text-sm">
                     {mimeTypeToType[file.mimeType] || mimeTypeToType.default}
                   </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span
-                        className="text-sm"
-                        title={createdDateTime.fullDateTime}
-                      >
-                        {createdDateTime.date}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {createdDateTime.time}
-                      </span>
+                  <TableCell className="p-2">
+                    <div
+                      className="text-sm"
+                      title={createdDateTime.fullDateTime}
+                    >
+                      {createdDateTime.date}
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span
-                        className="text-sm"
-                        title={modifiedDateTime.fullDateTime}
-                      >
-                        {modifiedDateTime.date}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-500">
-                          {modifiedDateTime.time}
-                        </span>
-                        <span className="text-xs text-blue-500">
-                          ({timeAgo})
-                        </span>
-                      </div>
+                  <TableCell className="p-2">
+                    <div className="flex items-center gap-1 text-sm">
+                      <span className="text-gray-500">{timeAgo}</span>
                     </div>
                   </TableCell>
                 </TableRow>
