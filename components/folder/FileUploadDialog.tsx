@@ -17,9 +17,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertCircle, FileText, Plus, Save, Upload, X } from "lucide-react";
+import {
+  AlertCircle,
+  FileText,
+  Pencil,
+  Plus,
+  Save,
+  Trash,
+  Upload,
+  X,
+} from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
-import { IDocumentType, getDocumentTypes } from "./api";
+import {
+  IDocumentType,
+  IDocumentTypeForm,
+  deleteDocumentType,
+  getDocumentTypes,
+  updateDocumentType,
+} from "./api";
 import { DocumentTypeCreation } from "./DocumentTypes";
 import { renderAsync } from "docx-preview";
 
@@ -64,6 +79,11 @@ export default function FileUploadDialog({
   const [showDocTypeDialog, setShowDocTypeDialog] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const docxContainerRef = useRef<HTMLDivElement | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingDocType, setEditingDocType] = useState<IDocumentType | null>(
+    null,
+  );
+  const [editedName, setEditedName] = useState("");
 
   useEffect(() => {
     fetchDocumentTypes();
@@ -112,6 +132,60 @@ export default function FileUploadDialog({
       setDocumentTypes(types);
     } catch (error) {
       console.error("Failed to fetch document types:", error);
+    }
+  };
+
+  const handleUpdateDocumentType = async (
+    id: number,
+    updatedFields: Partial<IDocumentTypeForm>,
+  ) => {
+    try {
+      // Find the original document type
+      const originalDocType = documentTypes.find(
+        (docType) => docType.id === id,
+      );
+      if (!originalDocType) {
+        setError("Document type not found");
+        return;
+      }
+
+      // Merge the updated fields with the original document type
+      const updatedDocTypeData: IDocumentTypeForm = {
+        ...originalDocType,
+        ...updatedFields,
+      };
+
+      // Call the API to update the document type
+      const updatedDocType = await updateDocumentType(id, updatedDocTypeData);
+
+      // Update the local state
+      setDocumentTypes((prev) =>
+        prev.map((docType) =>
+          docType.id === id ? { ...docType, ...updatedDocType } : docType,
+        ),
+      );
+
+      // Update selected document type if it was the one being edited
+      if (selectedDocType?.id === id) {
+        setSelectedDocType({ ...selectedDocType, ...updatedDocType });
+      }
+
+      // Reset editing state
+      setEditingDocType(null);
+      setEditedName("");
+    } catch (error) {
+      console.error("Failed to update document type:", error);
+      setError("Failed to update document type. Please try again.");
+    }
+  };
+
+  const handleDeleteDocumentType = async (id: number) => {
+    try {
+      await deleteDocumentType(id);
+      setDocumentTypes((prev) => prev.filter((docType) => docType.id !== id));
+    } catch (error) {
+      console.error("Failed to delete document type:", error);
+      setError("Failed to delete document type. Please try again.");
     }
   };
 
@@ -366,11 +440,42 @@ export default function FileUploadDialog({
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
                     <SelectContent className="bg-white rounded-md">
-                      {documentTypes.map((type) => (
-                        <SelectItem key={type.id} value={type.id.toString()}>
-                          {type.name}
-                        </SelectItem>
-                      ))}
+                      <div className="max-h-[200px] overflow-y-auto">
+                        {documentTypes.map((type) => (
+                          <div
+                            key={type.id}
+                            className="flex items-center justify-between p-2"
+                          >
+                            <SelectItem value={type.id.toString()}>
+                              {type.name}
+                            </SelectItem>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingDocType(type);
+                                  setEditedName(type.name);
+                                  setEditDialogOpen(true);
+                                }}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteDocumentType(type.id);
+                                }}
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </SelectContent>
                   </Select>
                   <Button
@@ -383,6 +488,46 @@ export default function FileUploadDialog({
                 </div>
               </div>
 
+              {/* Edit Document Type Dialog */}
+              <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle>Edit Document Type</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="name">Name</Label>
+                      <Input
+                        id="name"
+                        value={editedName}
+                        onChange={(e) => setEditedName(e.target.value)}
+                        placeholder="Enter document type name"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => setEditDialogOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        if (editingDocType) {
+                          handleUpdateDocumentType(editingDocType.id, {
+                            ...editingDocType,
+                            name: editedName,
+                          });
+                          setEditDialogOpen(false);
+                        }
+                      }}
+                    >
+                      Save Changes
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
               {/* DocumentTypeCreation */}
               {showDocTypeDialog && (
                 <div className="mt-4 p-4 border border-gray-200 rounded-md">

@@ -337,6 +337,49 @@ const FileViewPage = () => {
 
     const mimeType = document.mimeType.toLowerCase();
 
+    // Handle image files
+    if (mimeType.startsWith("image/")) {
+      return (
+        <Card
+          variant="outlined"
+          sx={{ height: "calc(100% - 60px)", overflow: "auto" }}
+        >
+          <CardContent
+            sx={{
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Box
+              component="img"
+              src={document.fileLink}
+              alt={document.filename}
+              sx={{
+                maxWidth: "100%",
+                maxHeight: "600px",
+                objectFit: "contain",
+                borderRadius: "md",
+              }}
+            />
+            <Typography level="body-lg" textAlign="center" sx={{ mt: 2 }}>
+              {document.filename}
+            </Typography>
+            <Button
+              onClick={handleDownload}
+              startDecorator={<DownloadIcon />}
+              sx={{ mt: 2 }}
+            >
+              Download Image
+            </Button>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    // Handle PDF files
     if (mimeType === "application/pdf") {
       return (
         <Card
@@ -359,7 +402,6 @@ const FileViewPage = () => {
               style={{ border: "none" }}
               title="PDF Preview"
             />
-
             <Typography level="body-lg" textAlign="center" sx={{ mt: 2 }}>
               {document.filename}
             </Typography>
@@ -375,6 +417,7 @@ const FileViewPage = () => {
       );
     }
 
+    // Handle DOCX files
     if (
       mimeType ===
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -397,7 +440,6 @@ const FileViewPage = () => {
               ref={docxContainerRef}
               className="w-full h-full overflow-auto"
             />
-
             <Typography level="body-lg" textAlign="center" sx={{ mt: 2 }}>
               {document.filename}
             </Typography>
@@ -406,13 +448,75 @@ const FileViewPage = () => {
               startDecorator={<DownloadIcon />}
               sx={{ mt: 2 }}
             >
-              Download File
+              Download Document
             </Button>
           </CardContent>
         </Card>
       );
     }
 
+    // Handle Excel files
+    if (
+      mimeType.includes("spreadsheetml") ||
+      mimeType === "application/vnd.ms-excel"
+    ) {
+      return (
+        <Card
+          variant="outlined"
+          sx={{ height: "calc(100% - 60px)", overflow: "auto" }}
+        >
+          <CardContent
+            sx={{
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {previewState.excelData && (
+              <Box sx={{ width: "100%", overflowX: "auto" }}>
+                <table style={{ borderCollapse: "collapse", width: "100%" }}>
+                  <tbody>
+                    {previewState.excelData.map(
+                      (row: any[], rowIndex: number) => (
+                        <tr key={rowIndex}>
+                          {row.map((cell: any, cellIndex: number) => (
+                            <td
+                              key={cellIndex}
+                              style={{
+                                border: "1px solid #ddd",
+                                padding: "8px",
+                                backgroundColor:
+                                  rowIndex === 0 ? "#f5f5f5" : "white",
+                              }}
+                            >
+                              {cell?.toString() || ""}
+                            </td>
+                          ))}
+                        </tr>
+                      ),
+                    )}
+                  </tbody>
+                </table>
+              </Box>
+            )}
+            <Typography level="body-lg" textAlign="center" sx={{ mt: 2 }}>
+              {document.filename}
+            </Typography>
+            <Button
+              onClick={handleDownload}
+              startDecorator={<DownloadIcon />}
+              sx={{ mt: 2 }}
+            >
+              Download Spreadsheet
+            </Button>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    // Default file viewer for other types
     const docs = [
       {
         uri: document.fileLink,
