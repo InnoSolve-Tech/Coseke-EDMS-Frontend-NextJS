@@ -62,45 +62,66 @@ function formatDateTime(dateString: string): {
   time: string;
   fullDateTime: string;
 } {
-  const date = new Date(dateString);
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      throw new Error("Invalid date format");
+    }
 
-  const formattedDate = date.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+    const options: Intl.DateTimeFormatOptions = {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    };
 
-  const formattedTime = date.toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  });
+    const formattedDateTime = new Intl.DateTimeFormat("en-US", options).format(
+      date,
+    );
 
-  return {
-    date: formattedDate,
-    time: formattedTime,
-    fullDateTime: `${formattedDate} ${formattedTime}`,
-  };
+    const [formattedDate, formattedTime] = formattedDateTime.split(", ");
+
+    return {
+      date: formattedDate.trim(),
+      time: formattedTime.trim(),
+      fullDateTime: `${formattedDate.trim()} ${formattedTime.trim()}`,
+    };
+  } catch (error) {
+    console.error("Error formatting date:", error);
+    return {
+      date: "Invalid Date",
+      time: "Invalid Time",
+      fullDateTime: "Invalid Date and Time",
+    };
+  }
 }
 
-function getTimeAgo(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+function getTimeAgo(lastModifiedDateTime: string): string {
+  try {
+    const modifiedDate = new Date(lastModifiedDateTime);
+    if (isNaN(modifiedDate.getTime())) {
+      throw new Error("Invalid date");
+    }
 
-  if (diffInSeconds < 60) {
-    return "Just now";
-  } else if (diffInSeconds < 3600) {
-    const minutes = Math.floor(diffInSeconds / 60);
-    return `${minutes}m`;
-  } else if (diffInSeconds < 86400) {
-    const hours = Math.floor(diffInSeconds / 3600);
-    return `${hours}h`;
-  } else if (diffInSeconds < 604800) {
-    const days = Math.floor(diffInSeconds / 86400);
-    return `${days}d`;
-  } else {
-    return formatDateTime(dateString).date;
+    const now = new Date();
+    const diffInMs = now.getTime() - modifiedDate.getTime();
+
+    if (diffInMs < 60 * 1000) return "Just now";
+    if (diffInMs < 60 * 60 * 1000)
+      return `${Math.floor(diffInMs / (60 * 1000))}m ago`;
+    if (diffInMs < 24 * 60 * 60 * 1000)
+      return `${Math.floor(diffInMs / (60 * 60 * 1000))}h ago`;
+
+    const days = Math.floor(diffInMs / (24 * 60 * 60 * 1000));
+    if (days < 7) return `${days}d ago`;
+
+    return formatDateTime(lastModifiedDateTime).date;
+  } catch (error) {
+    console.error("Error calculating time ago:", error);
+    return "Unknown time";
   }
 }
 
@@ -216,8 +237,13 @@ export function RecentFilesCard() {
                     </div>
                   </TableCell>
                   <TableCell className="p-2">
-                    <div className="flex items-center gap-1 text-sm">
-                      <span className="text-gray-500">{timeAgo}</span>
+                    <div className="flex items-center text-sm">
+                      <span
+                        className="text-gray-600"
+                        title={modifiedDateTime.fullDateTime}
+                      >
+                        {timeAgo}
+                      </span>
                     </div>
                   </TableCell>
                 </TableRow>
