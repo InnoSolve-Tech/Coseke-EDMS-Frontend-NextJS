@@ -9,10 +9,12 @@ import { WorkflowStatusChart } from "@/components/WorkflowStatusChart";
 import { RecentActivities } from "@/components/RecentActivities";
 import { RecentFilesCard } from "@/components/RecentFilesCard";
 import { getFiles, getFolders } from "@/components/files/api"; // Assuming this API is available
+import { getTasks } from "@/components/tasks/api";
 
 export default function Page() {
   const [fileCount, setFileCount] = useState<string>("...");
   const [folderCount, setFolderCount] = useState<string>("...");
+  const [taskCount, setTaskCount] = useState<string>("...");
 
   useEffect(() => {
     const fetchFileCount = async () => {
@@ -50,6 +52,27 @@ export default function Page() {
     fetchFolderCount();
   }, []);
 
+  useEffect(() => {
+    const fetchTaskCount = async () => {
+      try {
+        const tasksResponse = await getTasks();
+        console.log("Raw response:", tasksResponse);
+
+        const tasks = Array.isArray(tasksResponse)
+          ? tasksResponse
+          : tasksResponse.data || [];
+
+        console.log("Parsed tasks:", tasks);
+        setTaskCount(tasks.length > 0 ? tasks.length.toString() : "0");
+      } catch (error) {
+        console.error("Error fetching task data:", error);
+        setTaskCount("---");
+      }
+    };
+
+    fetchTaskCount();
+  }, []);
+
   return (
     <div className="p-6 space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -71,7 +94,7 @@ export default function Page() {
         <StatCard
           icon={<CheckSquare className="h-8 w-8 text-yellow-600" />}
           title="Pending Tasks"
-          value="89"
+          value={taskCount}
         />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
