@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,8 +12,10 @@ import {
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Plus, Edit3 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   createDocumentType,
+  getDocumentTypes,
   IDocumentType,
   IDocumentTypeForm,
   MetadataItem,
@@ -34,6 +36,10 @@ export function DocumentTypeCreation({
   const [selectOptions, setSelectOptions] = useState<string>("");
   const [textValue, setTextValue] = useState<string>("");
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [existingDocTypes, setExistingDocTypes] = useState<IDocumentType[]>([]);
+  const [error, setError] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [nameExists, setNameExists] = useState(false);
 
   const defaultDocumentType: IDocumentTypeForm = {
     name: "",
@@ -45,6 +51,44 @@ export function DocumentTypeCreation({
   });
 
   const formValues = watch();
+
+  useEffect(() => {
+    const checkDuplicateName = async () => {
+      const trimmedName = formValues.name.trim();
+
+      if (!trimmedName) {
+        setNameExists(false);
+        return;
+      }
+
+      const currentDocTypes = await fetchDocTypes();
+
+      // Check for duplicates (case-insensitive)
+      const exists = currentDocTypes.some(
+        (docType) => docType.name.toLowerCase() === trimmedName.toLowerCase(),
+      );
+
+      setNameExists(exists);
+    };
+
+    checkDuplicateName();
+  }, [formValues.name]);
+
+  const fetchDocTypes = async () => {
+    try {
+      const types = await getDocumentTypes();
+      setExistingDocTypes(types);
+      return types;
+    } catch (error) {
+      console.error("Failed to fetch document types:", error);
+      setError("Failed to fetch existing document types");
+      return [];
+    }
+  };
+
+  useEffect(() => {
+    fetchDocTypes();
+  }, []);
 
   const handleAddMetadataField = () => {
     if (!inputValue) return;
@@ -87,10 +131,27 @@ export function DocumentTypeCreation({
     setEditingIndex(index);
   };
 
-  const handleCreateNewDocType = async () => {
+  const handleCreateNewDocType = async (formData: IDocumentTypeForm) => {
     try {
+      setError("");
+      setIsSubmitting(true);
+
+      const trimmedName = formData.name.trim();
+
+      if (!trimmedName) {
+        setError("Document type name is required");
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (nameExists) {
+        setError(`Document type "${trimmedName}" already exists.`);
+        setIsSubmitting(false);
+        return;
+      }
+
       const payload = {
-        name: formValues.name,
+        name: trimmedName,
         metadata: metadataOptions.map((field) => ({
           name: field.name,
           type: field.type,
@@ -99,9 +160,8 @@ export function DocumentTypeCreation({
         })),
       };
 
-      if (!payload.name) throw new Error("Document type name is required");
-
       const newDocType = await createDocumentType(payload);
+      await fetchDocTypes(); // Refresh the list of document types
       onCreate(newDocType);
 
       reset(defaultDocumentType);
@@ -112,6 +172,9 @@ export function DocumentTypeCreation({
       setIsSelectField(false);
     } catch (error) {
       console.error("Failed to create document type:", error);
+      setError((error as Error).message || "Failed to create document type");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -122,6 +185,7 @@ export function DocumentTypeCreation({
     setSelectOptions("");
     setIsSelectField(false);
     setEditingIndex(null);
+    setError("");
     onCancel();
   };
 
@@ -134,12 +198,17 @@ export function DocumentTypeCreation({
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
           <div>
             <Label htmlFor="docTypeName">Document Type Name</Label>
             <Controller
               control={control}
               name="name"
-              rules={{ required: true }}
               render={({ field }) => (
                 <Input
                   id="docTypeName"
@@ -149,12 +218,16 @@ export function DocumentTypeCreation({
                 />
               )}
             />
+            {nameExists && (
+              <p className="text-sm text-red-500 mt-1">
+                A document type with this name already exists.
+              </p>
+            )}
           </div>
 
           <div>
             <Label>Metadata Fields</Label>
             <div className="space-y-4">
-              {/* Metadata Input Section */}
               <div className="space-y-2">
                 <Label htmlFor="metadataFieldName">Metadata Field Name</Label>
                 <Input
@@ -214,7 +287,6 @@ export function DocumentTypeCreation({
               </Button>
             </div>
 
-            {/* Added Metadata Fields */}
             {metadataOptions.length > 0 && (
               <div className="mt-6">
                 <Label>Added Metadata Fields</Label>
@@ -259,55 +331,19 @@ export function DocumentTypeCreation({
             )}
           </div>
 
-          {metadataOptions.length > 0 && (
-            <div>
-              <Label>Added Metadata Fields</Label>
-              <div className="mt-4 space-y-2">
-                {metadataOptions.map((field, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-3 bg-gray-100 rounded-md"
-                  >
-                    <div>
-                      <p className="font-semibold">{field.name}</p>
-                      <p className="text-sm text-gray-500">
-                        Type: {field.type}
-                        {field.type === "select" &&
-                          ` (Options: ${field.options?.join(", ")})`}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditMetadataField(index)}
-                      >
-                        <Edit3 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() =>
-                          setMetadataOptions((prev) =>
-                            prev.filter((_, i) => i !== index),
-                          )
-                        }
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           <div className="flex justify-end gap-4">
-            <Button variant="outline" onClick={handleCancel}>
+            <Button
+              variant="outline"
+              onClick={handleCancel}
+              disabled={isSubmitting}
+            >
               Cancel
             </Button>
-            <Button onClick={handleSubmit(handleCreateNewDocType)}>
-              Create Document Type
+            <Button
+              onClick={handleSubmit(handleCreateNewDocType)}
+              disabled={nameExists || isSubmitting}
+            >
+              {isSubmitting ? "Creating..." : "Create"}
             </Button>
           </div>
         </div>

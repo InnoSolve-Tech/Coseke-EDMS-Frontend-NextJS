@@ -8,9 +8,9 @@ import { FileTypeChart } from "@/components/FileTypeChart";
 import { WorkflowStatusChart } from "@/components/WorkflowStatusChart";
 import { RecentActivities } from "@/components/RecentActivities";
 import { RecentFilesCard } from "@/components/RecentFilesCard";
-import { getFiles, getFolders } from "@/components/files/api"; // Assuming this API is available
 import { getAllWorkflowInstances } from "@/core/workflowInstance/api";
 import { WorkflowInstance } from "@/lib/types/workflowInstance";
+import { getAllFiles, getFiles, getFolders } from "@/components/files/api"; // Assuming this API is available
 
 export default function Page() {
   const [fileCount, setFileCount] = useState<string>("...");
@@ -21,8 +21,8 @@ export default function Page() {
   useEffect(() => {
     const fetchFileCount = async () => {
       try {
-        const filesResponse = await getFiles();
-        const files = filesResponse.data || [];
+        const filesResponse = await getAllFiles(); // Fetch all files
+        const files = filesResponse || [];
         setFileCount(files.length > 0 ? files.length.toLocaleString() : "0");
       } catch (error) {
         console.error("Error fetching file data:", error);

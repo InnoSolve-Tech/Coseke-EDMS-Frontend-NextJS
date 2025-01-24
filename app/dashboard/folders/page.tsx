@@ -9,7 +9,6 @@ import {
   CardContent,
   Menu,
   MenuItem,
-  IconButton,
   List,
   ListItem,
   ListItemButton,
@@ -33,6 +32,7 @@ import {
   createSubFolders,
   getDocumentTypes,
   editFolder,
+  getAllFiles,
 } from "@/components/files/api";
 import { File, Folder } from "lucide-react";
 import { ColorPaletteProp } from "@mui/joy/styles";
@@ -45,10 +45,15 @@ interface SearchMatchInfo {
 }
 
 interface FileNode {
+  [x: string]: any;
   id: string;
   label: string;
   type: "file" | "folder";
-  metadata?: Record<string, unknown>;
+  metadata?: {
+    mimeType?: string;
+    uploadStatus?: string;
+    [key: string]: any;
+  };
   children?: FileNode[];
   folderID?: number;
   fileId?: number;
@@ -92,6 +97,12 @@ interface MetadataField {
   type: "string" | "select" | "number" | "date";
   value: string | null;
   options?: string[];
+}
+
+interface SearchResult {
+  path: string[];
+  item: FileNode;
+  matchType: "name" | "content" | "metadata";
 }
 
 export default function FileExplorer() {
@@ -150,6 +161,7 @@ export default function FileExplorer() {
             id: file.id.toString(),
             label: file.filename || file.documentName || "Unnamed File",
             type: "file",
+            lastModifiedDateTime: folder.lastModifiedDateTime, // Assign from folder data
             folderID: folder.folderID,
             fileId: file.id,
             parentFolderID: folder.folderID,
@@ -290,8 +302,8 @@ export default function FileExplorer() {
   useEffect(() => {
     const fetchFileCount = async () => {
       try {
-        const filesResponse = await getFiles();
-        const files = filesResponse.data || [];
+        const filesResponse = await getAllFiles(); // Fetch all files
+        const files = filesResponse || [];
         setFileCount(files.length > 0 ? files.length.toLocaleString() : "0");
       } catch (error) {
         console.error("Error fetching file data:", error);
@@ -610,27 +622,27 @@ export default function FileExplorer() {
         fileName: file.name,
       };
 
+      // Upload the document
       await addDocument(file, data, folderId);
 
+      // Refresh the folder data to get the latest state including the new file
+      await refreshCurrentFolder();
+
+      // Remove the temporary upload status
       setFileData((prevData) =>
         prevData.map((node) => {
           if (node.folderID === folderId) {
             return {
               ...node,
-              children: node.children?.map((child) =>
-                child.id === tempFileId
-                  ? {
-                      ...child,
-                      id: `${Date.now()}`,
-                      metadata: { ...child.metadata, uploadStatus: "complete" },
-                    }
-                  : child,
+              children: node.children?.filter(
+                (child) => child.id !== tempFileId,
               ),
             };
           }
           return node;
         }),
       );
+
       showSnackbar("File uploaded successfully", "success");
     } catch (error) {
       console.error("Upload failed:", error);
@@ -653,52 +665,47 @@ export default function FileExplorer() {
 
   const handleSearch = (query: string) => {
     if (!query.trim()) {
-      setFilteredData(fileData);
+      setFilteredData([]); // Reset to full data if query is empty
       return;
     }
 
-    const lowerQuery = query.toLowerCase();
+    const searchTerm = query.toLowerCase();
+    const results: FileNode[] = [];
 
-    const searchRecursive = (nodes: FileNode[]): FileNode[] => {
-      return nodes.reduce<FileNode[]>((acc, node) => {
-        const matchesName = node.label.toLowerCase().includes(lowerQuery);
+    const searchInNode = (node: FileNode): FileNode | null => {
+      const nameMatch = node.label.toLowerCase().includes(searchTerm);
+      const metadataMatch = node.metadata
+        ? JSON.stringify(node.metadata).toLowerCase().includes(searchTerm)
+        : false;
 
-        const searchMetadata = (obj: any): boolean => {
-          if (!obj) return false;
-          return Object.entries(obj).some(([_, value]) => {
-            if (typeof value === "object") return searchMetadata(value);
-            return value?.toString().toLowerCase().includes(lowerQuery);
-          });
-        };
+      // If folder matches, keep all its children intact for right-click functionality
+      if (nameMatch || metadataMatch) {
+        return { ...node, children: node.children || [] };
+      }
 
-        const matchesMetadata =
-          node.type === "file" && node.metadata
-            ? searchMetadata(node.metadata)
-            : false;
+      // Search children recursively
+      if (node.children) {
+        const matchingChildren = node.children
+          .map(searchInNode)
+          .filter((child): child is FileNode => child !== null);
 
-        const filteredChildren = node.children
-          ? searchRecursive(node.children)
-          : [];
-
-        if (matchesName || matchesMetadata || filteredChildren.length > 0) {
-          const searchNode: FileNode = {
-            ...node,
-            children: filteredChildren,
-            searchMatches: {
-              label: matchesName,
-              metadata: matchesMetadata,
-            },
-          };
-          acc.push(searchNode);
+        if (matchingChildren.length > 0) {
+          return { ...node, children: matchingChildren };
         }
+      }
 
-        return acc;
-      }, []);
+      return null;
     };
 
-    const filtered = searchRecursive(fileData);
-    console.log("Search results:", filtered);
-    setFilteredData(filtered);
+    // Process all nodes
+    fileData.forEach((node) => {
+      const result = searchInNode(node);
+      if (result) {
+        results.push(result);
+      }
+    });
+
+    setFilteredData(results);
   };
 
   const navigateToFolder = async (folderId: number) => {
@@ -791,42 +798,85 @@ export default function FileExplorer() {
     return findCurrentFolder(nodes);
   };
 
+  // Utility to convert MIME types to user-friendly formats
+  const getReadableType = (mimeType: string | undefined): string => {
+    if (!mimeType) return "Unknown";
+    const typeMap: Record<string, string> = {
+      "application/pdf": "PDF",
+      "image/png": "Image (PNG)",
+      "image/jpeg": "Image (JPEG)",
+      "text/plain": "Text File",
+      "application/msword": "Word Document",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        "Word Document",
+      "application/vnd.ms-excel": "Excel Spreadsheet",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+        "Excel Spreadsheet",
+      // Add other MIME types as needed
+    };
+    return typeMap[mimeType] || mimeType.split("/")[1]?.toUpperCase() || "File";
+  };
+
+  // Utility to format dates into a readable format
+  const formatDate = (dateString: string | undefined): string => {
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
   const renderTree = (nodes: FileNode[]) => {
     const dataToRender = filteredData.length > 0 ? filteredData : nodes;
-    const visibleNodes = getVisibleNodes(nodes, currentFolderID || 0);
+    const visibleNodes = getVisibleNodes(dataToRender, currentFolderID || 0);
 
-    const renderNode = (node: FileNode) => {
+    const renderNode = (node: FileNode, index: number) => {
       const isFolder = node.type === "folder";
       const isUploading = node.metadata?.uploadStatus === "uploading";
-      const nodeKey = `${node.type}-${node.folderID || node.fileId}-${node.id}`; // Create unique key
-      const matchesSearch = node.searchMatches?.label;
+      const nodeKey = `${node.type}-${node.folderID || node.fileId}-${node.id}`; // Unique key
+
+      // Format metadata
+      const lastModifiedDateTime = isFolder
+        ? formatDate(node.lastModifiedDateTime)
+        : formatDate(node.metadata?.lastModifiedDateTime);
+      const readableType = isFolder
+        ? "Folder"
+        : getReadableType(node.metadata?.mimeType);
 
       return (
         <ListItem
           key={nodeKey}
           sx={{
             display: "flex",
-            flexDirection: "column",
-            padding: 0,
+            flexDirection: "row",
+            alignItems: "center",
+            padding: "12px",
+            gap: "16px",
+            backgroundColor:
+              index % 2 === 0 ? "background.level1" : "background.paper",
+            "&:hover": { backgroundColor: "action.hover" },
           }}
         >
           <ListItemButton
             onClick={() => handleNodeClick(node)}
-            onContextMenu={(e) => handleRightClick(e, node)}
+            onContextMenu={(e) => handleRightClick(e, node)} // Right-click functionality
             sx={{
               display: "flex",
               alignItems: "center",
-              width: "100%",
+              flex: 1,
               padding: "8px",
-              backgroundColor: matchesSearch ? "action.selected" : undefined,
-              "&:hover": { backgroundColor: "action.hover" },
+              backgroundColor: node.searchMatches?.label
+                ? "action.selected"
+                : undefined,
               ...(isUploading && {
                 backgroundColor: "background.level1",
                 opacity: 0.8,
               }),
             }}
           >
-            <div style={{ display: "flex", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", flex: 2 }}>
               {isFolder ? <Folder size={16} /> : <File size={16} />}
               <Typography
                 sx={{
@@ -835,7 +885,7 @@ export default function FileExplorer() {
                     fontStyle: "italic",
                     color: "text.secondary",
                   }),
-                  ...(matchesSearch && {
+                  ...(node.searchMatches?.label && {
                     fontWeight: "bold",
                   }),
                 }}
@@ -843,15 +893,61 @@ export default function FileExplorer() {
                 {node.label}
               </Typography>
             </div>
+            <Typography
+              sx={{ flex: 1, color: "text.secondary", fontSize: "0.875rem" }}
+            >
+              {readableType}
+            </Typography>
+            <Typography
+              sx={{ flex: 1, color: "text.secondary", fontSize: "0.875rem" }}
+            >
+              {lastModifiedDateTime || "-"}
+            </Typography>
           </ListItemButton>
         </ListItem>
       );
     };
 
     return (
-      <List sx={{ width: "100%" }}>
-        {visibleNodes.map((node) => renderNode(node))}
-      </List>
+      <Card
+        variant="outlined"
+        sx={{
+          flexGrow: 1,
+          overflow: "auto",
+          borderRadius: "8px",
+          boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.1)",
+        }}
+      >
+        <CardContent>
+          <Typography
+            sx={{
+              fontWeight: "bold",
+              mb: 2,
+              textAlign: "center",
+            }}
+          >
+            File Explorer
+          </Typography>
+          <List sx={{ width: "100%" }}>
+            {/* Header Row */}
+            <ListItem
+              sx={{
+                display: "flex",
+                flexDirection: "row",
+                padding: "12px",
+                fontWeight: "bold",
+                backgroundColor: "background.level2",
+              }}
+            >
+              <Typography sx={{ flex: 2 }}>Name</Typography>
+              <Typography sx={{ flex: 1 }}>Type</Typography>
+              <Typography sx={{ flex: 1 }}>Last Modified</Typography>
+            </ListItem>
+            {/* Render Nodes */}
+            {visibleNodes.map((node, index) => renderNode(node, index))}
+          </List>
+        </CardContent>
+      </Card>
     );
   };
 
@@ -960,27 +1056,105 @@ export default function FileExplorer() {
             onClose={handleCloseMenu}
             size="sm"
             placement="bottom-start"
+            sx={{
+              mt: 1,
+              boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.2)",
+              borderRadius: "8px",
+              overflow: "hidden",
+              padding: 0,
+              bgcolor: "background.paper",
+              transition: "all 0.2s ease-in-out", // Animation for appearance
+            }}
           >
             {menuTarget && menuTarget.type === "folder" ? (
               <>
-                <MenuItem onClick={() => handleAction("CreateSubfolder")}>
+                <MenuItem
+                  onClick={() => {
+                    handleAction("CreateSubfolder");
+                    handleCloseMenu(); // Closes the menu
+                  }}
+                  sx={{
+                    padding: "8px 16px",
+                    "&:hover": { bgcolor: "action.hover" },
+                  }}
+                >
                   Create Subfolder
                 </MenuItem>
-                <MenuItem onClick={() => handleAction("UploadFile")}>
+                <MenuItem
+                  onClick={() => {
+                    handleAction("UploadFile");
+                    handleCloseMenu(); // Closes the menu
+                  }}
+                  sx={{
+                    padding: "8px 16px",
+                    "&:hover": { bgcolor: "action.hover" },
+                  }}
+                >
                   Upload File
                 </MenuItem>
-                <MenuItem onClick={() => handleAction("Rename")}>Edit</MenuItem>
-                <MenuItem onClick={() => handleAction("Delete")}>
+                <MenuItem
+                  onClick={() => {
+                    handleAction("Rename");
+                    handleCloseMenu(); // Closes the menu
+                  }}
+                  sx={{
+                    padding: "8px 16px",
+                    "&:hover": { bgcolor: "action.hover" },
+                  }}
+                >
+                  Edit
+                </MenuItem>
+                <MenuItem
+                  onClick={() => {
+                    handleAction("Delete");
+                    handleCloseMenu(); // Closes the menu
+                  }}
+                  sx={{
+                    padding: "8px 16px",
+                    color: "error.main",
+                    "&:hover": { bgcolor: "error.light" },
+                  }}
+                >
                   Delete
                 </MenuItem>
               </>
             ) : (
               <>
-                <MenuItem onClick={() => handleAction("View")}>View</MenuItem>
-                <MenuItem onClick={() => handleAction("Download")}>
+                <MenuItem
+                  onClick={() => {
+                    handleAction("View");
+                    handleCloseMenu(); // Closes the menu
+                  }}
+                  sx={{
+                    padding: "8px 16px",
+                    "&:hover": { bgcolor: "action.hover" },
+                  }}
+                >
+                  View
+                </MenuItem>
+                <MenuItem
+                  onClick={() => {
+                    handleAction("Download");
+                    handleCloseMenu(); // Closes the menu
+                  }}
+                  sx={{
+                    padding: "8px 16px",
+                    "&:hover": { bgcolor: "action.hover" },
+                  }}
+                >
                   Download
                 </MenuItem>
-                <MenuItem onClick={() => handleAction("Delete")}>
+                <MenuItem
+                  onClick={() => {
+                    handleAction("Delete");
+                    handleCloseMenu(); // Closes the menu
+                  }}
+                  sx={{
+                    padding: "8px 16px",
+                    color: "error.main",
+                    "&:hover": { bgcolor: "error.light" },
+                  }}
+                >
                   Delete
                 </MenuItem>
               </>
