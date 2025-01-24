@@ -9,10 +9,14 @@ import { WorkflowStatusChart } from "@/components/WorkflowStatusChart";
 import { RecentActivities } from "@/components/RecentActivities";
 import { RecentFilesCard } from "@/components/RecentFilesCard";
 import { getFiles, getFolders } from "@/components/files/api"; // Assuming this API is available
+import { getAllWorkflowInstances } from "@/core/workflowInstance/api";
+import { WorkflowInstance } from "@/lib/types/workflowInstance";
 
 export default function Page() {
   const [fileCount, setFileCount] = useState<string>("...");
   const [folderCount, setFolderCount] = useState<string>("...");
+  const [workflowInstanceCount, setWorkflowInstanceCount] =
+    useState<string>("...");
 
   useEffect(() => {
     const fetchFileCount = async () => {
@@ -48,7 +52,23 @@ export default function Page() {
     };
 
     fetchFolderCount();
+    fetchActiveWorkflowInstanceCount();
   }, []);
+
+  const fetchActiveWorkflowInstanceCount = async () => {
+    // Fetch active workflow instances
+    // Set the count to `workflowInstanceCount`
+    try {
+      const response = await getAllWorkflowInstances();
+      setWorkflowInstanceCount(
+        response
+          .filter((wfl: WorkflowInstance) => wfl.status !== "Completed")
+          .length.toString(),
+      );
+    } catch (error) {
+      console.error("Error fetching active workflow instances:", error);
+    }
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -66,7 +86,7 @@ export default function Page() {
         <StatCard
           icon={<GitBranch className="h-8 w-8 text-purple-600" />}
           title="Active Workflows"
-          value="56"
+          value={workflowInstanceCount}
         />
         <StatCard
           icon={<CheckSquare className="h-8 w-8 text-yellow-600" />}

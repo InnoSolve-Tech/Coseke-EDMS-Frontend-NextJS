@@ -35,7 +35,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { createFormRecord } from "@/core/formrecords/api";
+import { createFormRecord, updateFormRecord } from "@/core/formrecords/api";
 import {
   createWorkflowInstance,
   getAllWorkflowInstances,
@@ -115,18 +115,34 @@ export default function WorkflowInstanceCreator() {
 
   const handleFormSubmit = async (
     formData: FormRecord,
+    instance: WorkflowInstance,
   ): Promise<FormRecord | null> => {
     setIsSubmitting(true);
     try {
-      const response = await createFormRecord(formData);
-      console.log("Form record created:", response);
-      toast({
-        title: "Success",
-        description: "Form record created successfully!",
-      });
-      setFormValues({});
-      setSelectedForm(null);
-      return response;
+      if (instance.metadata[instance.currentStep!]) {
+        const response = await updateFormRecord({
+          ...formData,
+          id: parseInt(instance.metadata[instance.currentStep!]),
+        });
+        console.log("Form record updated:", response);
+        toast({
+          title: "Success",
+          description: "Form record updated successfully!",
+        });
+        setFormValues({});
+        setSelectedForm(null);
+        return response;
+      } else {
+        const response = await createFormRecord(formData);
+        console.log("Form record created:", response);
+        toast({
+          title: "Success",
+          description: "Form record created successfully!",
+        });
+        setFormValues({});
+        setSelectedForm(null);
+        return response;
+      }
     } catch (error) {
       console.error("Error submitting form:", error);
       toast({
@@ -234,18 +250,21 @@ export default function WorkflowInstanceCreator() {
 
       if (currentNode?.type === "form") {
         console.log("Submitting form");
-        const formSubmitted = await handleFormSubmit({
-          form: selectedForm,
-          formFieldValues: Object.entries(formValues).map(
-            ([fieldId, value]) => ({
-              formField: { id: fieldId } as any,
-              value,
-            }),
-          ),
-          userId: user.id as number,
-          createdBy: user.id,
-          createdDate: new Date().toISOString(),
-        } as FormRecord);
+        const formSubmitted = await handleFormSubmit(
+          {
+            form: selectedForm,
+            formFieldValues: Object.entries(formValues).map(
+              ([fieldId, value]) => ({
+                formField: { id: fieldId } as any,
+                value,
+              }),
+            ),
+            userId: user.id as number,
+            createdBy: user.id,
+            createdDate: new Date().toISOString(),
+          } as FormRecord,
+          instance,
+        );
 
         if (!formSubmitted) {
           return;
@@ -484,6 +503,9 @@ export default function WorkflowInstanceCreator() {
                                         (node) =>
                                           node.id === instance.currentStep,
                                       )?.data.formId
+                                    }
+                                    formInstanceId={
+                                      instance.metadata[instance.currentStep!]
                                     }
                                     workflowInstance={instance}
                                     currentStep={instance.currentStep!}
