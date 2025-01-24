@@ -9,8 +9,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createFormRecord, getFormRecordById } from "@/core/formrecords/api";
-import { getAllForms } from "@/core/forms/api";
+import {
+  createFormRecord,
+  getFormRecordById,
+  updateFormRecord,
+} from "@/core/formrecords/api";
+import { getAllForms, updateForm } from "@/core/forms/api";
 import { useToast } from "@/hooks/use-toast";
 import { FormRecord } from "@/lib/types/formRecords";
 import { Form, FormField } from "@/lib/types/forms";
@@ -108,27 +112,44 @@ const WorkflowFormRecord = ({
     );
 
     try {
-      const response = await createFormRecord({
-        form: selectedForm,
-        formFieldValues: formFieldValues,
-        userId: user.id as number,
-        createdBy: user.id,
-        createdDate: new Date().toISOString(),
-      } as FormRecord);
-
-      if (!workflowInstance.metadata) {
-        workflowInstance.metadata = {};
-      }
-
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: "Form record created successfully!",
-        });
-        setFormValues({});
-        setSelectedForm(null);
+      if (formInstanceId) {
+        const response = await updateFormRecord({
+          id: parseInt(formInstanceId),
+          formFieldValues: formFieldValues,
+        } as FormRecord);
+        if (response.ok) {
+          toast({
+            title: "Success",
+            description: "Form record updated successfully!",
+          });
+          setFormValues({});
+          setSelectedForm(null);
+        } else {
+          throw new Error("Failed to create form record");
+        }
       } else {
-        throw new Error("Failed to create form record");
+        const response = await createFormRecord({
+          form: selectedForm,
+          formFieldValues: formFieldValues,
+          userId: user.id as number,
+          createdBy: user.id,
+          createdDate: new Date().toISOString(),
+        } as FormRecord);
+
+        if (!workflowInstance.metadata) {
+          workflowInstance.metadata = {};
+        }
+
+        if (response.ok) {
+          toast({
+            title: "Success",
+            description: "Form record created successfully!",
+          });
+          setFormValues({});
+          setSelectedForm(null);
+        } else {
+          throw new Error("Failed to create form record");
+        }
       }
     } catch (error) {
       console.error("Error submitting form:", error);
