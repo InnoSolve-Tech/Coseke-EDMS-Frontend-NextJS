@@ -14,14 +14,13 @@ import {
   getFormRecordById,
   updateFormRecord,
 } from "@/core/formrecords/api";
-import { getAllForms, updateForm } from "@/core/forms/api";
+import { getAllForms } from "@/core/forms/api";
 import { useToast } from "@/hooks/use-toast";
-import { FormRecord } from "@/lib/types/formRecords";
-import { Form, FormField } from "@/lib/types/forms";
+import type { FormRecord } from "@/lib/types/formRecords";
+import type { Form, FormField } from "@/lib/types/forms";
+import type { WorkflowInstance } from "@/lib/types/workflowInstance";
 import { useEffect, useState } from "react";
 import { getUserFromSessionStorage } from "../routes/sessionStorage";
-import { WorkflowInstance } from "@/lib/types/workflowInstance";
-import { updateWorkflowInstance } from "@/core/workflowInstance/api";
 
 const WorkflowFormRecord = ({
   formId,
@@ -48,6 +47,36 @@ const WorkflowFormRecord = ({
 }) => {
   const { toast } = useToast();
   const [user, setUser] = useState<any>();
+  const [comment, setComment] = useState<string>("");
+
+  const getComment = (): string => {
+    const nodes = workflowInstance.workflow?.nodes || [];
+
+    // Separate forms and approvals in one pass
+    const { forms, approvals } = nodes.reduce(
+      (acc, node) => {
+        if (node.type === "form") acc.forms.push(node);
+        else if (node.type === "approval") acc.approvals.push(node);
+        return acc;
+      },
+      { forms: [] as typeof nodes, approvals: [] as typeof nodes },
+    );
+
+    // Create a Set of form IDs for efficient lookup
+    const formIds = new Set(forms.map((form) => form.data.formId));
+
+    // Find the first approval with a matching formId
+    const approvalIndex = approvals.find((approval) =>
+      formIds.has(approval.data.formId),
+    );
+
+    // Debug output if metadata exists
+    if (workflowInstance.metadata) {
+      return workflowInstance.metadata[approvalIndex!.id];
+    }
+
+    return "";
+  };
 
   useEffect(() => {
     setUser(getUserFromSessionStorage());
@@ -59,12 +88,12 @@ const WorkflowFormRecord = ({
         const response = await getAllForms();
         setForms(response);
         if (formId) {
-          const form = response.find((f) => f.id === parseInt(formId));
+          const form = response.find((f) => f.id === Number.parseInt(formId));
           setSelectedForm(form || null);
         }
         if (formInstanceId) {
           const formInstance = await getFormRecordById(
-            parseInt(formInstanceId),
+            Number.parseInt(formInstanceId),
           );
           if (formInstance && formInstance.formFieldValues) {
             const initialFormValues = formInstance.formFieldValues.reduce(
@@ -74,6 +103,7 @@ const WorkflowFormRecord = ({
               },
               {},
             );
+
             setFormValues(initialFormValues);
           }
         }
@@ -88,10 +118,10 @@ const WorkflowFormRecord = ({
     };
 
     fetchForms();
-  }, [formId, toast]);
+  }, [formId, formInstanceId, toast]);
 
   const handleFormSelect = (selectedFormId: string) => {
-    const form = forms.find((f) => f.id === parseInt(selectedFormId));
+    const form = forms.find((f) => f.id === Number.parseInt(selectedFormId));
     setSelectedForm(form || null);
     setFormValues({});
   };
@@ -110,11 +140,10 @@ const WorkflowFormRecord = ({
         value,
       }),
     );
-
     try {
       if (formInstanceId) {
         const response = await updateFormRecord({
-          id: parseInt(formInstanceId),
+          id: Number.parseInt(formInstanceId),
           formFieldValues: formFieldValues,
         } as FormRecord);
         if (response.ok) {
@@ -161,9 +190,22 @@ const WorkflowFormRecord = ({
     }
   };
 
+  useEffect(() => {
+    const comt = getComment();
+    setComment(comt);
+  }, [workflowInstance]);
+
   return (
-    <div>
-      <form onSubmit={handleSubmit} className="space-y-6">
+    <div className="h-[400px] w-full max-w-3xl overflow-y-auto p-4">
+      <div>
+        {comment && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-md w-full mb-4">
+            <h3 className="text-lg font-semibold text-red-700 mb-2">
+              Comment:
+            </h3>
+            <p className="text-red-600">{comment}</p>
+          </div>
+        )}
         <div className="space-y-2">
           <Label htmlFor="formSelect">Select a Form</Label>
           <Select
@@ -185,14 +227,14 @@ const WorkflowFormRecord = ({
         </div>
 
         {selectedForm && (
-          <div className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {selectedForm.formFields.map((field) => (
               <div key={field.id} className="space-y-2">
                 <Label htmlFor={`field-${field.id}`}>{field.name}</Label>
                 {field.type.toLowerCase() === "select" ? (
                   <Select
                     onValueChange={(value) =>
-                      handleInputChange(parseInt(field.id), value)
+                      handleInputChange(Number.parseInt(field.id), value)
                     }
                     value={formValues[field.id] || ""}
                   >
@@ -213,7 +255,10 @@ const WorkflowFormRecord = ({
                     type={field.type.toLowerCase()}
                     value={formValues[field.id] || ""}
                     onChange={(e) =>
-                      handleInputChange(parseInt(field.id), e.target.value)
+                      handleInputChange(
+                        Number.parseInt(field.id),
+                        e.target.value,
+                      )
                     }
                     required
                     className="w-full"
@@ -221,9 +266,15 @@ const WorkflowFormRecord = ({
                 )}
               </div>
             ))}
-          </div>
+          </form>
         )}
-      </form>
+        <button
+          type="submit"
+          className="mt-4 w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 transition-colors"
+        >
+          Submit
+        </button>
+      </div>
     </div>
   );
 };
