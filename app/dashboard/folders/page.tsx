@@ -130,6 +130,7 @@ export default function FileExplorer() {
   const [folderToRename, setFolderToRename] = useState<FileNode | null>(null);
   const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
   const [filteredData, setFilteredData] = useState<FileNode[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     color: ColorPaletteProp;
@@ -469,8 +470,9 @@ export default function FileExplorer() {
         return;
       }
 
+      const tempId = `temp-${Date.now()}`;
       const tempSubFolder: FileNode = {
-        id: `temp-${Date.now().toString()}`,
+        id: tempId,
         label: newFolderName.trim(),
         type: "folder",
         folderID: undefined,
@@ -478,51 +480,61 @@ export default function FileExplorer() {
         children: [],
       };
 
-      setFileData((prev) => {
-        return prev.map((item) => {
-          if (item.id === currentFolderID.toString()) {
-            return {
-              ...item,
-              children: [...(item.children || []), tempSubFolder],
-            };
-          }
-          return item;
-        });
-      });
+      // Update file data with temporary folder
+      setFileData((prev) =>
+        prev.map((item) =>
+          item.id === currentFolderID.toString()
+            ? { ...item, children: [...(item.children || []), tempSubFolder] }
+            : item,
+        ),
+      );
 
       const newFolder: DirectoryData = {
         name: newFolderName.trim(),
         parentFolderID: currentFolderID,
       };
 
-      const createdFolder = await createSubFolders(newFolder);
+      // Create subfolder and handle response
+      const response = await createSubFolders(newFolder);
+
+      // Properly type check the response
+      if (!response || typeof response !== "object") {
+        throw new Error("Invalid response from server");
+      }
+
+      // Access folderID from response (matching the console log structure)
+      const folderId = response.folderID;
+      if (typeof folderId !== "number") {
+        throw new Error("Invalid folder ID in response");
+      }
 
       const actualSubFolder: FileNode = {
-        id: createdFolder.id.toString(),
-        label: createdFolder.name,
+        id: folderId,
+        label: newFolderName.trim(),
         type: "folder",
-        folderID: createdFolder.id,
+        folderID: folderId,
         parentFolderID: currentFolderID,
         children: [],
       };
 
-      setFileData((prev) => {
-        return prev.map((item) => {
-          if (item.id === currentFolderID.toString()) {
-            return {
-              ...item,
-              children: [
-                ...(item.children || []).filter(
-                  (child) => child.id !== tempSubFolder.id,
-                ),
-                actualSubFolder,
-              ],
-            };
-          }
-          return item;
-        });
-      });
+      // Update file data with actual folder, using type assertion for children
+      setFileData((prev) =>
+        prev.map((item) =>
+          item.id === currentFolderID.toString()
+            ? {
+                ...item,
+                children: [
+                  ...(item.children || []).filter(
+                    (child: FileNode) => child.id !== tempId,
+                  ),
+                  actualSubFolder,
+                ],
+              }
+            : item,
+        ),
+      );
 
+      // Expand the parent folder
       setExpanded((prev) => ({
         ...prev,
         [currentFolderID.toString()]: true,
@@ -530,6 +542,7 @@ export default function FileExplorer() {
 
       showSnackbar("Subfolder created successfully", "success");
 
+      // Reset state
       setIsCreateFolderModalOpen(false);
       setNewFolderName("");
       setIsSubfolderMode(false);
@@ -537,24 +550,29 @@ export default function FileExplorer() {
     } catch (error) {
       console.error("Failed to create subfolder:", error);
 
+      // Clean up temporary folder on error, with proper type annotation
       if (currentFolderID) {
-        setFileData((prev) => {
-          return prev.map((item) => {
-            if (item.id === currentFolderID.toString()) {
-              return {
-                ...item,
-                children: (item.children || []).filter(
-                  (child) => child.id !== `temp-${Date.now().toString()}`,
-                ),
-              };
-            }
-            return item;
-          });
-        });
+        setFileData((prev) =>
+          prev.map((item) =>
+            item.id === currentFolderID.toString()
+              ? {
+                  ...item,
+                  children: (item.children || []).filter(
+                    (child: FileNode) =>
+                      child.id !== `temp-${Date.now().toString()}`,
+                  ),
+                }
+              : item,
+          ),
+        );
       }
 
-      showSnackbar("Subfolder created successfully", "success");
+      showSnackbar(
+        error instanceof Error ? error.message : "Failed to create subfolder",
+        "danger",
+      );
 
+      // Reset state
       setIsCreateFolderModalOpen(false);
       setNewFolderName("");
       setIsSubfolderMode(false);
@@ -672,40 +690,43 @@ export default function FileExplorer() {
     const searchTerm = query.toLowerCase();
     const results: FileNode[] = [];
 
-    const searchInNode = (node: FileNode): FileNode | null => {
+    // Helper function to recursively search for files and folders
+    const searchInNode = (node: FileNode, path: FileNode[] = []): void => {
       const nameMatch = node.label.toLowerCase().includes(searchTerm);
       const metadataMatch = node.metadata
         ? JSON.stringify(node.metadata).toLowerCase().includes(searchTerm)
         : false;
 
-      // If folder matches, keep all its children intact for right-click functionality
-      if (nameMatch || metadataMatch) {
-        return { ...node, children: node.children || [] };
+      // If the current node is a file and matches, include it in the results
+      if (node.type === "file" && (nameMatch || metadataMatch)) {
+        results.push({
+          ...node,
+          label: `${path.map((p) => p.label).join(" / ")} / ${node.label}`, // Include full path in the label
+        });
       }
 
       // Search children recursively
       if (node.children) {
-        const matchingChildren = node.children
-          .map(searchInNode)
-          .filter((child): child is FileNode => child !== null);
-
-        if (matchingChildren.length > 0) {
-          return { ...node, children: matchingChildren };
-        }
+        node.children.forEach((child) => searchInNode(child, [...path, node]));
       }
-
-      return null;
     };
 
     // Process all nodes
-    fileData.forEach((node) => {
-      const result = searchInNode(node);
-      if (result) {
-        results.push(result);
-      }
-    });
+    fileData.forEach((node) => searchInNode(node));
 
-    setFilteredData(results);
+    if (results.length === 0) {
+      // If no results, show a placeholder message
+      setFilteredData([
+        {
+          id: "no-results",
+          label: "No results found",
+          type: "file",
+          metadata: { message: "Try searching with different keywords" },
+        },
+      ]);
+    } else {
+      setFilteredData(results);
+    }
   };
 
   const navigateToFolder = async (folderId: number) => {
@@ -776,6 +797,11 @@ export default function FileExplorer() {
     nodes: FileNode[],
     currentFolderId: number,
   ): FileNode[] => {
+    if (filteredData.length > 0) {
+      // If there are search results, return them directly
+      return filteredData;
+    }
+
     if (currentFolderId === 0) {
       return nodes.filter(
         (node) => !node.parentFolderID || node.parentFolderID === 0,

@@ -45,7 +45,7 @@ import {
   clearMetadata,
   deleteFile,
 } from "@/components/files/api";
-import { getDocumentTypes } from "@/components/folder/api";
+import { useRouter } from "next/navigation";
 
 interface MetadataItem {
   name: string;
@@ -76,6 +76,7 @@ interface Document {
 
 const FileViewPage = () => {
   const { id } = useParams();
+  const router = useRouter();
   const DocViewer = dynamic(() => import("react-doc-viewer"), { ssr: false });
   const [document, setDocument] = useState<Document | null>(null);
   const [loading, setLoading] = useState(true);
@@ -108,6 +109,10 @@ const FileViewPage = () => {
     options: null,
   });
   const docxContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const handleClose = () => {
+    router.back(); // Navigates back to the previous page
+  };
 
   useEffect(() => {
     const fetchFileDetails = async () => {
@@ -572,6 +577,18 @@ const FileViewPage = () => {
         overflow: "hidden", // Prevents overflow
       }}
     >
+      <IconButton
+        onClick={handleClose}
+        sx={{
+          position: "absolute",
+          top: 16,
+          right: 16,
+          zIndex: 10,
+        }}
+      >
+        <CloseIcon />
+      </IconButton>
+
       {/* Left Section - File Preview */}
       <Card
         sx={{
