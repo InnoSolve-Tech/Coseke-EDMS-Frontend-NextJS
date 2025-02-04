@@ -38,6 +38,7 @@ import {
 import { DocumentTypeCreation } from "./DocumentTypes";
 import { renderAsync } from "docx-preview";
 import { useToast } from "@/hooks/use-toast";
+import { WebViewerInstance } from "@pdftron/webviewer";
 
 interface FileUploadDialogProps {
   open: boolean;
@@ -85,6 +86,10 @@ export default function FileUploadDialog({
     null,
   );
   const [editedName, setEditedName] = useState("");
+  const viewerRef = useRef<HTMLDivElement>(null);
+  const webViewerInstance = useRef<WebViewerInstance | null>(null);
+  const [isViewerLoaded, setIsViewerLoaded] = useState(false); // State to track viewer load
+  const [currentDoc, setCurrentDoc] = useState<any>(null);
 
   useEffect(() => {
     fetchDocumentTypes();
@@ -92,25 +97,52 @@ export default function FileUploadDialog({
   const { toast } = useToast();
 
   useEffect(() => {
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setPreviewURL(url);
-
-      // Handle rendering of .docx files
-      if (
-        file.type ===
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-      ) {
-        file.arrayBuffer().then((buffer) => {
-          if (docxContainerRef.current) {
-            renderAsync(buffer, docxContainerRef.current);
-          }
-        });
+    if (open) {
+      setIsViewerLoaded(false);
+      webViewerInstance.current = null;
+      if (viewerRef.current) {
+        viewerRef.current.innerHTML = "";
       }
-    } else {
-      setPreviewURL(null);
     }
-  }, [file]);
+  }, [open]);
+
+  const loadWebViewer = async () => {
+    if (!viewerRef.current || webViewerInstance.current) return;
+
+    try {
+      const viewer = await import("@pdftron/webviewer");
+      const instance = await (window as any).WebViewer(
+        {
+          path: "/lib",
+          enableOfficeEditing: true,
+          enableFilePicker: true,
+          apiKey:
+            "demo:1738607170548:616f59ff03000000007a9bceb1ad873e0fd71f2b4fb84257cc6dd11033",
+        },
+        viewerRef.current,
+      );
+
+      webViewerInstance.current = instance;
+      setIsViewerLoaded(true);
+
+      // Listen for document loaded event
+      instance.UI.addEventListener("documentLoaded", async () => {
+        const doc = instance.Core.documentViewer.getDocument();
+        const filename = await doc.getFilename();
+        setCurrentDoc({
+          filename,
+          doc,
+        });
+      });
+
+      // Listen for document unloaded event
+      instance.UI.addEventListener("documentUnloaded", () => {
+        setCurrentDoc(null);
+      });
+    } catch (error) {
+      console.error("Error loading WebViewer:", error);
+    }
+  };
 
   useEffect(() => {
     if (selectedDocType) {
@@ -220,7 +252,6 @@ export default function FileUploadDialog({
       const file = event.target.files[0];
       if (validateFile(file)) {
         setFile(file);
-        simulateUploadProgress();
       }
     }
   };
@@ -246,27 +277,35 @@ export default function FileUploadDialog({
   };
 
   const handleUpload = async () => {
-    if (!file || !selectedDocType || !folderID) {
-      setError("Missing required information");
+    if (!webViewerInstance.current) {
+      setError("WebViewer is not initialized");
+      console.error("Upload failed: WebViewer not loaded");
       return;
     }
 
-    setIsUploading(true);
-    setError(null);
+    const instance = webViewerInstance.current;
+    const documentViewer = instance.Core.documentViewer;
+    const doc = documentViewer.getDocument();
 
+    if (!doc) {
+      setError("No document loaded in WebViewer");
+      console.error("No document found in WebViewer");
+      return;
+    }
+
+    // Extract file as Blob
     try {
-      // Prepare the data object for the API
-      const uploadData = {
-        documentType: selectedDocType.name,
-        metadata: metadata,
-        mimeType: file.type,
-        fileName: file.name,
-      };
+      const fileData = await doc.getFileData({});
+      const fileBlob = new Blob([fileData], { type: doc.getType() });
+      const file = new File([fileBlob], doc.getFilename(), {
+        type: doc.getType(),
+      });
 
-      // Call the parent onUpload for any additional handling
-      await onUpload(file, selectedDocType.name, metadata);
+      console.log("Extracted file from WebViewer:", file);
 
-      // Reset the dialog state
+      // Upload the extracted file
+      await onUpload(file, selectedDocType?.name || "Unknown", metadata);
+
       setFile(null);
       setPreviewURL(null);
       setSelectedDocType(null);
@@ -274,10 +313,8 @@ export default function FileUploadDialog({
       setUploadProgress(100);
       onClose();
     } catch (error) {
-      console.error("Upload failed:", error);
-      setError("Failed to upload file. Please try again.");
-    } finally {
-      setIsUploading(false);
+      console.error("Error extracting file from WebViewer:", error);
+      setError("Failed to extract file from WebViewer.");
     }
   };
 
@@ -295,10 +332,11 @@ export default function FileUploadDialog({
   };
 
   const handleClose = () => {
-    setFile(null);
-    setPreviewURL(null);
-    setUploadProgress(0);
-    setMetadata({});
+    setIsViewerLoaded(false);
+    webViewerInstance.current = null;
+    if (viewerRef.current) {
+      viewerRef.current.innerHTML = "";
+    }
     onClose();
   };
 
@@ -379,72 +417,25 @@ export default function FileUploadDialog({
         </DialogHeader>
         <div className="flex gap-6">
           {/* File Upload Section */}
-          <div className="flex flex-col flex-grow basis-2/3 space-y-8">
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            {!file ? (
-              <div className="relative border-2 border-dashed rounded-lg p-6 text-center min-h-[400px] flex flex-col items-center justify-center border-gray-300 overflow-y-auto">
+          <div className="flex flex-col md:w-2/3 bg-gray-50 border p-4 rounded-lg shadow-sm relative min-h-[400px]">
+            {!isViewerLoaded && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center h-full bg-white">
                 <Upload className="h-12 w-12 text-gray-400" />
-                <div className="mt-4">
-                  <Label
-                    htmlFor="file-upload"
-                    className="cursor-pointer rounded-md bg-white font-semibold text-blue-600"
-                  >
-                    <span>Upload a file</span>
-                    <Input
-                      id="file-upload"
-                      type="file"
-                      className="sr-only"
-                      onChange={handleFileChange}
-                      accept={ALLOWED_TYPES.join(",")}
-                    />
-                  </Label>
-                  <p className="pl-1">or drag and drop</p>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  PDF, DOC, DOCX, TXT, JPG, or PNG up to 10MB
-                </p>
+                <Button
+                  className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 mt-4"
+                  onClick={loadWebViewer}
+                >
+                  Load Document Viewer
+                </Button>
               </div>
-            ) : (
-              <Card className="flex flex-col shadow-md overflow-y-auto max-h-[400px]">
-                <CardContent className="p-4 space-y-4">
-                  {/* File Information */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <FileText className="h-6 w-6 text-blue-500" />
-                      <div>
-                        <p className="font-medium">{file.name}</p>
-                        <p className="text-sm text-gray-500">
-                          {(file.size / 1024 / 1024).toFixed(2)} MB
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setFile(null);
-                        setPreviewURL(null);
-                        setUploadProgress(0);
-                      }}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  {/* File Preview */}
-                  {previewURL && (
-                    <div className="h-64 border border-gray-300 rounded-md overflow-hidden">
-                      {renderPreview()}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
             )}
+
+            <div
+              ref={viewerRef}
+              className={`w-full h-[400px] border border-gray-300 rounded-md bg-white overflow-hidden ${
+                isViewerLoaded ? "block" : "hidden"
+              }`}
+            />
           </div>
 
           {/* Metadata Section */}
@@ -608,17 +599,14 @@ export default function FileUploadDialog({
                 </Button>
                 <Button
                   onClick={handleUpload}
-                  disabled={
-                    !file ||
-                    !selectedDocType ||
-                    selectedDocType.metadata.some(
+                  disabled={selectedDocType?.metadata.some(
+                    (field) => field.type === "select" && !metadata[field.name],
+                  )}
+                  className={`${
+                    selectedDocType?.metadata.some(
                       (field) =>
                         field.type === "select" && !metadata[field.name],
-                    ) ||
-                    uploadProgress < 100
-                  }
-                  className={`${
-                    !file || !selectedDocType || uploadProgress < 100
+                    )
                       ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                       : "bg-blue-600 text-white hover:bg-blue-700"
                   }`}

@@ -46,6 +46,7 @@ import {
   deleteFile,
 } from "@/components/files/api";
 import { useRouter } from "next/navigation";
+import { WebViewerInstance } from "@pdftron/webviewer";
 
 interface MetadataItem {
   name: string;
@@ -109,9 +110,12 @@ const FileViewPage = () => {
     options: null,
   });
   const docxContainerRef = useRef<HTMLDivElement | null>(null);
+  const viewerRef = useRef<HTMLDivElement>(null);
+  const webViewerInstance = useRef<WebViewerInstance | null>(null);
+  const [isViewerLoaded, setIsViewerLoaded] = useState(false);
 
   const handleClose = () => {
-    router.back(); // Navigates back to the previous page
+    router.back();
   };
 
   useEffect(() => {
@@ -129,15 +133,12 @@ const FileViewPage = () => {
           };
           setDocument(fileData);
 
-          // Handle rendering of .docx files
-          if (
-            fileData.mimeType ===
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-          ) {
-            const arrayBuffer = await response.arrayBuffer();
-            if (docxContainerRef.current) {
-              renderAsync(arrayBuffer, docxContainerRef.current);
-            }
+          // Log the file content
+          console.log("File Content:", response);
+
+          // Load WebViewer immediately after setting document
+          if (fileData.fileLink) {
+            loadWebViewer();
           }
         } else {
           throw new Error("No file found");
@@ -301,6 +302,188 @@ const FileViewPage = () => {
     }
   };
 
+  const loadWebViewer = async () => {
+    if (!viewerRef.current) {
+      console.warn("⚠️ viewerRef is missing.");
+      return;
+    }
+
+    try {
+      // Cleanup previous instance if it exists
+      if (webViewerInstance.current) {
+        try {
+          webViewerInstance.current.UI.closeDocument();
+        } catch (cleanupError) {
+          console.warn("Error during previous instance cleanup:", cleanupError);
+        }
+      }
+
+      console.log("🚀 Initializing WebViewer...");
+
+      const WebViewer = await import("@pdftron/webviewer");
+      const instance = await (window as any).WebViewer(
+        {
+          path: "/lib",
+          fullAPI: true,
+          enableAnnotations: true,
+          enableOfficeEditing: false,
+          preloadWorker: "pdf",
+        },
+        viewerRef.current,
+      );
+
+      webViewerInstance.current = instance;
+      setIsViewerLoaded(true);
+
+      // Use optional chaining and try-catch for event listeners
+      try {
+        instance.Core.documentViewer?.addEventListener("documentLoaded", () => {
+          console.log("✅ Document loaded successfully in WebViewer.");
+        });
+
+        instance.Core.documentViewer?.addEventListener(
+          "documentError",
+          (error: any) => {
+            console.error("❌ Document load error:", error);
+            setError("Failed to load document in viewer.");
+          },
+        );
+      } catch (listenerError) {
+        console.error("Error setting up event listeners:", listenerError);
+      }
+
+      // Load file if available
+      if (document?.fileLink) {
+        await loadFileIntoViewer();
+      }
+    } catch (error) {
+      console.error("❌ Error initializing WebViewer:", error);
+      setError("Failed to initialize document viewer.");
+      setIsViewerLoaded(false);
+    }
+  };
+
+  const loadFileIntoViewer = async () => {
+    if (!webViewerInstance.current || !document?.fileLink) {
+      console.error("⚠️ WebViewer not initialized or no fileLink available.");
+      return;
+    }
+
+    try {
+      console.log("🔄 Fetching file:", document.fileLink);
+
+      // Fetch the Blob file
+      const response = await fetch(document.fileLink);
+      const blob = await response.blob();
+
+      let fileType = document.mimeType.toLowerCase();
+      console.log("📄 File type detected:", fileType);
+
+      // Ensure PDFs do NOT open in Office Editing Mode
+      if (fileType === "pdf") {
+        console.log("📄 Loading PDF in WebViewer...");
+        webViewerInstance.current.UI.loadDocument(blob, {
+          filename: document.filename,
+        });
+      } else if (
+        fileType.includes("office") ||
+        fileType.includes("doc") ||
+        fileType.includes("xls")
+      ) {
+        console.log(
+          "📄 Loading Office document in WebViewer with editing enabled...",
+        );
+        webViewerInstance.current.UI.loadDocument(blob, {
+          filename: document.filename,
+          enableOfficeEditing: true, // ✅ Enable Office Editing for DOCX/XLSX
+        });
+      } else {
+        console.warn("⚠️ Unsupported file type:", fileType);
+        setError("Unsupported file type.");
+      }
+
+      console.log(
+        "✅ File successfully loaded into WebViewer:",
+        document.filename,
+      );
+    } catch (error) {
+      console.error("❌ Error loading document into WebViewer:", error);
+      setError("Failed to load document.");
+    }
+  };
+
+  useEffect(() => {
+    const initializeWebViewer = async () => {
+      if (document?.fileLink) {
+        if (!isViewerLoaded) {
+          await loadWebViewer();
+        }
+
+        if (isViewerLoaded) {
+          loadFileIntoViewer();
+        }
+      }
+    };
+
+    initializeWebViewer();
+  }, [document?.fileLink, document?.mimeType]);
+
+  const renderPreview = () => {
+    if (!document || !document.fileLink) {
+      return (
+        <Typography level="body-lg" textAlign="center">
+          No file available to preview.
+        </Typography>
+      );
+    }
+
+    return (
+      <Card
+        variant="outlined"
+        sx={{ height: "calc(100vh - 120px)", overflow: "hidden" }}
+      >
+        <CardContent
+          sx={{
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            p: 0,
+          }}
+        >
+          <Box sx={{ width: "100%", height: "100%", minHeight: "600px" }}>
+            <div
+              ref={viewerRef}
+              className="w-full h-[600px] border border-gray-300 rounded-md bg-white overflow-hidden"
+            />
+          </Box>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  useEffect(() => {
+    return () => {
+      if (webViewerInstance.current) {
+        console.log("🔄 Resetting WebViewer before unmounting...");
+        webViewerInstance.current.UI.closeDocument();
+        webViewerInstance.current = null;
+        setIsViewerLoaded(false);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (document) {
+      console.log("Document state:", {
+        fileLink: document.fileLink,
+        mimeType: document.mimeType,
+        filename: document.filename,
+      });
+    }
+  }, [document]);
+
   if (loading) {
     return (
       <Box
@@ -330,242 +513,6 @@ const FileViewPage = () => {
       </Box>
     );
   }
-
-  const renderPreview = () => {
-    if (!document || !document.fileLink) {
-      return (
-        <Typography level="body-lg" textAlign="center">
-          No file available to preview.
-        </Typography>
-      );
-    }
-
-    const mimeType = document.mimeType.toLowerCase();
-
-    // Handle image files
-    if (mimeType.startsWith("image/")) {
-      return (
-        <Card
-          variant="outlined"
-          sx={{ height: "calc(100% - 60px)", overflow: "auto" }}
-        >
-          <CardContent
-            sx={{
-              height: "100%",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Box
-              component="img"
-              src={document.fileLink}
-              alt={document.filename}
-              sx={{
-                maxWidth: "100%",
-                maxHeight: "600px",
-                objectFit: "contain",
-                borderRadius: "md",
-              }}
-            />
-            <Typography level="body-lg" textAlign="center" sx={{ mt: 2 }}>
-              {document.filename}
-            </Typography>
-            <Button
-              onClick={handleDownload}
-              startDecorator={<DownloadIcon />}
-              sx={{ mt: 2 }}
-            >
-              Download Image
-            </Button>
-          </CardContent>
-        </Card>
-      );
-    }
-
-    // Handle PDF files
-    if (mimeType === "application/pdf") {
-      return (
-        <Card
-          variant="outlined"
-          sx={{ height: "calc(100% - 60px)", overflow: "auto" }}
-        >
-          <CardContent
-            sx={{
-              height: "100%",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <iframe
-              src={`${document.fileLink}#toolbar=0`}
-              width="100%"
-              height="600px"
-              style={{ border: "none" }}
-              title="PDF Preview"
-            />
-            <Typography level="body-lg" textAlign="center" sx={{ mt: 2 }}>
-              {document.filename}
-            </Typography>
-            <Button
-              onClick={handleDownload}
-              startDecorator={<DownloadIcon />}
-              sx={{ mt: 2 }}
-            >
-              Download PDF
-            </Button>
-          </CardContent>
-        </Card>
-      );
-    }
-
-    // Handle DOCX files
-    if (
-      mimeType ===
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    ) {
-      return (
-        <Card
-          variant="outlined"
-          sx={{ height: "calc(100% - 60px)", overflow: "auto" }}
-        >
-          <CardContent
-            sx={{
-              height: "100%",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <div
-              ref={docxContainerRef}
-              className="w-full h-full overflow-auto"
-            />
-            <Typography level="body-lg" textAlign="center" sx={{ mt: 2 }}>
-              {document.filename}
-            </Typography>
-            <Button
-              onClick={handleDownload}
-              startDecorator={<DownloadIcon />}
-              sx={{ mt: 2 }}
-            >
-              Download Document
-            </Button>
-          </CardContent>
-        </Card>
-      );
-    }
-
-    // Handle Excel files
-    if (
-      mimeType.includes("spreadsheetml") ||
-      mimeType === "application/vnd.ms-excel"
-    ) {
-      return (
-        <Card
-          variant="outlined"
-          sx={{ height: "calc(100% - 60px)", overflow: "auto" }}
-        >
-          <CardContent
-            sx={{
-              height: "100%",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            {previewState.excelData && (
-              <Box sx={{ width: "100%", overflowX: "auto" }}>
-                <table style={{ borderCollapse: "collapse", width: "100%" }}>
-                  <tbody>
-                    {previewState.excelData.map(
-                      (row: any[], rowIndex: number) => (
-                        <tr key={rowIndex}>
-                          {row.map((cell: any, cellIndex: number) => (
-                            <td
-                              key={cellIndex}
-                              style={{
-                                border: "1px solid #ddd",
-                                padding: "8px",
-                                backgroundColor:
-                                  rowIndex === 0 ? "#f5f5f5" : "white",
-                              }}
-                            >
-                              {cell?.toString() || ""}
-                            </td>
-                          ))}
-                        </tr>
-                      ),
-                    )}
-                  </tbody>
-                </table>
-              </Box>
-            )}
-            <Typography level="body-lg" textAlign="center" sx={{ mt: 2 }}>
-              {document.filename}
-            </Typography>
-            <Button
-              onClick={handleDownload}
-              startDecorator={<DownloadIcon />}
-              sx={{ mt: 2 }}
-            >
-              Download Spreadsheet
-            </Button>
-          </CardContent>
-        </Card>
-      );
-    }
-
-    // Default file viewer for other types
-    const docs = [
-      {
-        uri: document.fileLink,
-        fileName: document.filename,
-      },
-    ];
-
-    return (
-      <Card
-        variant="outlined"
-        sx={{ height: "calc(100% - 60px)", overflow: "auto" }}
-      >
-        <CardContent
-          sx={{
-            height: "100%",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <DocViewer
-            documents={docs}
-            pluginRenderers={DocViewerRenderers}
-            config={{
-              header: {
-                disableHeader: true,
-              },
-            }}
-          />
-          <Typography level="body-lg" textAlign="center" sx={{ mt: 2 }}>
-            {document.filename}
-          </Typography>
-          <Button
-            onClick={handleDownload}
-            startDecorator={<DownloadIcon />}
-            sx={{ mt: 2 }}
-          >
-            Download File
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  };
 
   return (
     <Card
