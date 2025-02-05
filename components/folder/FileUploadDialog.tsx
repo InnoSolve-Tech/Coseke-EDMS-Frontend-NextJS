@@ -37,6 +37,7 @@ import {
 } from "./api";
 import { DocumentTypeCreation } from "./DocumentTypes";
 import { renderAsync } from "docx-preview";
+import { useToast } from "@/hooks/use-toast";
 
 interface FileUploadDialogProps {
   open: boolean;
@@ -88,6 +89,7 @@ export default function FileUploadDialog({
   useEffect(() => {
     fetchDocumentTypes();
   }, []);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (file) {
@@ -140,52 +142,76 @@ export default function FileUploadDialog({
     updatedFields: Partial<IDocumentTypeForm>,
   ) => {
     try {
-      // Find the original document type
       const originalDocType = documentTypes.find(
         (docType) => docType.id === id,
       );
       if (!originalDocType) {
-        setError("Document type not found");
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Document type not found",
+        });
         return;
       }
 
-      // Merge the updated fields with the original document type
       const updatedDocTypeData: IDocumentTypeForm = {
         ...originalDocType,
         ...updatedFields,
       };
 
-      // Call the API to update the document type
       const updatedDocType = await updateDocumentType(id, updatedDocTypeData);
 
-      // Update the local state
       setDocumentTypes((prev) =>
         prev.map((docType) =>
           docType.id === id ? { ...docType, ...updatedDocType } : docType,
         ),
       );
 
-      // Update selected document type if it was the one being edited
       if (selectedDocType?.id === id) {
         setSelectedDocType({ ...selectedDocType, ...updatedDocType });
       }
 
-      // Reset editing state
       setEditingDocType(null);
       setEditedName("");
+      setEditDialogOpen(false);
+
+      toast({
+        title: "Success",
+        description: "Document type updated successfully",
+        className: "bg-green-500 text-white",
+      });
     } catch (error) {
       console.error("Failed to update document type:", error);
-      setError("Failed to update document type. Please try again.");
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update document type. Please try again.",
+      });
     }
   };
 
   const handleDeleteDocumentType = async (id: number) => {
     try {
       await deleteDocumentType(id);
+
       setDocumentTypes((prev) => prev.filter((docType) => docType.id !== id));
+
+      if (selectedDocType?.id === id) {
+        setSelectedDocType(null);
+      }
+
+      toast({
+        title: "Success",
+        description: "Document type deleted successfully",
+        className: "bg-green-500 text-white",
+      });
     } catch (error) {
       console.error("Failed to delete document type:", error);
-      setError("Failed to delete document type. Please try again.");
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete document type. Please try again.",
+      });
     }
   };
 
