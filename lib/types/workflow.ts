@@ -22,6 +22,7 @@ export interface WorkflowNode {
   data: {
     label: string;
     description?: string;
+    shouldDelegate: boolean;
     nodeId: string;
     notification?: {
       id?: number;
@@ -39,6 +40,7 @@ export interface WorkflowNode {
     ifTrue?: string;
     formId?: string;
     assignee?: { assignee_type: "role" | "user"; assignee_id: string };
+    delegate?: { delegate_type: "role" | "user"; delegate_id: string };
     dueDate?: string;
     form?: Form;
     branches?: string[];

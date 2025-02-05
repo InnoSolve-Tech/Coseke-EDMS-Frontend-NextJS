@@ -10,8 +10,8 @@ import {
 } from "@/components/ui/select";
 import { getAllForms } from "@/core/forms/api";
 import { toast } from "@/hooks/use-toast";
-import { Form } from "@/lib/types/forms";
-import { Workflow, WorkflowNode } from "@/lib/types/workflow";
+import type { Form } from "@/lib/types/forms";
+import type { Workflow, WorkflowNode } from "@/lib/types/workflow";
 import { useEffect, useState } from "react";
 import { uuid } from "uuidv4";
 import { Button } from "../ui/button";
@@ -52,6 +52,9 @@ export function NodeEditor({
   const [ifFalseNode, setIfFalseNode] = useState<string | undefined>(
     node.data.ifFalse,
   );
+  const [shouldDelegate, setShouldDelegate] = useState(
+    node.data.shouldDelegate,
+  );
 
   const getConnectedNodes = () => {
     if (!workflow.edges) return [];
@@ -68,6 +71,8 @@ export function NodeEditor({
         ...editedNode.data,
         ifTrue: ifTrueNode,
         ifFalse: ifFalseNode,
+        assignee: editedNode.data.assignee,
+        shouldDelegate: shouldDelegate,
       },
     };
     onUpdate(updatedNode);
@@ -143,7 +148,7 @@ export function NodeEditor({
       const precedingFormNodes = tracePrecedingForms(node, workflow);
       setPrecedingFormNodes(precedingFormNodes);
     }
-  }, [node, workflow]);
+  }, [node, workflow]); // Added fetchForms to dependencies
 
   const handleFormSelect = (formId: string) => {
     const selectedFormData = forms.find((f) => f.id?.toString() === formId);
@@ -205,6 +210,38 @@ export function NodeEditor({
         </SelectItem>
       ));
     }
+  };
+
+  const handleAssigneeChange = (
+    assignee:
+      | { assignee_type: "user" | "role"; assignee_id: string }
+      | undefined,
+  ) => {
+    setEditedNode({
+      ...editedNode,
+      data: {
+        ...editedNode.data,
+        assignee: assignee || undefined,
+      },
+    });
+  };
+
+  const handleDelegateChange = (
+    delegate:
+      | { delegate_type: "user" | "role"; delegate_id: string }
+      | undefined,
+  ) => {
+    setEditedNode({
+      ...editedNode,
+      data: {
+        ...editedNode.data,
+        delegate: delegate || undefined,
+      },
+    });
+  };
+
+  const handleShouldDelegateChange = (value: boolean) => {
+    setShouldDelegate(value);
   };
 
   return (
@@ -359,13 +396,10 @@ export function NodeEditor({
             ) : null}
 
             <NodeAssignment
-              value={editedNode.data.assignee}
-              onChange={(assignee) =>
-                setEditedNode({
-                  ...editedNode,
-                  data: { ...editedNode.data, assignee },
-                })
-              }
+              assignee={editedNode.data.assignee}
+              onAssigneeChange={handleAssigneeChange}
+              shouldDelegate={shouldDelegate}
+              onShouldDelegateChange={handleShouldDelegateChange}
             />
           </TabsContent>
         </Tabs>
