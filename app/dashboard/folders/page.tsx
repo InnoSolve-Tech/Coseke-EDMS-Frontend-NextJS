@@ -18,6 +18,7 @@ import {
   Modal,
   Input,
   Snackbar,
+  ListItemDecorator,
 } from "@mui/joy";
 import { useRouter } from "next/navigation";
 import FileUploadDialog from "@/components/folder/FileUploadDialog";
@@ -945,31 +946,27 @@ export default function FileExplorer() {
         }}
       >
         <CardContent>
-          <Typography
-            sx={{
-              fontWeight: "bold",
-              mb: 2,
-              textAlign: "center",
-            }}
-          >
-            File Explorer
-          </Typography>
           <List sx={{ width: "100%" }}>
-            {/* Header Row */}
             <ListItem
               sx={{
-                display: "flex",
+                display: "none",
+                sm: { display: "flex" },
                 flexDirection: "row",
                 padding: "12px",
                 fontWeight: "bold",
                 backgroundColor: "background.level2",
               }}
             >
-              <Typography sx={{ flex: 2 }}>Name</Typography>
-              <Typography sx={{ flex: 1 }}>Type</Typography>
-              <Typography sx={{ flex: 1 }}>Last Modified</Typography>
+              <Typography sx={{ flex: 2, fontSize: "0.875rem" }}>
+                Name
+              </Typography>
+              <Typography sx={{ flex: 1, fontSize: "0.875rem" }}>
+                Type
+              </Typography>
+              <Typography sx={{ flex: 1, fontSize: "0.875rem" }}>
+                Last Modified
+              </Typography>
             </ListItem>
-            {/* Render Nodes */}
             {visibleNodes.map((node, index) => renderNode(node, index))}
           </List>
         </CardContent>
@@ -978,29 +975,60 @@ export default function FileExplorer() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4">
-      <Card
-        variant="outlined"
-        sx={{
-          height: "calc(100vh - 2rem)",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        <CardContent
-          sx={{
-            flexGrow: 1,
-            display: "flex",
-            flexDirection: "column",
-            gap: 2,
-            overflowY: "auto",
-          }}
-        >
+    <div className=" flex flex-col">
+      <div className="bg-white border-b border-gray-200 p-4 flex justify-between items-center">
+        <Typography level="h4" sx={{ fontWeight: "bold" }}>
+          File Explorer
+        </Typography>
+        <div className="flex items-center space-x-2">
+          <div className="flex gap-1">
+            <Card
+              variant="outlined"
+              sx={{ width: "auto", minWidth: 80, p: 1.5, textAlign: "center" }}
+            >
+              <Typography level="h3" fontWeight="bold">
+                {folderCount}
+              </Typography>
+              <Typography level="body-xs">Folders</Typography>
+            </Card>
+            <Card
+              variant="outlined"
+              sx={{ width: "auto", minWidth: 80, p: 1.5, textAlign: "center" }}
+            >
+              <Typography level="h3" fontWeight="bold">
+                {fileCount}
+              </Typography>
+              <Typography level="body-xs">Files</Typography>
+            </Card>
+          </div>
+          <Button
+            variant="outlined"
+            color="neutral"
+            startDecorator={<CreateNewFolder />}
+            onClick={() => setIsCreateFolderModalOpen(true)}
+            size="sm"
+          >
+            New Folder
+          </Button>
+          {/* <Button
+    variant="outlined"
+    color="neutral"
+    startDecorator={<FileUpload />}
+    onClick={() => setUploadDialogOpen(true)}
+    size="sm"
+  >
+    Upload
+  </Button> */}
+        </div>
+      </div>
+      <div className="flex-grow flex overflow-hidden">
+        <div className="flex-grow flex flex-col">
           <Breadcrumbs
-            size="lg"
+            size="sm"
             sx={{
-              "--Breadcrumbs-gap": "8px",
-              "--Icon-fontSize": "var(--joy-fontSize-xl2)",
+              padding: "8px 16px",
+              borderBottom: "1px solid",
+              borderColor: "divider",
             }}
           >
             {currentPath.map((crumb, index) => (
@@ -1018,307 +1046,252 @@ export default function FileExplorer() {
               </Typography>
             ))}
           </Breadcrumbs>
+          <div className="p-4">
+            <SearchBar onSearch={handleSearch} />
+          </div>
+          <div className="flex-grow overflow-auto p-4">
+            {renderTree(fileData)}
+          </div>
+        </div>
+      </div>
+      {/* Keep the existing Modals and Menus here */}
+      <FileUploadDialog
+        open={uploadDialogOpen}
+        onClose={() => setUploadDialogOpen(false)}
+        onUpload={handleUpload}
+        folderID={currentFolderID}
+      />
 
-          <div style={{ display: "flex", gap: "16px" }}>
-            <Card
-              variant="outlined"
-              sx={{
-                flexGrow: 1,
-                overflowY: "auto",
-                height: "100%",
-                padding: "8px",
+      <Modal
+        open={isCreateFolderModalOpen}
+        onClose={() => {
+          setIsCreateFolderModalOpen(false);
+          setNewFolderName("");
+          setIsSubfolderMode(false);
+          setMenuTarget(null);
+        }}
+        slotProps={{
+          backdrop: {
+            ref: undefined,
+          },
+        }}
+      >
+        <Card sx={{ maxWidth: 400, margin: "auto", mt: 8 }}>
+          <CardContent>
+            <Typography level="h4">
+              {isSubfolderMode
+                ? `Create Subfolder in ${menuTarget?.label || "Current Folder"}`
+                : "Create New Folder"}
+            </Typography>
+            <Input
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              placeholder="Folder Name"
+              sx={{ mt: 2, mb: 2 }}
+            />
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 8,
               }}
             >
-              <CardContent>
-                <Typography level="h4" fontWeight="lg">
-                  {folderCount}
-                </Typography>
-                <Typography level="body-sm">Total Folders</Typography>
-              </CardContent>
-            </Card>
-            <Card variant="soft" color="success" sx={{ flexGrow: 1 }}>
-              <CardContent>
-                <Typography level="h4" fontWeight="lg">
-                  {fileCount}
-                </Typography>
-                <Typography level="body-sm">Total Files</Typography>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <div>
               <Button
-                onClick={() => setIsCreateFolderModalOpen(true)}
-                startDecorator={<CreateNewFolder />}
+                onClick={() => {
+                  setIsCreateFolderModalOpen(false);
+                  setNewFolderName("");
+                  setIsSubfolderMode(false);
+                  setMenuTarget(null);
+                }}
+                variant="outlined"
+                color="neutral"
               >
-                New Folder
+                Cancel
+              </Button>
+              <Button
+                onClick={
+                  isSubfolderMode ? handleCreateSubFolder : handleCreateFolder
+                }
+                disabled={!newFolderName.trim()}
+              >
+                Create
               </Button>
             </div>
-            <FormControl>
-              <Checkbox
-                label="Show Folders Only"
-                checked={showFoldersOnly}
-                onChange={(e) => setShowFoldersOnly(e.target.checked)}
-              />
-            </FormControl>
-          </div>
-
-          <SearchBar onSearch={handleSearch} />
-
-          <Card variant="outlined" sx={{ flexGrow: 1, overflow: "auto" }}>
-            <CardContent>{renderTree(fileData)}</CardContent>
-          </Card>
-
-          <Menu
-            open={Boolean(anchorEl)}
-            anchorEl={anchorEl}
-            onClose={handleCloseMenu}
-            size="sm"
-            placement="bottom-start"
+          </CardContent>
+        </Card>
+      </Modal>
+      {isRenameModalOpen && folderToRename && (
+        <Modal
+          open={isRenameModalOpen}
+          onClose={() => {
+            setIsRenameModalOpen(false);
+            setRenameFolderName("");
+            setFolderToRename(null);
+          }}
+        >
+          <Card
             sx={{
-              mt: 1,
-              boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.2)",
-              borderRadius: "8px",
-              overflow: "hidden",
-              padding: 0,
-              bgcolor: "background.paper",
-              transition: "all 0.2s ease-in-out", // Animation for appearance
+              maxWidth: 400,
+              margin: "auto",
+              mt: 8,
+              padding: 3,
+              borderRadius: "12px",
+              boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
             }}
           >
-            {menuTarget && menuTarget.type === "folder" ? (
-              <>
-                <MenuItem
-                  onClick={() => {
-                    handleAction("CreateSubfolder");
-                    handleCloseMenu(); // Closes the menu
-                  }}
-                  sx={{
-                    padding: "8px 16px",
-                    "&:hover": { bgcolor: "action.hover" },
-                  }}
-                >
-                  Create Subfolder
-                </MenuItem>
-                <MenuItem
-                  onClick={() => {
-                    handleAction("UploadFile");
-                    handleCloseMenu(); // Closes the menu
-                  }}
-                  sx={{
-                    padding: "8px 16px",
-                    "&:hover": { bgcolor: "action.hover" },
-                  }}
-                >
-                  Upload File
-                </MenuItem>
-                <MenuItem
-                  onClick={() => {
-                    handleAction("Rename");
-                    handleCloseMenu(); // Closes the menu
-                  }}
-                  sx={{
-                    padding: "8px 16px",
-                    "&:hover": { bgcolor: "action.hover" },
-                  }}
-                >
-                  Edit
-                </MenuItem>
-                <MenuItem
-                  onClick={() => {
-                    handleAction("Delete");
-                    handleCloseMenu(); // Closes the menu
-                  }}
-                  sx={{
-                    padding: "8px 16px",
-                    color: "error.main",
-                    "&:hover": { bgcolor: "error.light" },
-                  }}
-                >
-                  Delete
-                </MenuItem>
-              </>
-            ) : (
-              <>
-                <MenuItem
-                  onClick={() => {
-                    handleAction("View");
-                    handleCloseMenu(); // Closes the menu
-                  }}
-                  sx={{
-                    padding: "8px 16px",
-                    "&:hover": { bgcolor: "action.hover" },
-                  }}
-                >
-                  View
-                </MenuItem>
-                <MenuItem
-                  onClick={() => {
-                    handleAction("Download");
-                    handleCloseMenu(); // Closes the menu
-                  }}
-                  sx={{
-                    padding: "8px 16px",
-                    "&:hover": { bgcolor: "action.hover" },
-                  }}
-                >
-                  Download
-                </MenuItem>
-                <MenuItem
-                  onClick={() => {
-                    handleAction("Delete");
-                    handleCloseMenu(); // Closes the menu
-                  }}
-                  sx={{
-                    padding: "8px 16px",
-                    color: "error.main",
-                    "&:hover": { bgcolor: "error.light" },
-                  }}
-                >
-                  Delete
-                </MenuItem>
-              </>
-            )}
-          </Menu>
-
-          <FileUploadDialog
-            open={uploadDialogOpen}
-            onClose={() => setUploadDialogOpen(false)}
-            onUpload={handleUpload}
-            folderID={currentFolderID}
-          />
-
-          <Modal
-            open={isCreateFolderModalOpen}
-            onClose={() => {
-              setIsCreateFolderModalOpen(false);
-              setNewFolderName("");
-              setIsSubfolderMode(false);
-              setMenuTarget(null);
-            }}
-            slotProps={{
-              backdrop: {
-                ref: undefined,
-              },
-            }}
-          >
-            <Card sx={{ maxWidth: 400, margin: "auto", mt: 8 }}>
-              <CardContent>
-                <Typography level="h4">
-                  {isSubfolderMode
-                    ? `Create Subfolder in ${menuTarget?.label || "Current Folder"}`
-                    : "Create New Folder"}
-                </Typography>
-                <Input
-                  value={newFolderName}
-                  onChange={(e) => setNewFolderName(e.target.value)}
-                  placeholder="Folder Name"
-                  sx={{ mt: 2, mb: 2 }}
-                />
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "flex-end",
-                    gap: 8,
-                  }}
-                >
-                  <Button
-                    onClick={() => {
-                      setIsCreateFolderModalOpen(false);
-                      setNewFolderName("");
-                      setIsSubfolderMode(false);
-                      setMenuTarget(null);
-                    }}
-                    variant="outlined"
-                    color="neutral"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={
-                      isSubfolderMode
-                        ? handleCreateSubFolder
-                        : handleCreateFolder
-                    }
-                    disabled={!newFolderName.trim()}
-                  >
-                    Create
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </Modal>
-
-          {isRenameModalOpen && folderToRename && (
-            <Modal
-              open={isRenameModalOpen}
-              onClose={() => {
-                setIsRenameModalOpen(false);
-                setRenameFolderName("");
-                setFolderToRename(null);
+            <Typography level="h4" sx={{ fontWeight: "bold", mb: 2 }}>
+              Rename Folder
+            </Typography>
+            <Input
+              value={renameFolderName}
+              onChange={(e) => setRenameFolderName(e.target.value)}
+              placeholder="Enter folder name"
+              sx={{
+                mb: 3,
+                border: "1px solid rgba(0, 0, 0, 0.2)",
+                borderRadius: "8px",
+                padding: "10px",
+              }}
+            />
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "12px",
               }}
             >
-              <Card
-                sx={{
-                  maxWidth: 400,
-                  margin: "auto",
-                  mt: 8,
-                  padding: 3,
-                  borderRadius: "12px",
-                  boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
+              <Button
+                onClick={() => {
+                  setIsRenameModalOpen(false);
+                  setRenameFolderName("");
+                  setFolderToRename(null);
                 }}
+                variant="outlined"
+                color="neutral"
               >
-                <Typography level="h4" sx={{ fontWeight: "bold", mb: 2 }}>
-                  Rename Folder
-                </Typography>
-                <Input
-                  value={renameFolderName}
-                  onChange={(e) => setRenameFolderName(e.target.value)}
-                  placeholder="Enter folder name"
-                  sx={{
-                    mb: 3,
-                    border: "1px solid rgba(0, 0, 0, 0.2)",
-                    borderRadius: "8px",
-                    padding: "10px",
-                  }}
-                />
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "flex-end",
-                    gap: "12px",
-                  }}
-                >
-                  <Button
-                    onClick={() => {
-                      setIsRenameModalOpen(false);
-                      setRenameFolderName("");
-                      setFolderToRename(null);
-                    }}
-                    variant="outlined"
-                    color="neutral"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleRename}
-                    disabled={!renameFolderName.trim()}
-                    color="primary"
-                  >
-                    Rename
-                  </Button>
-                </div>
-              </Card>
-            </Modal>
-          )}
-        </CardContent>
-      </Card>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleRename}
+                disabled={!renameFolderName.trim()}
+                color="primary"
+              >
+                Rename
+              </Button>
+            </div>
+          </Card>
+        </Modal>
+      )}
+      <Menu
+        open={Boolean(anchorEl)}
+        anchorEl={anchorEl}
+        onClose={handleCloseMenu}
+        size="sm"
+        placement="bottom-start"
+        sx={{
+          mt: 1,
+          boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.2)",
+          borderRadius: "8px",
+          overflow: "hidden",
+          padding: 0,
+          bgcolor: "background.paper",
+          transition: "all 0.2s ease-in-out", // Animation for appearance
+        }}
+      >
+        {menuTarget && menuTarget.type === "folder" ? (
+          <>
+            <MenuItem
+              onClick={() => {
+                handleAction("CreateSubfolder");
+                handleCloseMenu(); // Closes the menu
+              }}
+              sx={{
+                padding: "8px 16px",
+                "&:hover": { bgcolor: "action.hover" },
+              }}
+            >
+              Create Subfolder
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                handleAction("UploadFile");
+                handleCloseMenu(); // Closes the menu
+              }}
+              sx={{
+                padding: "8px 16px",
+                "&:hover": { bgcolor: "action.hover" },
+              }}
+            >
+              Upload File
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                handleAction("Rename");
+                handleCloseMenu(); // Closes the menu
+              }}
+              sx={{
+                padding: "8px 16px",
+                "&:hover": { bgcolor: "action.hover" },
+              }}
+            >
+              Edit
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                handleAction("Delete");
+                handleCloseMenu(); // Closes the menu
+              }}
+              sx={{
+                padding: "8px 16px",
+                color: "error.main",
+                "&:hover": { bgcolor: "error.light" },
+              }}
+            >
+              Delete
+            </MenuItem>
+          </>
+        ) : (
+          <>
+            <MenuItem
+              onClick={() => {
+                handleAction("View");
+                handleCloseMenu(); // Closes the menu
+              }}
+              sx={{
+                padding: "8px 16px",
+                "&:hover": { bgcolor: "action.hover" },
+              }}
+            >
+              View
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                handleAction("Download");
+                handleCloseMenu(); // Closes the menu
+              }}
+              sx={{
+                padding: "8px 16px",
+                "&:hover": { bgcolor: "action.hover" },
+              }}
+            >
+              Download
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                handleAction("Delete");
+                handleCloseMenu(); // Closes the menu
+              }}
+              sx={{
+                padding: "8px 16px",
+                color: "error.main",
+                "&:hover": { bgcolor: "error.light" },
+              }}
+            >
+              Delete
+            </MenuItem>
+          </>
+        )}
+      </Menu>
       <Snackbar
         variant="soft"
         color={snackbar.color}
