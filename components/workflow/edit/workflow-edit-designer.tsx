@@ -32,6 +32,7 @@ type WorkflowNodeData = {
   description?: string;
   conditions?: { id: string; field: string; operator: string; value: string }[];
   assignee?: { assignee_type: "role" | "user"; assignee_id: string };
+  shouldDelegate: boolean;
   dueDate?: string;
   form?: Form;
   branches?: string[];
@@ -104,6 +105,7 @@ export function WorkflowDesigner({ id }: WorkflowDesignerProps) {
         label: nodeConfig[type].label,
         description: nodeConfig[type].description,
         nodeId: nodeId,
+        shouldDelegate: false,
       },
     };
     setNodes((nds) => [...nds, newNode]);

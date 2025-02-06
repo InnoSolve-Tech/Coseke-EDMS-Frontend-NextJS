@@ -235,7 +235,6 @@ export function NodeEditor({
       ...editedNode,
       data: {
         ...editedNode.data,
-        delegate: delegate || undefined,
       },
     });
   };
