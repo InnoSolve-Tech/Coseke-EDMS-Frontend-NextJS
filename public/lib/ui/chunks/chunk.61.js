@@ -1215,11 +1215,9 @@
                             items: Object.keys(O.i),
                             onClickItem: function (e) {
                               var t = O.i[e];
-                              u.a
-                                .getOfficeEditor()
-                                .updateParagraphStyle({
-                                  lineHeightMultiplier: t,
-                                });
+                              u.a.getOfficeEditor().updateParagraphStyle({
+                                lineHeightMultiplier: t,
+                              });
                             },
                             currentSelectionKey: ie,
                             width: 80,
