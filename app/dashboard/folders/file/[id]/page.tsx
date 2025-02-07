@@ -521,16 +521,20 @@ const FileViewPage = () => {
         flexDirection: { xs: "column", md: "row" },
         height: "100vh",
         bgcolor: "background.body",
-        overflow: "hidden", // Prevents overflow
+        overflow: "hidden",
+        borderRadius: 0,
+        boxShadow: 0,
+        p: 2,
       }}
     >
       <IconButton
         onClick={handleClose}
         sx={{
           position: "absolute",
-          top: 16,
-          right: 16,
+          top: 8,
+          right: 8,
           zIndex: 10,
+          backgroundColor: "white",
         }}
       >
         <CloseIcon />
@@ -540,18 +544,18 @@ const FileViewPage = () => {
       <Card
         sx={{
           flex: 1,
-          p: 3,
+          p: 2,
           overflow: "auto",
-          borderRight: { md: "1px solid", xs: "none" }, // Divider for larger screens
-          borderColor: "divider",
-          bgcolor: "background.surface",
+          bgcolor: "white",
+          borderRadius: 0,
+          boxShadow: 0,
         }}
       >
         <Typography
           level="h2"
           sx={{
             mb: 2,
-            fontSize: "1.5rem",
+            fontSize: "1.25rem",
             fontWeight: 600,
             color: "text.primary",
           }}
@@ -565,20 +569,22 @@ const FileViewPage = () => {
       <Card
         sx={{
           width: { xs: "100%", md: "400px" },
-          p: 3,
-          bgcolor: "background.surface",
-          overflow: "auto", // Ensure scrollable content
+          p: 2,
+          bgcolor: "white",
+          overflow: "auto",
+          borderRadius: 0,
+          boxShadow: 0,
         }}
-        variant="outlined"
       >
-        <CardContent sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {/* Header Section */}
+        <CardContent
+          sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}
+        >
           <Typography
             level="h3"
             startDecorator={<EditIcon />}
             sx={{
-              mb: 2,
-              fontSize: "1.25rem",
+              mb: 1.5,
+              fontSize: "1.1rem",
               fontWeight: 600,
               color: "text.primary",
             }}
@@ -586,313 +592,152 @@ const FileViewPage = () => {
             Edit Metadata
           </Typography>
 
-          {/* Document Details Section */}
-          <Card variant="outlined" sx={{ bgcolor: "background.level1" }}>
-            <CardContent>
-              <Typography
-                level="h4"
-                sx={{
-                  mb: 2,
-                  fontSize: "1rem",
-                  fontWeight: 600,
-                  color: "text.primary",
-                }}
-              >
-                Document Details
+          {/* Document Details */}
+          <Typography level="h4" sx={{ fontSize: "1rem", fontWeight: 600 }}>
+            Document Details
+          </Typography>
+          <Card
+            sx={{
+              p: 2,
+              bgcolor: "background.level1",
+              borderRadius: 0,
+              boxShadow: 0,
+            }}
+          >
+            <FormControl>
+              <FormLabel>Document Name</FormLabel>
+              <Input
+                size="sm"
+                value={document.filename || ""}
+                onChange={(e) =>
+                  handleMetadataChange("filename", e.target.value)
+                }
+              />
+            </FormControl>
+            <FormControl>
+              <FormLabel>Document Type</FormLabel>
+              <Input
+                size="sm"
+                value={document.documentType || "N/A"}
+                readOnly
+                variant="soft"
+              />
+            </FormControl>
+            <FormControl>
+              <FormLabel>Created Date</FormLabel>
+              <Typography sx={{ fontSize: "0.9rem" }}>
+                {new Date(document.createdDate).toLocaleString()}
               </Typography>
-              <FormControl>
-                <FormLabel
-                  sx={{ fontSize: "0.875rem", color: "text.secondary" }}
-                >
-                  Document Name
-                </FormLabel>
-                <Input
-                  placeholder="Enter document name"
-                  value={document.filename || ""}
-                  onChange={(e) =>
-                    setDocument({ ...document, filename: e.target.value })
-                  }
-                  sx={{
-                    "--Input-focusedThickness": "1px",
-                    "& input": { fontSize: "0.875rem" },
-                  }}
-                />
-              </FormControl>
-            </CardContent>
-          </Card>
-
-          {/* Document Type Section */}
-          <Card variant="outlined" sx={{ bgcolor: "background.level1" }}>
-            <CardContent>
-              <FormControl>
-                <FormLabel
-                  sx={{ fontSize: "0.875rem", color: "text.secondary" }}
-                >
-                  Document Type
-                </FormLabel>
-                <Input
-                  value={document.documentType || "N/A"}
-                  readOnly
-                  variant="soft"
-                  sx={{
-                    "--Input-focusedThickness": "1px",
-                    "& input": { fontSize: "0.875rem" },
-                  }}
-                />
-              </FormControl>
-            </CardContent>
-          </Card>
-
-          <Divider sx={{ my: 2 }} />
-
-          {/* File Information Section */}
-          <Card variant="outlined" sx={{ bgcolor: "background.level1" }}>
-            <CardContent>
-              <Typography
-                level="h4"
-                sx={{
-                  mb: 2,
-                  fontSize: "1rem",
-                  fontWeight: 600,
-                  color: "text.primary",
-                }}
-              >
-                File Information
+            </FormControl>
+            <FormControl>
+              <FormLabel>Last Modified</FormLabel>
+              <Typography sx={{ fontSize: "0.9rem" }}>
+                {new Date(document.lastModifiedDateTime).toLocaleString()}
               </Typography>
-              <Stack spacing={2}>
-                <Stack direction="row" spacing={2}>
-                  <Card variant="outlined" sx={{ flex: 1 }}>
-                    <CardContent>
-                      <Typography
-                        level="body-sm"
-                        sx={{
-                          color: "text.secondary",
-                          mb: 0.5,
-                          fontSize: "0.75rem",
-                        }}
-                      >
-                        Created Date
-                      </Typography>
-                      <Typography level="body-md" sx={{ fontSize: "0.875rem" }}>
-                        {new Date(document.createdDate).toLocaleString()}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                  <Card variant="outlined" sx={{ flex: 1 }}>
-                    <CardContent>
-                      <Typography
-                        level="body-sm"
-                        sx={{
-                          color: "text.secondary",
-                          mb: 0.5,
-                          fontSize: "0.75rem",
-                        }}
-                      >
-                        Last Modified
-                      </Typography>
-                      <Typography level="body-md" sx={{ fontSize: "0.875rem" }}>
-                        {new Date(
-                          document.lastModifiedDateTime,
-                        ).toLocaleString()}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Stack>
-
-                <FormControl>
-                  <FormLabel
-                    sx={{ fontSize: "0.875rem", color: "text.secondary" }}
-                  >
-                    MIME Type
-                  </FormLabel>
-                  <Input
-                    value={document.mimeType}
-                    readOnly
-                    variant="soft"
-                    sx={{
-                      "--Input-focusedThickness": "1px",
-                      "& input": { fontSize: "0.875rem" },
-                    }}
-                  />
-                </FormControl>
-              </Stack>
-            </CardContent>
+            </FormControl>
           </Card>
 
-          <Divider sx={{ my: 2 }} />
+          <Divider sx={{ my: 1.5 }} />
 
-          {/* Additional Metadata Section */}
-          <Card variant="outlined" sx={{ bgcolor: "background.level1" }}>
-            <CardContent>
-              <Stack
-                direction="row"
-                justifyContent="space-between"
-                alignItems="center"
-              >
-                <Typography
-                  level="h4"
-                  sx={{
-                    fontSize: "1rem",
-                    fontWeight: 600,
-                    color: "text.primary",
-                  }}
-                >
-                  Additional Metadata
-                </Typography>
-                <Button
+          {/* Metadata Fields */}
+          <Typography level="h4" sx={{ fontSize: "1rem", fontWeight: 600 }}>
+            Additional Metadata
+          </Typography>
+          <Button
+            size="sm"
+            startDecorator={<AddIcon />}
+            onClick={() => setOpenNewMetadataModal(true)}
+            sx={{
+              bgcolor: "#1a1a1a",
+              color: "white",
+              fontSize: "0.75rem",
+              padding: "4px 8px",
+              ":hover": { bgcolor: "#252525" },
+            }}
+          >
+            Add Field
+          </Button>
+          {Object.entries(document.metadata).map(([key, value]) => (
+            <Card sx={{ p: 1.5, borderRadius: 0, boxShadow: 0 }} key={key}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Input
                   size="sm"
-                  startDecorator={<AddIcon />}
-                  onClick={() => setOpenNewMetadataModal(true)}
-                  sx={{
-                    fontSize: "0.875rem",
-                  }}
+                  value={value}
+                  onChange={(e) => handleMetadataChange(key, e.target.value)}
+                />
+                <IconButton
+                  size="sm"
+                  color="danger"
+                  onClick={() => handleDeleteMetadata(key)}
                 >
-                  Add Field
-                </Button>
+                  <DeleteIcon />
+                </IconButton>
               </Stack>
-              <Stack spacing={2} sx={{ mt: 2 }}>
-                {document &&
-                  Object.entries(document.metadata).map(([key, value]) => (
-                    <FormControl key={key}>
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Card variant="outlined" sx={{ flexGrow: 1 }}>
-                          <CardContent>
-                            <FormLabel
-                              sx={{
-                                fontSize: "0.875rem",
-                                color: "text.secondary",
-                              }}
-                            >
-                              {key}
-                            </FormLabel>
-                            <Input
-                              placeholder={`Enter value for ${key}`}
-                              value={
-                                typeof value === "object"
-                                  ? value.join(", ")
-                                  : value
-                              }
-                              onChange={(e) =>
-                                handleMetadataChange(key, e.target.value)
-                              }
-                              sx={{
-                                "--Input-focusedThickness": "1px",
-                                "& input": { fontSize: "0.875rem" },
-                              }}
-                            />
-                          </CardContent>
-                        </Card>
-                        <IconButton
-                          size="sm"
-                          variant="plain"
-                          color="danger"
-                          onClick={() => handleDeleteMetadata(key)}
-                          sx={{ mt: 2 }}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </Stack>
-                    </FormControl>
-                  ))}
-              </Stack>
-            </CardContent>
-          </Card>
+            </Card>
+          ))}
 
-          {/* Actions Section */}
-          <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+          <Divider sx={{ my: 1.5 }} />
+
+          {/* Actions */}
+          <Stack direction="row" spacing={1.5}>
             <Button
               onClick={handleSubmit}
               startDecorator={<EditIcon />}
-              variant="soft"
-              sx={{ fontSize: "0.875rem" }}
+              sx={{
+                bgcolor: "#1a1a1a",
+                color: "white",
+                fontSize: "0.75rem",
+                padding: "4px 8px",
+                ":hover": { bgcolor: "#252525" },
+              }}
             >
               Update Metadata
             </Button>
-            <Button
-              onClick={handleDeleteDocument}
-              startDecorator={<DeleteIcon />}
-              variant="solid"
-              color="danger"
-              sx={{ fontSize: "0.875rem" }}
-            >
+            {/* <Button onClick={handleDeleteDocument} startDecorator={<DeleteIcon />} sx={{ bgcolor: "#1a1a1a", color: "white", fontSize: "0.75rem", padding: "4px 8px", ":hover": { bgcolor: "#252525" } }}>
               Delete Document
-            </Button>
+            </Button> */}
           </Stack>
         </CardContent>
       </Card>
 
-      {/* Add Field Modal */}
+      {/* Add Metadata Modal */}
       <Modal
         open={openNewMetadataModal}
         onClose={() => setOpenNewMetadataModal(false)}
       >
-        <ModalDialog
-          sx={{
-            "& .MuiTypography-root": { fontSize: "1rem" },
-            "& .MuiFormLabel-root": { fontSize: "0.875rem" },
-            "& .MuiInput-root": { fontSize: "0.875rem" },
-          }}
-        >
+        <ModalDialog>
           <ModalClose />
-          <Typography
-            level="h4"
-            sx={{ fontSize: "1.25rem", fontWeight: 600, color: "text.primary" }}
+          <Typography level="h4">Add New Metadata Field</Typography>
+          <FormControl>
+            <FormLabel>Field Name</FormLabel>
+            <Input
+              size="sm"
+              value={newMetadata.name}
+              onChange={(e) =>
+                setNewMetadata({ ...newMetadata, name: e.target.value })
+              }
+            />
+          </FormControl>
+          <Button
+            onClick={handleAddMetadata}
+            sx={{
+              bgcolor: "#1a1a1a",
+              color: "white",
+              fontSize: "0.75rem",
+              padding: "4px 8px",
+              ":hover": { bgcolor: "#252525" },
+            }}
           >
-            Add New Metadata Field
-          </Typography>
-          <Stack spacing={2} sx={{ mt: 2 }}>
-            <FormControl>
-              <FormLabel>Field Name</FormLabel>
-              <Input
-                value={newMetadata.name}
-                onChange={(e) =>
-                  setNewMetadata({ ...newMetadata, name: e.target.value })
-                }
-                placeholder="Enter field name"
-              />
-            </FormControl>
-            <FormControl>
-              <FormLabel>Field Value</FormLabel>
-              <Input
-                value={newMetadata.value}
-                onChange={(e) =>
-                  setNewMetadata({ ...newMetadata, value: e.target.value })
-                }
-                placeholder="Enter field value"
-              />
-            </FormControl>
-            <Button
-              onClick={handleAddMetadata}
-              disabled={!newMetadata.name}
-              sx={{ fontSize: "0.875rem" }}
-            >
-              Add Field
-            </Button>
-          </Stack>
+            Add Field
+          </Button>
         </ModalDialog>
       </Modal>
 
       {/* Snackbar Notifications */}
       <Snackbar
-        variant="soft"
-        color={snackbar.color}
         open={snackbar.open}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-        startDecorator={<DescriptionIcon />}
-        endDecorator={
-          <IconButton
-            onClick={() => setSnackbar({ ...snackbar, open: false })}
-            size="sm"
-            variant="plain"
-            color="neutral"
-          >
-            <CloseIcon />
-          </IconButton>
-        }
-        sx={{
-          "& .MuiSnackbar-content": { fontSize: "0.875rem" },
-        }}
+        color={snackbar.color}
       >
         {snackbar.message}
       </Snackbar>
