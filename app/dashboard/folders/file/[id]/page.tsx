@@ -231,28 +231,21 @@ const FileViewPage = () => {
   const handleAddMetadata = () => {
     if (!document || !newMetadata.name.trim()) return;
 
-    // Validate the new metadata field
-    const newFieldName = newMetadata.name.trim();
-    if (document.metadata.hasOwnProperty(newFieldName)) {
-      showSnackbar("Metadata field already exists", "danger");
-      return;
-    }
+    setDocument((prev) => {
+      if (!prev) return null; // Ensure prev is not null
 
-    // Append the new metadata field
-    setDocument({
-      ...document,
-      metadata: {
-        ...document.metadata,
-        [newFieldName]: newMetadata.value,
-      },
+      return {
+        ...prev,
+        metadata: {
+          ...prev.metadata,
+          [newMetadata.name]: newMetadata.value || " ", // Ensure a visible value
+        },
+      };
     });
 
-    // Reset modal state
+    // Reset modal input fields
+    setNewMetadata({ name: "", type: "text", value: "" });
     setOpenNewMetadataModal(false);
-    setNewMetadata({ name: "", type: "text", value: "", options: null });
-
-    // Notify the user
-    showSnackbar("New metadata field added", "success");
   };
 
   const handleSubmit = async () => {
@@ -657,14 +650,18 @@ const FileViewPage = () => {
           >
             Add Field
           </Button>
-          {Object.entries(document.metadata).map(([key, value]) => (
+          {Object.entries(document.metadata || {}).map(([key, value]) => (
             <Card sx={{ p: 1.5, borderRadius: 0, boxShadow: 0 }} key={key}>
               <Stack direction="row" spacing={1} alignItems="center">
-                <Input
-                  size="sm"
-                  value={value}
-                  onChange={(e) => handleMetadataChange(key, e.target.value)}
-                />
+                <FormControl>
+                  <FormLabel>{key}</FormLabel> {/* Ensure key is displayed */}
+                  <Input
+                    size="sm"
+                    value={value}
+                    placeholder={`Enter value for ${key}`}
+                    onChange={(e) => handleMetadataChange(key, e.target.value)}
+                  />
+                </FormControl>
                 <IconButton
                   size="sm"
                   color="danger"
