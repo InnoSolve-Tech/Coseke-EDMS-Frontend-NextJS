@@ -116,6 +116,7 @@ export default function FileUploadDialog({
           path: "/lib",
           enableOfficeEditing: true,
           enableFilePicker: true,
+          enableMultipleViewerMerging: true,
           apiKey:
             "demo:1738607170548:616f59ff03000000007a9bceb1ad873e0fd71f2b4fb84257cc6dd11033",
         },

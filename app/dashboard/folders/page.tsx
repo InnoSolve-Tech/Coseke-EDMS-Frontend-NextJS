@@ -980,45 +980,56 @@ export default function FileExplorer() {
         <Typography level="h4" sx={{ fontWeight: "bold" }}>
           File Explorer
         </Typography>
-        <div className="flex items-center space-x-2">
-          <div className="flex gap-1">
+        <div className="flex justify-center items-center gap-3 p-2">
+          {[
+            { count: folderCount, label: "Folders" },
+            { count: fileCount, label: "Files" },
+          ].map((item, index) => (
             <Card
+              key={index}
               variant="outlined"
-              sx={{ width: "auto", minWidth: 80, p: 1.5, textAlign: "center" }}
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                minWidth: 120,
+                height: 70,
+                paddingY: 1,
+                borderRadius: "8px",
+                textAlign: "center",
+              }}
             >
-              <Typography level="h3" fontWeight="bold">
-                {folderCount}
+              <Typography level="body-lg" fontWeight="bold">
+                {item.count}
               </Typography>
-              <Typography level="body-xs">Folders</Typography>
-            </Card>
-            <Card
-              variant="outlined"
-              sx={{ width: "auto", minWidth: 80, p: 1.5, textAlign: "center" }}
-            >
-              <Typography level="h3" fontWeight="bold">
-                {fileCount}
+              <Typography
+                level="body-sm"
+                sx={{ marginTop: 0.5, color: "text.secondary" }}
+              >
+                {item.label}
               </Typography>
-              <Typography level="body-xs">Files</Typography>
             </Card>
-          </div>
+          ))}
+
           <Button
             variant="outlined"
             color="neutral"
             startDecorator={<CreateNewFolder />}
             onClick={() => setIsCreateFolderModalOpen(true)}
             size="sm"
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minWidth: 120,
+              height: 70,
+              borderRadius: "8px",
+              fontSize: "0.875rem",
+            }}
           >
             New Folder
           </Button>
-          {/* <Button
-    variant="outlined"
-    color="neutral"
-    startDecorator={<FileUpload />}
-    onClick={() => setUploadDialogOpen(true)}
-    size="sm"
-  >
-    Upload
-  </Button> */}
         </div>
       </div>
       <div className="flex-grow flex overflow-hidden">
