@@ -79,7 +79,7 @@ export const addDocument = async (
   file: File,
   data: any,
   folderId: number,
-): Promise<void> => {
+): Promise<FileData | undefined> => {
   // Create FormData object
   let formData = new FormData();
   console.log(data);
@@ -100,7 +100,7 @@ export const addDocument = async (
         },
       },
     );
-    console.log(res);
+    return res.data;
   } catch (error) {
     console.error("Error uploading document:", error);
   }
@@ -110,7 +110,7 @@ export const addDocumentByFolderId = async (
   data: DocumentProps,
   file: File,
   folderId: number,
-): Promise<void> => {
+): Promise<ApiResponse<FileData>> => {
   const token = getTokenFromSessionStorage();
   const authorization = `Bearer ${JSON.parse(token!)}`;
 
@@ -126,7 +126,7 @@ export const addDocumentByFolderId = async (
   formData.append("file", file);
 
   try {
-    const response = await AxiosInstance.post<ApiResponse<void>>(
+    const response = await AxiosInstance.post<ApiResponse<FileData>>(
       `/api/v1/files/${folderId}`,
       formData,
       {
@@ -137,6 +137,7 @@ export const addDocumentByFolderId = async (
       },
     );
     console.log(response);
+    return response.data;
   } catch (error) {
     console.error("Error uploading document:", error);
     throw error; // Re-throw to handle in the calling function

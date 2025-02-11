@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { createForm } from "@/core/forms/api";
 import { toast } from "@/hooks/use-toast";
 import { PlusIcon } from "lucide-react";
-import { useState } from "react";
 
 export function CreateFormButton({
   isOpen,
