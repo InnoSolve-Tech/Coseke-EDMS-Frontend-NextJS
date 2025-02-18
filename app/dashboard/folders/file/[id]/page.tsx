@@ -44,9 +44,14 @@ import {
   deleteMetadata,
   clearMetadata,
   deleteFile,
+  bulkFileUpload,
+  bulkUpload,
+  updateDocumentType,
 } from "@/components/files/api";
 import { useRouter } from "next/navigation";
 import { WebViewerInstance } from "@pdftron/webviewer";
+import axios from "axios";
+import { FileQueue } from "@/components/FileQueue";
 
 interface MetadataItem {
   name: string;
@@ -73,6 +78,12 @@ interface Document {
   lastModifiedDateTime: string;
   lastModifiedBy: number;
   createdBy: number;
+}
+
+interface BulkUploadState {
+  files: File[];
+  processing: boolean;
+  progress: Record<string, number>;
 }
 
 const FileViewPage = () => {
@@ -113,6 +124,11 @@ const FileViewPage = () => {
   const viewerRef = useRef<HTMLDivElement>(null);
   const webViewerInstance = useRef<WebViewerInstance | null>(null);
   const [isViewerLoaded, setIsViewerLoaded] = useState(false);
+  const [bulkUploadState, setBulkUploadState] = useState<BulkUploadState>({
+    files: [],
+    processing: false,
+    progress: {},
+  });
 
   const handleClose = () => {
     router.back();
@@ -373,7 +389,7 @@ const FileViewPage = () => {
       console.log("📄 File type detected:", fileType);
 
       // Ensure PDFs do NOT open in Office Editing Mode
-      if (fileType === "pdf") {
+      if (fileType === "application/pdf") {
         console.log("📄 Loading PDF in WebViewer...");
         webViewerInstance.current.UI.loadDocument(blob, {
           filename: document.filename,
@@ -381,7 +397,8 @@ const FileViewPage = () => {
       } else if (
         fileType.includes("office") ||
         fileType.includes("doc") ||
-        fileType.includes("xls")
+        fileType.includes("xls") ||
+        fileType.includes("image/png")
       ) {
         console.log(
           "📄 Loading Office document in WebViewer with editing enabled...",
@@ -476,6 +493,42 @@ const FileViewPage = () => {
       });
     }
   }, [document]);
+
+  const handleBulkUpload = async () => {
+    if (!document || bulkUploadState.files.length === 0) return;
+
+    setBulkUploadState((prev) => ({ ...prev, processing: true }));
+
+    try {
+      // Create a FileQueue instance
+      const queue = new FileQueue();
+
+      // Add each file to the queue with its metadata
+      bulkUploadState.files.forEach((file) => {
+        queue.addItem({
+          file,
+          documentType: document.documentType || "default",
+          documentName: file.name,
+          metadata: document.metadata || {},
+        });
+      });
+
+      // Use the bulkFileUpload function
+      const response = await bulkFileUpload(queue, document.folderID);
+
+      if (response) {
+        showSnackbar(
+          `Successfully uploaded ${bulkUploadState.files.length} files`,
+          "success",
+        );
+      }
+    } catch (error) {
+      console.error("Bulk upload failed:", error);
+      showSnackbar("Failed to upload files", "danger");
+    } finally {
+      setBulkUploadState({ files: [], processing: false, progress: {} });
+    }
+  };
 
   if (loading) {
     return (
