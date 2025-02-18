@@ -12,7 +12,7 @@ export class FileQueue {
     file: File;
     documentType: string;
     documentName: string;
-    metadata: Metadata;
+    metadata: Record<string, any>;
   }) {
     throw new Error("Method not implemented.");
   }
