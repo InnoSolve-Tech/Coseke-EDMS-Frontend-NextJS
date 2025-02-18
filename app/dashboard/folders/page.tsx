@@ -1075,7 +1075,7 @@ export default function FileExplorer() {
     const fileArray = Array.from(files);
     setBulkUploadState((prev) => ({
       ...prev,
-      files: fileArray,
+      files: [...prev.files, ...fileArray],
     }));
 
     // If there's a ZIP file, show warning
