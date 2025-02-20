@@ -269,7 +269,7 @@ export default function FileUploadDialog({
           enableFilePicker: true,
           enableMultipleViewerMerging: true,
           apiKey:
-            "demo:1739279293142:6161270003000000006e97f2ba4e981f087a9030a6ce3347f8965f7c68",
+            "demo:1738607170548:616f59ff03000000007a9bceb1ad873e0fd71f2b4fb84257cc6dd11033",
         },
         viewerRef.current,
       );
