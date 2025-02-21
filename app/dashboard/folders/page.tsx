@@ -1,5 +1,5 @@
 "use client";
-import { FileText, Image, Table } from "lucide-react";
+import { FileText, Image, Table, Upload } from "lucide-react";
 import type React from "react";
 import { useState, useEffect, useRef } from "react";
 import { CreateNewFolder } from "@mui/icons-material";
@@ -160,6 +160,11 @@ export default function FileExplorer() {
     progress: {},
   });
   const [folderOptions, setFolderOptions] = useState<FolderOption[]>([]);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isVisible, setIsVisible] = useState(false);
+  const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
+  const [editedFolderName, setEditedFolderName] = useState("");
 
   const loadFoldersAndFiles = async () => {
     try {
@@ -379,6 +384,19 @@ export default function FileExplorer() {
     setAnchorEl(null);
     setMenuTarget(null);
   };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        handleCloseMenu();
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const toggleNode = (id: string) => {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -934,6 +952,26 @@ export default function FileExplorer() {
     }
   };
 
+  useEffect(() => {
+    const handleGlobalClick = () => setIsVisible(false);
+    document.addEventListener("click", handleGlobalClick);
+    return () => document.removeEventListener("click", handleGlobalClick);
+  }, []);
+
+  const handleFolderRename = async (folderId: string, newName: string) => {
+    try {
+      await editFolder(Number(folderId), newName);
+      setFileData((prevData) =>
+        prevData.map((folder) =>
+          folder.id === folderId ? { ...folder, label: newName } : folder,
+        ),
+      );
+      setEditingFolderId(null);
+    } catch (error) {
+      console.error("Failed to rename folder:", error);
+    }
+  };
+
   const renderTree = (nodes: FileNode[]) => {
     const dataToRender = filteredData.length > 0 ? filteredData : nodes;
     const visibleNodes = getVisibleNodes(dataToRender, currentFolderID || 0);
@@ -1201,7 +1239,7 @@ export default function FileExplorer() {
 
           <input type="file" multiple hidden ref={fileInputRef} />
 
-          <Button
+          {/* <Button
             variant="outlined"
             color="neutral"
             onClick={() => {
@@ -1220,71 +1258,72 @@ export default function FileExplorer() {
             }}
           >
             Single File Upload
-          </Button>
-
-          <Button
-            variant="outlined"
-            color="neutral"
-            onClick={() => setIsBulkUploadDialogOpen(true)}
-            size="sm"
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minWidth: 120,
-              height: 70,
-              borderRadius: "8px",
-              fontSize: "0.875rem",
-            }}
-          >
-            Bulk Upload
-          </Button>
-
-          <Button
-            variant="outlined"
-            color="neutral"
-            startDecorator={<CreateNewFolder />}
-            onClick={() => setIsCreateFolderModalOpen(true)}
-            size="sm"
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minWidth: 120,
-              height: 70,
-              borderRadius: "8px",
-              fontSize: "0.875rem",
-            }}
-          >
-            New Folder
-          </Button>
+          </Button> */}
         </div>
       </div>
       <div className="flex-grow flex overflow-hidden">
         <div className="flex-grow flex flex-col">
-          <Breadcrumbs
-            size="sm"
-            sx={{
-              padding: "8px 16px",
-              borderBottom: "1px solid",
-              borderColor: "divider",
-            }}
-          >
-            {currentPath.map((crumb, index) => (
-              <Typography
-                key={crumb.id}
-                fontSize="inherit"
-                color={index === currentPath.length - 1 ? "primary" : "neutral"}
-                onClick={() => handleBreadcrumbClick(index)}
+          <div className="flex items-center px-4 py-2 border-b justify-between overflow-x-auto flex-wrap gap-2">
+            <Breadcrumbs
+              size="sm"
+              className="truncate overflow-hidden flex-grow"
+            >
+              {currentPath.map((crumb, index) => (
+                <Typography
+                  key={crumb.id}
+                  fontSize="inherit"
+                  color={
+                    index === currentPath.length - 1 ? "primary" : "neutral"
+                  }
+                  onClick={() => handleBreadcrumbClick(index)}
+                  sx={{
+                    cursor: "pointer",
+                    "&:hover": { textDecoration: "underline" },
+                  }}
+                >
+                  {crumb.label}
+                </Typography>
+              ))}
+            </Breadcrumbs>
+            <div className="flex gap-2 flex-shrink-0">
+              <Button
+                size="sm"
+                variant="outlined"
+                color="neutral"
+                startDecorator={<Upload size={16} />}
+                onClick={() => {
+                  setBulkUploadState((prev) => ({
+                    ...prev,
+                    targetFolderId: currentFolderID,
+                  }));
+                  setIsBulkUploadDialogOpen(true);
+                }}
                 sx={{
-                  cursor: "pointer",
-                  "&:hover": { textDecoration: "underline" },
+                  fontSize: "0.75rem",
+                  py: 0.5,
+                  px: 1,
+                  "& svg": { strokeWidth: 2.5 },
                 }}
               >
-                {crumb.label}
-              </Typography>
-            ))}
-          </Breadcrumbs>
+                Upload Files
+              </Button>
+              <Button
+                size="sm"
+                variant="outlined"
+                color="neutral"
+                startDecorator={<CreateNewFolder />}
+                onClick={() => setIsCreateFolderModalOpen(true)}
+                sx={{
+                  fontSize: "0.75rem",
+                  py: 0.5,
+                  px: 1,
+                  "& svg": { strokeWidth: 2.5 },
+                }}
+              >
+                New Folder
+              </Button>
+            </div>
+          </div>
           <div className="p-4">
             <SearchBar onSearch={handleSearch} />
           </div>
@@ -1297,10 +1336,36 @@ export default function FileExplorer() {
         open={uploadDialogOpen}
         onClose={() => setUploadDialogOpen(false)}
         onUpload={(file, docType, metadata, folderID) =>
-          handleUpload(file, docType, metadata, folderID ?? 0)
-        } // ✅ Fix: Ensure folderID is passed
-        folderID={currentFolderID}
+          handleUpload(
+            file,
+            docType,
+            metadata,
+            folderID ?? (currentFolderID as number),
+          )
+        }
+        folderID={currentFolderID as number}
       />
+
+      {isVisible && (
+        <Card
+          className="absolute bg-white shadow-lg rounded-lg p-2 z-50"
+          style={{
+            left: `${position.x}px`,
+            top: `${position.y}px`,
+            transform: "translate(-50%, -50%)",
+          }}
+        >
+          <div className="space-y-1">
+            <button
+              className="w-full px-4 py-2 text-left flex items-center gap-2 hover:bg-gray-100 rounded transition-colors"
+              onClick={() => handleAction("createFolder")}
+            >
+              <CreateNewFolder className="w-4 h-4" />
+              <span>New Folder</span>
+            </button>
+          </div>
+        </Card>
+      )}
 
       <Modal
         open={isCreateFolderModalOpen}
@@ -1369,60 +1434,44 @@ export default function FileExplorer() {
             setFolderToRename(null);
           }}
         >
-          <Card
-            sx={{
-              maxWidth: 400,
-              margin: "auto",
-              mt: 8,
-              padding: 3,
-              borderRadius: "12px",
-              boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
-            }}
-          >
-            <Typography level="h4" sx={{ fontWeight: "bold", mb: 2 }}>
-              Rename Folder
-            </Typography>
-            <Input
-              value={renameFolderName}
-              onChange={(e) => setRenameFolderName(e.target.value)}
-              placeholder="Enter folder name"
-              sx={{
-                mb: 3,
-                border: "1px solid rgba(0, 0, 0, 0.2)",
-                borderRadius: "8px",
-                padding: "10px",
-              }}
-            />
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: "12px",
-              }}
-            >
-              <Button
-                onClick={() => {
-                  setIsRenameModalOpen(false);
-                  setRenameFolderName("");
-                  setFolderToRename(null);
-                }}
-                variant="outlined"
-                color="neutral"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleRename}
-                disabled={!renameFolderName.trim()}
-                color="primary"
-              >
-                Rename
-              </Button>
-            </div>
+          <Card>
+            <CardContent>
+              <List>
+                {fileData.map((node) => (
+                  <ListItem key={node.id}>
+                    {editingFolderId === node.id ? (
+                      <Input
+                        autoFocus
+                        value={editedFolderName}
+                        onChange={(e) => setEditedFolderName(e.target.value)}
+                        onBlur={() =>
+                          handleFolderRename(node.id, editedFolderName)
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            handleFolderRename(node.id, editedFolderName);
+                          }
+                        }}
+                      />
+                    ) : (
+                      <ListItemButton
+                        onDoubleClick={() => {
+                          setEditingFolderId(node.id);
+                          setEditedFolderName(node.label);
+                        }}
+                      >
+                        {node.label}
+                      </ListItemButton>
+                    )}
+                  </ListItem>
+                ))}
+              </List>
+            </CardContent>
           </Card>
         </Modal>
       )}
       <Menu
+        ref={menuRef}
         open={Boolean(anchorEl)}
         anchorEl={anchorEl}
         onClose={handleCloseMenu}
@@ -1435,7 +1484,7 @@ export default function FileExplorer() {
           overflow: "hidden",
           padding: 0,
           bgcolor: "background.paper",
-          transition: "all 0.2s ease-in-out", // Animation for appearance
+          transition: "all 0.2s ease-in-out",
         }}
       >
         {menuTarget && menuTarget.type === "folder" ? (
