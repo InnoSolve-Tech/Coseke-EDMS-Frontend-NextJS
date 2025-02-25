@@ -1,9 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { addDocument, DirectoryData, getFolders } from "@/components/files/api";
+import FolderTreeSelector from "@/components/forms/Active/FolderTreeSelector";
+import RecordDetailsDialog from "@/components/forms/Active/RecordDetailsDialog";
 import { getUserFromSessionStorage } from "@/components/routes/sessionStorage";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -21,28 +30,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { createFormRecord, getFormRecordByForm } from "@/core/formrecords/api";
 import { getAllForms } from "@/core/forms/api";
 import { useToast } from "@/hooks/use-toast";
 import type { FormRecord } from "@/lib/types/formRecords";
 import type { Form, FormField } from "@/lib/types/forms";
-import { Plus } from "lucide-react";
-import RecordDetailsDialog from "@/components/forms/Active/RecordDetailsDialog";
-import {
-  addDocument,
-  addDocumentByFolderId,
-  DirectoryData,
-  getFolders,
-} from "@/components/files/api";
-import FolderTreeSelector from "@/components/forms/Active/FolderTreeSelector";
 import { FileData } from "@/types/file";
+import { Plus } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export default function FormRecordsPage() {
   // Separate states for create and view sections
@@ -152,7 +147,9 @@ export default function FormRecordsPage() {
 
       // Upload files and update formValues with file IDs
       for (const [fieldId, value] of Object.entries(formValues)) {
-        const field = selectedForm.formFields.find((f) => f.id === fieldId); // Convert fieldId to number
+        const field = selectedForm.formFields.find(
+          (f) => f.id === Number(fieldId),
+        ); // Convert fieldId to number
         if (
           field?.type.toLowerCase().trim() === "file" &&
           folderValues[fieldId]
