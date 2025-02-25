@@ -3,6 +3,7 @@
 import axios from "axios";
 import { AxiosInstance } from "../routes/api";
 import { getTokenFromSessionStorage } from "../routes/sessionStorage";
+import { FileQueue } from "../FileQueue";
 
 const ENDPOINT_URL = "file-management/api/v1/files/";
 
@@ -82,7 +83,11 @@ export const addDocument = async (
 ): Promise<FileData | undefined> => {
   // Create FormData object
   let formData = new FormData();
-  console.log(data);
+
+  console.log("📌 API Call - Folder ID Received:", folderId); // ✅ Debug log
+  console.log("📤 FileData:", data);
+  console.log("📂 FormData before sending:", formData);
+
   formData.append(
     "fileData",
     new Blob([JSON.stringify(data)], { type: "application/json" }),
@@ -91,7 +96,7 @@ export const addDocument = async (
 
   try {
     let res = await axios.post(
-      `http://localhost:8081/${ENDPOINT_URL}${folderId}`,
+      `http://localhost:8081/${ENDPOINT_URL}${folderId}`, // ✅ Check if this is `4`
       formData,
       {
         headers: {
@@ -101,8 +106,10 @@ export const addDocument = async (
       },
     );
     return res.data;
+
+    console.log("✅ Upload response:", res);
   } catch (error) {
-    console.error("Error uploading document:", error);
+    console.error("❌ Error uploading document:", error);
   }
 };
 
@@ -220,10 +227,12 @@ export const createDocumentType = async (
 
 export const updateDocumentType = async (
   documentTypeId: number,
+  newDocumentTypeData: DocumentType,
 ): Promise<ApiResponse<DocumentType>> => {
   try {
     const response = await AxiosInstance.put<ApiResponse<DocumentType>>(
       `/document-types/update/${documentTypeId}`,
+      newDocumentTypeData,
     );
     return response.data;
   } catch (error) {
@@ -472,6 +481,121 @@ export const getAllFiles = async (): Promise<ApiResponse<FileData[]>> => {
     return response.data;
   } catch (error) {
     console.error("Error fetching all files:", error);
+    throw error;
+  }
+};
+
+export const bulkFileUpload = async (
+  queue: FileQueue,
+  folderID?: number,
+): Promise<any> => {
+  try {
+    const formData = new FormData();
+    const queueItems = queue.getItems();
+
+    // Add each file with its corresponding data
+    queueItems.forEach((item, index) => {
+      formData.append(`file_${index}`, item.file);
+      formData.append(
+        `fileData_${index}`,
+        item.fileData ||
+          JSON.stringify({
+            documentType: item.documentType,
+            documentName: item.file.name,
+            mimeType: item.file.type || "application/pdf",
+            metadata: item.metadata || {},
+            folderID: folderID,
+          }),
+      );
+    });
+
+    const token = getTokenFromSessionStorage();
+    const authorization = `Bearer ${JSON.parse(token!)}`;
+
+    // Log the FormData contents for debugging
+    for (let [key, value] of formData.entries()) {
+      console.log(
+        `${key}:`,
+        value instanceof File
+          ? { name: value.name, type: value.type, size: value.size }
+          : value,
+      );
+    }
+
+    const response = await axios.post(
+      `http://localhost:8081/${ENDPOINT_URL}bulk/${folderID}`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          "X-Proxy-Secret": "my-proxy-secret-key",
+          Authorization: authorization,
+        },
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+      },
+    );
+
+    return response.data;
+  } catch (error: any) {
+    console.error("Bulk upload error:", {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+    });
+    throw error;
+  }
+};
+
+export const bulkUpload = async (
+  files: File[],
+  folderID: number,
+  metadataList: Record<string, any>[],
+  onProgress?: (progress: number) => void,
+) => {
+  try {
+    const formData = new FormData();
+
+    // Append each file
+    files.forEach((file) => {
+      formData.append("files", file);
+    });
+
+    // Append metadata
+    const fileData = metadataList.map((metadata, index) => ({
+      documentType: metadata.documentType || "default",
+      documentName: files[index]?.name || `File_${index}`,
+      mimeType: files[index]?.type || "application/octet-stream",
+      metadata: metadata.metadata || {},
+    }));
+
+    formData.append("fileData", JSON.stringify(fileData));
+
+    // Perform upload request
+    const response = await axios.post(
+      `http://localhost:8081/${ENDPOINT_URL}bulk/${folderID}`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          "X-Proxy-Secret": "my-proxy-secret-key",
+        },
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+        onUploadProgress: (event) => {
+          if (onProgress && event.total) {
+            const percentCompleted = Math.round(
+              (event.loaded / event.total) * 100,
+            );
+            onProgress(percentCompleted);
+          }
+        },
+      },
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error("Upload error:", error);
     throw error;
   }
 };

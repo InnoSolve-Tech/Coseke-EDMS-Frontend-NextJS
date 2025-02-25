@@ -1,4 +1,9 @@
-import { Alert, AlertDescription } from "@/components/ui/alert";
+"use client";
+
+import type React from "react";
+import { useEffect, useRef, useState } from "react";
+import { FileText, Pencil, Plus, Save, Trash, Upload, X } from "lucide-react";
+import type { WebViewerInstance } from "@pdftron/webviewer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -9,7 +14,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -17,39 +21,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
 import {
-  AlertCircle,
-  FileText,
-  Pencil,
-  Plus,
-  Save,
-  Trash,
-  Upload,
-  X,
-} from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
-import {
-  IDocumentType,
-  IDocumentTypeForm,
+  type IDocumentType,
+  type IDocumentTypeForm,
   deleteDocumentType,
   getDocumentTypes,
   updateDocumentType,
 } from "./api";
-import { DocumentTypeCreation } from "./DocumentTypes";
-import { renderAsync } from "docx-preview";
 import { useToast } from "@/hooks/use-toast";
-import { WebViewerInstance } from "@pdftron/webviewer";
-
-interface FileUploadDialogProps {
-  open: boolean;
-  onClose: () => void;
-  onUpload: (
-    file: File,
-    documentType: string,
-    metadata: Record<string, any>,
-  ) => Promise<void>;
-  folderID?: number | null;
-}
+import { bulkFileUpload, getFolders } from "../files/api";
+import { FileQueue } from "../FileQueue";
+import { Typography } from "@mui/joy";
+import { DocumentTypeCreation } from "./DocumentTypes";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = [
@@ -63,11 +47,82 @@ const ALLOWED_TYPES = [
   ".xlsx",
 ];
 
+interface QueueProps {
+  items: { file: File; documentType: string; metadata: Record<string, any> }[];
+  onRemove: (index: number) => void;
+}
+
+interface FolderOption {
+  id: number;
+  name: string;
+  level: number;
+}
+
+const Queue: React.FC<QueueProps> = ({ items, onRemove }) => {
+  return (
+    <div className="mt-4 border border-gray-200 rounded-md p-4">
+      <h3 className="text-lg font-semibold mb-2">Queued Files</h3>
+      <ul className="space-y-2">
+        {items.map((item, index) => (
+          <li
+            key={index}
+            className="flex items-center justify-between bg-gray-50 p-2 rounded-md"
+          >
+            <div className="flex items-center">
+              <FileText className="mr-2 h-4 w-4" />
+              <span>
+                {item.file.name} - {item.documentType}
+              </span>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => onRemove(index)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+interface FileUploadDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onUpload: (
+    file: File,
+    documentType: string,
+    metadata: Record<string, any>,
+    folderID: number | null,
+  ) => Promise<void>;
+  folderID?: number | null;
+}
+
+interface FileNode {
+  [x: string]: any;
+  id: string;
+  label: string;
+  type: "file" | "folder";
+  metadata?: {
+    mimeType?: string;
+    uploadStatus?: string;
+    [key: string]: any;
+  };
+  children?: FileNode[];
+  folderID?: number;
+  fileId?: number;
+  parentFolderID?: number;
+  searchMatches?: SearchMatchInfo;
+}
+
+interface SearchMatchInfo {
+  label: boolean;
+  metadata: boolean;
+}
+
 export default function FileUploadDialog({
   open,
   onClose,
   onUpload,
-  folderID,
+  folderID: initialFolderID,
 }: FileUploadDialogProps) {
   const [file, setFile] = useState<File | null>(null);
   const [previewURL, setPreviewURL] = useState<string | null>(null);
@@ -80,7 +135,6 @@ export default function FileUploadDialog({
   const [error, setError] = useState<string | null>(null);
   const [showDocTypeDialog, setShowDocTypeDialog] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const docxContainerRef = useRef<HTMLDivElement | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingDocType, setEditingDocType] = useState<IDocumentType | null>(
     null,
@@ -88,13 +142,78 @@ export default function FileUploadDialog({
   const [editedName, setEditedName] = useState("");
   const viewerRef = useRef<HTMLDivElement>(null);
   const webViewerInstance = useRef<WebViewerInstance | null>(null);
-  const [isViewerLoaded, setIsViewerLoaded] = useState(false); // State to track viewer load
+  const [isViewerLoaded, setIsViewerLoaded] = useState(false);
   const [currentDoc, setCurrentDoc] = useState<any>(null);
+  const [queue, setQueue] = useState<FileQueue>(new FileQueue());
+  const [isQueueMode, setIsQueueMode] = useState(false);
+  const [showUploadPrompt, setShowUploadPrompt] = useState(false);
+  const [hasLoadedBefore, setHasLoadedBefore] = useState(false);
+  const [folderOptions, setFolderOptions] = useState<FolderOption[]>([]);
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(
+    initialFolderID || null,
+  );
+
+  const { toast } = useToast();
+
+  useEffect(() => {
+    setSelectedFolderId(initialFolderID || null);
+  }, [initialFolderID]);
+
+  const fetchFolders = async () => {
+    try {
+      console.log("Fetching folders...");
+      const foldersResponse = await getFolders(); // Fetch folder data from API
+      console.log("Fetched folders:", foldersResponse); // ✅ Check API response
+
+      if (!Array.isArray(foldersResponse)) {
+        console.error("Invalid folder response:", foldersResponse);
+        return;
+      }
+
+      // Ensure folderID and name exist
+      const buildFolderOptions = (
+        nodes: any[],
+        level: number = 0,
+      ): FolderOption[] => {
+        let options: FolderOption[] = [];
+        for (const node of nodes) {
+          if (node.folderID && node.name) {
+            // ✅ Ensure valid folder data
+            options.push({
+              id: node.folderID,
+              name: node.name,
+              level: level,
+            });
+            if (node.children && Array.isArray(node.children)) {
+              options = [
+                ...options,
+                ...buildFolderOptions(node.children, level + 1),
+              ];
+            }
+          }
+        }
+        return options;
+      };
+
+      const folderHierarchy = buildFolderOptions(foldersResponse);
+      console.log("Processed folder options:", folderHierarchy); // ✅ Log processed folders
+
+      setFolderOptions(folderHierarchy); // ✅ Store structured folders in state
+    } catch (error) {
+      console.error("Error fetching folders:", error);
+    }
+  };
+
+  // Ensure fetchFolders runs when the dialog opens
+  useEffect(() => {
+    if (open) {
+      fetchFolders();
+    }
+  }, [open]);
 
   useEffect(() => {
     fetchDocumentTypes();
   }, []);
-  const { toast } = useToast();
 
   useEffect(() => {
     if (open) {
@@ -105,45 +224,6 @@ export default function FileUploadDialog({
       }
     }
   }, [open]);
-
-  const loadWebViewer = async () => {
-    if (!viewerRef.current || webViewerInstance.current) return;
-
-    try {
-      const viewer = await import("@pdftron/webviewer");
-      const instance = await (window as any).WebViewer(
-        {
-          path: "/lib",
-          enableOfficeEditing: true,
-          enableFilePicker: true,
-          enableMultipleViewerMerging: true,
-          apiKey:
-            "demo:1738607170548:616f59ff03000000007a9bceb1ad873e0fd71f2b4fb84257cc6dd11033",
-        },
-        viewerRef.current,
-      );
-
-      webViewerInstance.current = instance;
-      setIsViewerLoaded(true);
-
-      // Listen for document loaded event
-      instance.UI.addEventListener("documentLoaded", async () => {
-        const doc = instance.Core.documentViewer.getDocument();
-        const filename = await doc.getFilename();
-        setCurrentDoc({
-          filename,
-          doc,
-        });
-      });
-
-      // Listen for document unloaded event
-      instance.UI.addEventListener("documentUnloaded", () => {
-        setCurrentDoc(null);
-      });
-    } catch (error) {
-      console.error("Error loading WebViewer:", error);
-    }
-  };
 
   useEffect(() => {
     if (selectedDocType) {
@@ -167,6 +247,48 @@ export default function FileUploadDialog({
       setDocumentTypes(types);
     } catch (error) {
       console.error("Failed to fetch document types:", error);
+    }
+  };
+
+  const loadWebViewer = async () => {
+    if (!viewerRef.current) return;
+
+    // If an instance exists, destroy it first
+    if (webViewerInstance.current) {
+      webViewerInstance.current.UI.dispose(); // Properly clean up the instance
+      webViewerInstance.current = null;
+      setIsViewerLoaded(false);
+    }
+
+    try {
+      const viewer = await import("@pdftron/webviewer");
+      const instance = await (window as any).WebViewer(
+        {
+          path: "/lib",
+          enableOfficeEditing: true,
+          enableFilePicker: true,
+          enableMultipleViewerMerging: true,
+          apiKey:
+            "demo:1738607170548:616f59ff03000000007a9bceb1ad873e0fd71f2b4fb84257cc6dd11033",
+        },
+        viewerRef.current,
+      );
+
+      webViewerInstance.current = instance;
+      setIsViewerLoaded(true);
+      setHasLoadedBefore(true);
+
+      instance.UI.addEventListener("documentLoaded", async () => {
+        const doc = instance.Core.documentViewer.getDocument();
+        const filename = await doc.getFilename();
+        setCurrentDoc({ filename, doc });
+      });
+
+      instance.UI.addEventListener("documentUnloaded", () => {
+        setCurrentDoc(null);
+      });
+    } catch (error) {
+      console.error("Error loading WebViewer:", error);
     }
   };
 
@@ -248,14 +370,7 @@ export default function FileUploadDialog({
     }
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      const file = event.target.files[0];
-      if (validateFile(file)) {
-        setFile(file);
-      }
-    }
-  };
+  // Removed handleFileChange function
 
   const validateFile = (file: File): boolean => {
     setError(null);
@@ -277,10 +392,11 @@ export default function FileUploadDialog({
     setMetadata((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleUpload = async () => {
-    if (!webViewerInstance.current) {
-      setError("WebViewer is not initialized");
-      console.error("Upload failed: WebViewer not loaded");
+  const handleAddToQueue = async () => {
+    if (!webViewerInstance.current || !selectedDocType) {
+      setError(
+        "Please load a document and select a document type before adding to queue.",
+      );
       return;
     }
 
@@ -289,24 +405,102 @@ export default function FileUploadDialog({
     const doc = documentViewer.getDocument();
 
     if (!doc) {
-      setError("No document loaded in WebViewer");
-      console.error("No document found in WebViewer");
+      setError("No document loaded in WebViewer.");
       return;
     }
 
-    // Extract file as Blob
     try {
       const fileData = await doc.getFileData({});
-      const fileBlob = new Blob([fileData], { type: doc.getType() });
-      const file = new File([fileBlob], doc.getFilename(), {
-        type: doc.getType(),
+      const fileType = doc.getType() || "application/pdf";
+      const fileName = doc.getFilename();
+
+      const fileBlob = new Blob([fileData], { type: fileType });
+      const extractedFile = new File([fileBlob], fileName, {
+        type: fileType,
       });
 
-      console.log("Extracted file from WebViewer:", file);
+      // Create new queue item with all necessary data
+      const queueItem = {
+        file: extractedFile,
+        documentType: selectedDocType.name,
+        documentName: fileName,
+        mimeType: fileType,
+        metadata: { ...metadata },
+      };
 
-      // Upload the extracted file
-      await onUpload(file, selectedDocType?.name || "Unknown", metadata);
+      const newQueue = new FileQueue(queue.getItems());
+      newQueue.enqueue(queueItem);
 
+      setQueue(newQueue);
+      resetForm();
+
+      toast({
+        title: "Success",
+        description: "File added to queue",
+      });
+    } catch (error) {
+      console.error("Error adding file to queue:", error);
+      setError("Failed to add file to queue. Please try again.");
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!webViewerInstance.current) {
+      setError("WebViewer is not initialized");
+      return;
+    }
+
+    console.log(
+      "🚀 Uploading to folder ID (Before API Call):",
+      selectedFolderId,
+    );
+
+    if (selectedFolderId === null || selectedFolderId === undefined) {
+      setError("Please select a valid destination folder.");
+      return;
+    }
+
+    const instance = webViewerInstance.current;
+    const documentViewer = instance.Core.documentViewer;
+    const currentDoc = documentViewer.getDocument();
+
+    if (!currentDoc) {
+      setError("No document loaded in WebViewer");
+      return;
+    }
+
+    try {
+      const fileExtension = currentDoc
+        .getFilename()
+        .split(".")
+        .pop()
+        ?.toLowerCase();
+      let mimeType = getMimeTypeFromExtension(fileExtension); // Use a helper function to get MIME type
+      const fileName = currentDoc.getFilename();
+
+      const fileData = await currentDoc.getFileData({});
+      const fileBlob = new Blob([fileData], { type: mimeType });
+      const file = new File([fileBlob], fileName, { type: mimeType });
+
+      // Set the MIME type to 'pdf' in the metadata
+      const uploadMetadata = {
+        ...metadata,
+        mimeType: "pdf", // Change this line to set the MIME type to 'pdf'
+      };
+
+      console.log("📤 Sending file:", file.name);
+      console.log("✅ MIME Type:", file.type);
+      console.log("✅ Confirming folder ID being sent:", selectedFolderId);
+
+      // Pass `uploadMetadata` correctly to `onUpload`
+      await onUpload(
+        file,
+        selectedDocType?.name || "Unknown",
+        uploadMetadata,
+        selectedFolderId,
+      );
+
+      // Reset form and close dialog after successful upload
       setFile(null);
       setPreviewURL(null);
       setSelectedDocType(null);
@@ -314,30 +508,90 @@ export default function FileUploadDialog({
       setUploadProgress(100);
       onClose();
     } catch (error) {
-      console.error("Error extracting file from WebViewer:", error);
-      setError("Failed to extract file from WebViewer.");
+      console.error("❌ Error during upload:", error);
+      setError("Failed to upload file. Please try again.");
     }
   };
 
-  const simulateUploadProgress = () => {
-    setUploadProgress(0);
-    const interval = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          return 100;
-        }
-        return prev + 20;
+  const handleUploadAll = async () => {
+    if (queue.isEmpty()) {
+      setError("No files in queue.");
+      return;
+    }
+
+    console.log("BulkUpload - Selected Folder ID:", selectedFolderId);
+    console.log("BulkUpload - Folder ID type:", typeof selectedFolderId);
+
+    if (selectedFolderId === null || selectedFolderId === undefined) {
+      setError("Please select a valid destination folder.");
+      return;
+    }
+
+    setIsUploading(true);
+    setError(null);
+
+    try {
+      // Create an array of files and corresponding data
+      const files = queue.getItems().map((item) => item.file);
+      const fileData = queue.getItems().map((item) => ({
+        documentType: item.documentType,
+        metadata: item.metadata,
+        filename: item.file.name,
+      }));
+
+      // Create FormData
+      const formData = new FormData();
+      files.forEach((file, index) => {
+        formData.append("files", file);
       });
-    }, 500);
+      formData.append("fileData", JSON.stringify(fileData));
+
+      // Pass the selected folder ID to the upload function
+      await bulkFileUpload(queue, selectedFolderId);
+
+      toast({
+        title: "Success",
+        description: `Successfully uploaded ${queue.getItems().length} files`,
+        className: "bg-green-500 text-white",
+      });
+
+      setQueue(new FileQueue());
+      resetForm();
+      onClose();
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      setError(error.message || "Failed to upload files");
+      toast({
+        variant: "destructive",
+        title: "Upload Failed",
+        description: error.message || "Failed to upload files",
+      });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
-  const handleClose = () => {
-    setIsViewerLoaded(false);
-    webViewerInstance.current = null;
+  const resetForm = () => {
+    setFile(null);
+    setSelectedDocType(null);
+    setMetadata({});
+    setError(null);
     if (viewerRef.current) {
       viewerRef.current.innerHTML = "";
     }
+    setIsViewerLoaded(false);
+  };
+
+  const handleClose = () => {
+    resetForm();
+    setIsViewerLoaded(false);
+
+    // Properly dispose of WebViewer when closing
+    if (webViewerInstance.current) {
+      webViewerInstance.current.UI.dispose();
+      webViewerInstance.current = null;
+    }
+
     onClose();
   };
 
@@ -347,65 +601,33 @@ export default function FileUploadDialog({
     setShowDocTypeDialog(false);
   };
 
-  const renderPreview = () => {
-    const fileType = file?.type || "";
-
-    if (fileType === "application/pdf") {
-      return (
-        <iframe
-          src={previewURL || undefined}
-          className="w-full h-full"
-          title="PDF Preview"
-        />
+  const handleFileSelection = () => {
+    if (webViewerInstance.current && selectedDocType) {
+      if (isQueueMode) {
+        handleAddToQueue(); // ✅ Correctly adds file to queue
+      } else {
+        setShowUploadPrompt(true);
+      }
+    } else {
+      setError(
+        "Please load a document and select a document type before uploading.",
       );
     }
+  };
 
-    if (
-      fileType ===
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    ) {
-      return (
-        <div ref={docxContainerRef} className="w-full h-full overflow-auto" />
-      );
-    }
-
-    if (
-      fileType === "application/vnd.ms-excel" ||
-      fileType ===
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    ) {
-      return (
-        <iframe
-          src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(
-            previewURL || "",
-          )}`}
-          className="w-full h-full"
-          title="Excel File Preview"
-        />
-      );
-    }
-
-    if (fileType.startsWith("image/")) {
-      return (
-        <img
-          src={previewURL || undefined}
-          alt="Uploaded File Preview"
-          className="w-full h-full"
-        />
-      );
-    }
-
-    if (fileType === "text/plain") {
-      return (
-        <iframe
-          src={previewURL || undefined}
-          className="w-full h-full"
-          title="Text File Preview"
-        />
-      );
-    }
-
-    return <p>Preview not available for this file type.</p>;
+  // Helper function to get MIME type from file extension
+  const getMimeTypeFromExtension = (extension: string | undefined): string => {
+    const mimeTypes: Record<string, string> = {
+      pdf: "application/pdf",
+      doc: "application/msword",
+      docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      txt: "text/plain",
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      png: "image/png",
+      // Add more mappings as needed
+    };
+    return mimeTypes[extension || ""] || "application/octet-stream"; // Fallback to a generic binary type
   };
 
   return (
@@ -416,8 +638,71 @@ export default function FileUploadDialog({
             Document Upload & Preview
           </DialogTitle>
         </DialogHeader>
+
+        <div className="px-6 mt-4">
+          <Typography level="body-sm" sx={{ mb: 1 }}>
+            Select Destination Folder
+          </Typography>
+          <div style={{ position: "relative", overflow: "hidden" }}>
+            <select
+              value={selectedFolderId || ""}
+              onChange={(e) => {
+                const newFolderId = Number(e.target.value);
+                console.log("Folder selected:", {
+                  id: newFolderId,
+                  value: e.target.value,
+                  type: typeof newFolderId,
+                });
+                setSelectedFolderId(newFolderId);
+              }}
+              style={{
+                width: "100%",
+                padding: "8px",
+                borderRadius: "4px",
+                border: "1px solid #e0e0e0",
+                backgroundColor: "#ffffff",
+                color: "#333333",
+                fontSize: "14px",
+                outline: "none",
+                cursor: "pointer",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                transition: "border-color 0.2s ease",
+                position: "relative",
+                zIndex: 10,
+              }}
+              onMouseOver={(e) =>
+                (e.currentTarget.style.borderColor = "#bdbdbd")
+              }
+              onMouseOut={(e) =>
+                (e.currentTarget.style.borderColor = "#e0e0e0")
+              }
+            >
+              <option value="">Select a folder</option>
+              <option value="0">Root</option>
+              {folderOptions.length > 0 ? (
+                folderOptions.map((folder) => (
+                  <option
+                    key={folder.id}
+                    value={folder.id}
+                    style={{
+                      paddingLeft: `${folder.level * 20}px`,
+                      backgroundColor:
+                        folder.level % 2 === 0 ? "#ffffff" : "#fafafa",
+                    }}
+                  >
+                    {"└─".repeat(folder.level)} {folder.name}
+                  </option>
+                ))
+              ) : (
+                <option disabled>No folders found (Check console logs)</option>
+              )}
+            </select>
+          </div>
+        </div>
+
         <div className="flex gap-6">
           {/* File Upload Section */}
+
           <div className="flex flex-col md:w-2/3 bg-gray-50 border p-4 rounded-lg shadow-sm relative min-h-[400px]">
             {!isViewerLoaded && (
               <div className="absolute inset-0 flex flex-col items-center justify-center h-full bg-white">
@@ -426,7 +711,9 @@ export default function FileUploadDialog({
                   className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 mt-4"
                   onClick={loadWebViewer}
                 >
-                  Load Document Viewer
+                  {hasLoadedBefore
+                    ? "Reload Document Viewer"
+                    : "Load Document Viewer"}
                 </Button>
               </div>
             )}
@@ -437,11 +724,38 @@ export default function FileUploadDialog({
                 isViewerLoaded ? "block" : "hidden"
               }`}
             />
+            {isViewerLoaded && (
+              <Button
+                className="mt-4 px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                onClick={() => {
+                  setIsViewerLoaded(false);
+                  webViewerInstance.current = null;
+                  if (viewerRef.current) {
+                    viewerRef.current.innerHTML = "";
+                  }
+                  loadWebViewer();
+                }}
+              >
+                Reload Document Viewer
+              </Button>
+            )}
           </div>
 
           {/* Metadata Section */}
           <Card className="shadow-md flex-grow basis-1/3 overflow-y-auto max-h-[500px]">
             <CardContent className="p-6 space-y-6">
+              <div className="flex items-center mb-4">
+                <Label htmlFor="queueMode" className="mr-2">
+                  Queue Mode
+                </Label>
+                <input
+                  type="checkbox"
+                  id="queueMode"
+                  checked={isQueueMode}
+                  onChange={(e) => setIsQueueMode(e.target.checked)}
+                />
+              </div>
+
               <div>
                 <Label>Document Type</Label>
                 <div className="flex gap-2 items-center">
@@ -594,32 +908,90 @@ export default function FileUploadDialog({
                 </div>
               ))}
 
+              {isQueueMode && (
+                <Queue
+                  items={queue.getItems()}
+                  onRemove={(index) => {
+                    queue.removeAt(index);
+                    setQueue(new FileQueue(queue.getItems())); // Trigger re-render
+                  }}
+                />
+              )}
+
               <div className="flex justify-end gap-4">
                 <Button variant="outline" onClick={handleClose}>
                   Cancel
                 </Button>
                 <Button
-                  onClick={handleUpload}
-                  disabled={selectedDocType?.metadata.some(
-                    (field) => field.type === "select" && !metadata[field.name],
-                  )}
+                  onClick={handleFileSelection}
+                  disabled={!webViewerInstance.current || !selectedDocType}
                   className={`${
-                    selectedDocType?.metadata.some(
-                      (field) =>
-                        field.type === "select" && !metadata[field.name],
-                    )
+                    !webViewerInstance.current || !selectedDocType
                       ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                       : "bg-blue-600 text-white hover:bg-blue-700"
                   }`}
                 >
                   <Save className="mr-2 h-4 w-4" />
-                  Save
+                  {isQueueMode ? "Add to Queue" : "Upload"}
                 </Button>
+                {isQueueMode && (
+                  <Button
+                    onClick={handleUploadAll}
+                    disabled={queue.isEmpty() || isUploading}
+                    className={`${
+                      queue.isEmpty() || isUploading
+                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        : "bg-green-600 text-white hover:bg-green-700"
+                    }`}
+                  >
+                    {isUploading ? (
+                      <>
+                        <div className="animate-spin mr-2">⌛</div>
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload All ({queue.getItems().length})
+                      </>
+                    )}
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
         </div>
       </DialogContent>
+
+      {/* Upload Prompt Dialog */}
+      <Dialog open={showUploadPrompt} onOpenChange={setShowUploadPrompt}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upload File</DialogTitle>
+          </DialogHeader>
+          <p>Are you sure you want to upload this file?</p>
+          <div className="flex justify-end gap-4 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowUploadPrompt(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setShowUploadPrompt(false);
+                handleUpload();
+              }}
+            >
+              Upload
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
+}
+
+function setFolderOptions(folderHierarchy: FolderOption[]) {
+  throw new Error("Function not implemented.");
 }

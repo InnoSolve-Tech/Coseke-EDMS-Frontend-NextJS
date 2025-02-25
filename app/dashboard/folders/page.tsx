@@ -1,7 +1,8 @@
 "use client";
-
-import React, { useState, useEffect } from "react";
-import { CreateNewFolder, FileUpload } from "@mui/icons-material";
+import { FileText, Image, Table, Upload } from "lucide-react";
+import type React from "react";
+import { useState, useEffect, useRef } from "react";
+import { CreateNewFolder } from "@mui/icons-material";
 import {
   Breadcrumbs,
   Typography,
@@ -13,31 +14,27 @@ import {
   ListItem,
   ListItemButton,
   Button,
-  Checkbox,
-  FormControl,
   Modal,
   Input,
   Snackbar,
-  ListItemDecorator,
 } from "@mui/joy";
 import { useRouter } from "next/navigation";
 import FileUploadDialog from "@/components/folder/FileUploadDialog";
 import SearchBar from "@/components/folder/SearchBar";
 import {
-  getFiles,
   getFolders,
   createFolders,
   deleteFile,
   deleteFolder,
-  DirectoryData,
+  type DirectoryData,
   createSubFolders,
   getDocumentTypes,
   editFolder,
   getAllFiles,
+  bulkUpload,
 } from "@/components/files/api";
-import { File, Folder } from "lucide-react";
-import { ColorPaletteProp } from "@mui/joy/styles";
-import { AxiosInstance } from "@/components/routes/api";
+import { type File, FolderIcon, FileIcon } from "lucide-react";
+import type { ColorPaletteProp } from "@mui/joy/styles";
 import { addDocument } from "@/components/files/api";
 
 interface SearchMatchInfo {
@@ -106,6 +103,19 @@ interface SearchResult {
   matchType: "name" | "content" | "metadata";
 }
 
+interface BulkUploadState {
+  files: File[];
+  targetFolderId: number | null;
+  processing: boolean;
+  progress: Record<string, number>;
+}
+
+interface FolderOption {
+  id: number;
+  name: string;
+  level: number;
+}
+
 export default function FileExplorer() {
   const [currentPath, setCurrentPath] = useState<FileNode[]>([
     { id: "0", label: "Root", type: "folder", folderID: 0 },
@@ -141,6 +151,20 @@ export default function FileExplorer() {
     message: "",
     color: "success",
   });
+  const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [bulkUploadState, setBulkUploadState] = useState<BulkUploadState>({
+    files: [],
+    targetFolderId: null,
+    processing: false,
+    progress: {},
+  });
+  const [folderOptions, setFolderOptions] = useState<FolderOption[]>([]);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isVisible, setIsVisible] = useState(false);
+  const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
+  const [editedFolderName, setEditedFolderName] = useState("");
 
   const loadFoldersAndFiles = async () => {
     try {
@@ -329,10 +353,50 @@ export default function FileExplorer() {
     fetchDocumentTypes();
   }, []);
 
+  useEffect(() => {
+    const buildFolderOptions = (
+      nodes: FileNode[],
+      level: number = 0,
+    ): FolderOption[] => {
+      let options: FolderOption[] = [];
+      for (const node of nodes) {
+        if (node.type === "folder") {
+          options.push({
+            id: node.folderID || 0,
+            name: node.label,
+            level: level,
+          });
+          if (node.children) {
+            options = [
+              ...options,
+              ...buildFolderOptions(node.children, level + 1),
+            ];
+          }
+        }
+      }
+      return options;
+    };
+
+    setFolderOptions(buildFolderOptions(fileData));
+  }, [fileData]);
+
   const handleCloseMenu = () => {
     setAnchorEl(null);
     setMenuTarget(null);
   };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        handleCloseMenu();
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const toggleNode = (id: string) => {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -482,33 +546,38 @@ export default function FileExplorer() {
       };
 
       // Update file data with temporary folder
-      setFileData((prev) =>
-        prev.map((item) =>
-          item.id === currentFolderID.toString()
-            ? { ...item, children: [...(item.children || []), tempSubFolder] }
-            : item,
-        ),
-      );
+      setFileData((prev) => {
+        const updateChildrenRecursively = (nodes: FileNode[]): FileNode[] => {
+          return nodes.map((node) => {
+            if (node.folderID === currentFolderID) {
+              return {
+                ...node,
+                children: [...(node.children || []), tempSubFolder],
+              };
+            } else if (node.children) {
+              return {
+                ...node,
+                children: updateChildrenRecursively(node.children),
+              };
+            }
+            return node;
+          });
+        };
+
+        return updateChildrenRecursively(prev);
+      });
 
       const newFolder: DirectoryData = {
         name: newFolderName.trim(),
         parentFolderID: currentFolderID,
       };
 
-      // Create subfolder and handle response
       const response = await createSubFolders(newFolder);
-
-      // Properly type check the response
-      if (!response || typeof response !== "object") {
-        throw new Error("Invalid response from server");
-      }
-
-      // Access folderID from response (matching the console log structure)
       const folderId = response.folderID;
+
       if (typeof folderId !== "number") {
         throw new Error("Invalid folder ID in response");
       }
-
       const actualSubFolder: FileNode = {
         id: folderId,
         label: newFolderName.trim(),
@@ -518,22 +587,32 @@ export default function FileExplorer() {
         children: [],
       };
 
-      // Update file data with actual folder, using type assertion for children
-      setFileData((prev) =>
-        prev.map((item) =>
-          item.id === currentFolderID.toString()
-            ? {
-                ...item,
+      // Update file data with actual folder
+      setFileData((prev) => {
+        const updateChildrenRecursively = (nodes: FileNode[]): FileNode[] => {
+          return nodes.map((node) => {
+            if (node.folderID === currentFolderID) {
+              return {
+                ...node,
                 children: [
-                  ...(item.children || []).filter(
-                    (child: FileNode) => child.id !== tempId,
+                  ...(node.children || []).filter(
+                    (child) => child.id !== tempId,
                   ),
                   actualSubFolder,
                 ],
-              }
-            : item,
-        ),
-      );
+              };
+            } else if (node.children) {
+              return {
+                ...node,
+                children: updateChildrenRecursively(node.children),
+              };
+            }
+            return node;
+          });
+        };
+
+        return updateChildrenRecursively(prev);
+      });
 
       // Expand the parent folder
       setExpanded((prev) => ({
@@ -550,30 +629,10 @@ export default function FileExplorer() {
       setMenuTarget(null);
     } catch (error) {
       console.error("Failed to create subfolder:", error);
-
-      // Clean up temporary folder on error, with proper type annotation
-      if (currentFolderID) {
-        setFileData((prev) =>
-          prev.map((item) =>
-            item.id === currentFolderID.toString()
-              ? {
-                  ...item,
-                  children: (item.children || []).filter(
-                    (child: FileNode) =>
-                      child.id !== `temp-${Date.now().toString()}`,
-                  ),
-                }
-              : item,
-          ),
-        );
-      }
-
       showSnackbar(
         error instanceof Error ? error.message : "Failed to create subfolder",
         "danger",
       );
-
-      // Reset state
       setIsCreateFolderModalOpen(false);
       setNewFolderName("");
       setIsSubfolderMode(false);
@@ -585,31 +644,19 @@ export default function FileExplorer() {
     file: File,
     documentType: string,
     metadata: Record<string, any>,
+    folderId: number,
   ) => {
     const tempFileId = `temp-${Date.now()}`;
-    const folderId = currentFolderID;
 
-    if (folderId === null) {
+    if (!folderId) {
       showSnackbar("No folder selected", "danger");
       return;
     }
 
-    const isFileUploading = (prevData: any[]) => {
-      const folder = prevData.find((node) => node.folderID === folderId);
-      return folder?.children?.some(
-        (child: { label: string; metadata: { uploadStatus: string } }) =>
-          child.label === file.name &&
-          child.metadata?.uploadStatus === "uploading",
-      );
-    };
-
     setFileData((prevData) => {
-      if (isFileUploading(prevData)) {
-        return prevData;
-      }
-
       const newData = [...prevData];
       const folder = newData.find((node) => node.folderID === folderId);
+
       if (folder) {
         const tempFile: FileNode = {
           id: tempFileId,
@@ -641,13 +688,16 @@ export default function FileExplorer() {
         fileName: file.name,
       };
 
-      // Upload the document
+      console.log("📤 Uploading file:", file.name);
+      console.log("📂 Uploading to folder ID:", folderId);
+
+      // ✅ Ensure folder ID is correctly passed to `addDocument`
       await addDocument(file, data, folderId);
 
-      // Refresh the folder data to get the latest state including the new file
+      // ✅ Refresh the folder to show the uploaded file
       await refreshCurrentFolder();
 
-      // Remove the temporary upload status
+      // ✅ Remove temporary "uploading" status
       setFileData((prevData) =>
         prevData.map((node) => {
           if (node.folderID === folderId) {
@@ -664,7 +714,8 @@ export default function FileExplorer() {
 
       showSnackbar("File uploaded successfully", "success");
     } catch (error) {
-      console.error("Upload failed:", error);
+      console.error("❌ Upload failed:", error);
+      // ✅ Remove temporary file if upload fails
       setFileData((prevData) =>
         prevData.map((node) => {
           if (node.folderID === folderId) {
@@ -678,31 +729,31 @@ export default function FileExplorer() {
           return node;
         }),
       );
+
       showSnackbar("Failed to upload file", "danger");
     }
   };
 
   const handleSearch = (query: string) => {
     if (!query.trim()) {
-      setFilteredData([]); // Reset to full data if query is empty
+      setFilteredData([]);
       return;
     }
 
     const searchTerm = query.toLowerCase();
     const results: FileNode[] = [];
 
-    // Helper function to recursively search for files and folders
     const searchInNode = (node: FileNode, path: FileNode[] = []): void => {
       const nameMatch = node.label.toLowerCase().includes(searchTerm);
       const metadataMatch = node.metadata
         ? JSON.stringify(node.metadata).toLowerCase().includes(searchTerm)
         : false;
 
-      // If the current node is a file and matches, include it in the results
-      if (node.type === "file" && (nameMatch || metadataMatch)) {
+      // Include both files and folders in search results
+      if (nameMatch || metadataMatch) {
         results.push({
           ...node,
-          label: `${path.map((p) => p.label).join(" / ")} / ${node.label}`, // Include full path in the label
+          label: `${path.map((p) => p.label).join(" / ")}${path.length ? " / " : ""}${node.label}`,
         });
       }
 
@@ -712,11 +763,9 @@ export default function FileExplorer() {
       }
     };
 
-    // Process all nodes
     fileData.forEach((node) => searchInNode(node));
 
     if (results.length === 0) {
-      // If no results, show a placeholder message
       setFilteredData([
         {
           id: "no-results",
@@ -827,9 +876,32 @@ export default function FileExplorer() {
 
   // Utility to convert MIME types to user-friendly formats
   const getReadableType = (mimeType: string | undefined): string => {
-    if (!mimeType) return "Unknown";
+    if (!mimeType) {
+      // Check file extension if MIME type is not available
+      const fileExtension = menuTarget?.label?.split(".").pop()?.toLowerCase();
+      switch (fileExtension) {
+        case "docx":
+          return "Word Document";
+        case "xlsx":
+          return "Excel Spreadsheet";
+        case "pdf":
+          return "PDF Document";
+        case "txt":
+          return "Text File";
+        case "jpg":
+        case "jpeg":
+        case "png":
+          return `Image (${fileExtension.toUpperCase()})`;
+        default:
+          return fileExtension
+            ? `${fileExtension.toUpperCase()} File`
+            : "Unknown";
+      }
+    }
+
+    // If MIME type is available, use it for more accurate type detection
     const typeMap: Record<string, string> = {
-      "application/pdf": "PDF",
+      "application/pdf": "PDF Document",
       "image/png": "Image (PNG)",
       "image/jpeg": "Image (JPEG)",
       "text/plain": "Text File",
@@ -839,9 +911,13 @@ export default function FileExplorer() {
       "application/vnd.ms-excel": "Excel Spreadsheet",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
         "Excel Spreadsheet",
-      // Add other MIME types as needed
     };
-    return typeMap[mimeType] || mimeType.split("/")[1]?.toUpperCase() || "File";
+
+    return (
+      typeMap[mimeType] ||
+      mimeType.split("/")[1]?.toUpperCase() ||
+      "Unknown Type"
+    );
   };
 
   // Utility to format dates into a readable format
@@ -855,6 +931,47 @@ export default function FileExplorer() {
     });
   };
 
+  const getFileIcon = (mimeType: string | undefined) => {
+    if (!mimeType) return <FileIcon size={20} />;
+
+    switch (mimeType.toLowerCase()) {
+      case "application/pdf":
+        return <FileText size={20} color="#E44D26" />; // Red color for PDF
+      case "application/msword":
+      case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        return <FileText size={20} color="#2B579A" />; // Blue color for Word
+      case "image/jpeg":
+      case "image/png":
+      case "image/gif":
+        return <Image size={20} color="#0078D4" />; // Blue color for images
+      case "application/vnd.ms-excel":
+      case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+        return <Table size={20} color="#217346" />; // Green color for Excel
+      default:
+        return <FileIcon size={20} />;
+    }
+  };
+
+  useEffect(() => {
+    const handleGlobalClick = () => setIsVisible(false);
+    document.addEventListener("click", handleGlobalClick);
+    return () => document.removeEventListener("click", handleGlobalClick);
+  }, []);
+
+  const handleFolderRename = async (folderId: string, newName: string) => {
+    try {
+      await editFolder(Number(folderId), newName);
+      setFileData((prevData) =>
+        prevData.map((folder) =>
+          folder.id === folderId ? { ...folder, label: newName } : folder,
+        ),
+      );
+      setEditingFolderId(null);
+    } catch (error) {
+      console.error("Failed to rename folder:", error);
+    }
+  };
+
   const renderTree = (nodes: FileNode[]) => {
     const dataToRender = filteredData.length > 0 ? filteredData : nodes;
     const visibleNodes = getVisibleNodes(dataToRender, currentFolderID || 0);
@@ -862,9 +979,8 @@ export default function FileExplorer() {
     const renderNode = (node: FileNode, index: number) => {
       const isFolder = node.type === "folder";
       const isUploading = node.metadata?.uploadStatus === "uploading";
-      const nodeKey = `${node.type}-${node.folderID || node.fileId}-${node.id}`; // Unique key
+      const nodeKey = `${node.type}-${node.folderID || node.fileId}-${node.id}`;
 
-      // Format metadata
       const lastModifiedDateTime = isFolder
         ? formatDate(node.lastModifiedDateTime)
         : formatDate(node.metadata?.lastModifiedDateTime);
@@ -888,7 +1004,7 @@ export default function FileExplorer() {
         >
           <ListItemButton
             onClick={() => handleNodeClick(node)}
-            onContextMenu={(e) => handleRightClick(e, node)} // Right-click functionality
+            onContextMenu={(e) => handleRightClick(e, node)}
             sx={{
               display: "flex",
               alignItems: "center",
@@ -904,7 +1020,26 @@ export default function FileExplorer() {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", flex: 2 }}>
-              {isFolder ? <Folder size={16} /> : <File size={16} />}
+              {isFolder ? (
+                <FolderIcon
+                  size={20}
+                  color="#FCD53F"
+                  fill="#FCD53F"
+                  style={{
+                    filter: "drop-shadow(0px 1px 1px rgba(0,0,0,0.1))",
+                    marginRight: "8px",
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    marginRight: "8px",
+                    filter: "drop-shadow(0px 1px 1px rgba(0,0,0,0.1))",
+                  }}
+                >
+                  {getFileIcon(node.metadata?.mimeType)}
+                </div>
+              )}
               <Typography
                 sx={{
                   ml: 1,
@@ -974,6 +1109,96 @@ export default function FileExplorer() {
     );
   };
 
+  const handleBulkUploadPrep = async (files: FileList) => {
+    const fileArray = Array.from(files);
+    setBulkUploadState((prev) => ({
+      ...prev,
+      files: [...prev.files, ...fileArray],
+    }));
+
+    // If there's a ZIP file, show warning
+    const hasZip = fileArray.some(
+      (file) => file.type === "application/zip" || file.name.endsWith(".zip"),
+    );
+    if (hasZip) {
+      showSnackbar(
+        "ZIP files will be extracted during upload",
+        "info" as ColorPaletteProp,
+      );
+    }
+  };
+
+  const handleBulkUpload = async () => {
+    const { files, targetFolderId } = bulkUploadState;
+    if (!targetFolderId || files.length === 0) {
+      showSnackbar("Please select a destination folder and files", "warning");
+      return;
+    }
+
+    setBulkUploadState((prev) => ({ ...prev, processing: true }));
+
+    try {
+      const metadataList = files.map((file) => ({
+        documentType: "default",
+        documentName: file.name,
+        mimeType: file.type,
+        metadata: {},
+      }));
+
+      // Create temporary file objects matching FileNode type
+      const tempFiles: FileNode[] = files.map((file) => ({
+        id: `temp-${Date.now()}-${file.name}`,
+        label: file.name,
+        type: "file", // Ensure type matches FileNode
+        folderID: targetFolderId,
+        metadata: { uploadStatus: "uploading", mimeType: file.type },
+        fileId: undefined, // Ensure it exists in type
+        parentFolderID: targetFolderId,
+      }));
+
+      // Update UI with temporary files
+      setFileData((prevData) => {
+        return prevData.map((node) =>
+          node.folderID === targetFolderId
+            ? { ...node, children: [...(node.children || []), ...tempFiles] }
+            : node,
+        );
+      });
+
+      // Perform bulk upload
+      await bulkUpload(files, targetFolderId, metadataList, (progress) => {
+        setBulkUploadState((prev) => ({
+          ...prev,
+          progress: { ...prev.progress, overall: progress },
+        }));
+      });
+
+      // Refresh folder contents to get real uploaded files
+      const updatedFolders = await loadFoldersAndFiles();
+      setFileData(updatedFolders);
+
+      showSnackbar(`Uploaded ${files.length} files successfully`, "success");
+    } catch (error) {
+      console.error("Bulk upload failed:", error);
+      showSnackbar("Bulk upload failed", "danger");
+    } finally {
+      setBulkUploadState((prev) => ({
+        ...prev,
+        processing: false,
+        files: [],
+        progress: {},
+      }));
+      setIsBulkUploadDialogOpen(false);
+    }
+  };
+
+  const removeFileFromBulkUpload = (fileName: string) => {
+    setBulkUploadState((prev) => ({
+      ...prev,
+      files: prev.files.filter((file) => file.name !== fileName),
+    }));
+  };
+
   return (
     <div className=" flex flex-col">
       <div className="bg-white border-b border-gray-200 p-4 flex justify-between items-center">
@@ -1012,11 +1237,15 @@ export default function FileExplorer() {
             </Card>
           ))}
 
-          <Button
+          <input type="file" multiple hidden ref={fileInputRef} />
+
+          {/* <Button
             variant="outlined"
             color="neutral"
-            startDecorator={<CreateNewFolder />}
-            onClick={() => setIsCreateFolderModalOpen(true)}
+            onClick={() => {
+              setCurrentFolderID(0); // Set upload target to Root
+              setUploadDialogOpen(true); // Open file upload dialog
+            }}
             size="sm"
             sx={{
               display: "flex",
@@ -1028,35 +1257,73 @@ export default function FileExplorer() {
               fontSize: "0.875rem",
             }}
           >
-            New Folder
-          </Button>
+            Single File Upload
+          </Button> */}
         </div>
       </div>
       <div className="flex-grow flex overflow-hidden">
         <div className="flex-grow flex flex-col">
-          <Breadcrumbs
-            size="sm"
-            sx={{
-              padding: "8px 16px",
-              borderBottom: "1px solid",
-              borderColor: "divider",
-            }}
-          >
-            {currentPath.map((crumb, index) => (
-              <Typography
-                key={crumb.id}
-                fontSize="inherit"
-                color={index === currentPath.length - 1 ? "primary" : "neutral"}
-                onClick={() => handleBreadcrumbClick(index)}
+          <div className="flex items-center px-4 py-2 border-b justify-between overflow-x-auto flex-wrap gap-2">
+            <Breadcrumbs
+              size="sm"
+              className="truncate overflow-hidden flex-grow"
+            >
+              {currentPath.map((crumb, index) => (
+                <Typography
+                  key={crumb.id}
+                  fontSize="inherit"
+                  color={
+                    index === currentPath.length - 1 ? "primary" : "neutral"
+                  }
+                  onClick={() => handleBreadcrumbClick(index)}
+                  sx={{
+                    cursor: "pointer",
+                    "&:hover": { textDecoration: "underline" },
+                  }}
+                >
+                  {crumb.label}
+                </Typography>
+              ))}
+            </Breadcrumbs>
+            <div className="flex gap-2 flex-shrink-0">
+              <Button
+                size="sm"
+                variant="outlined"
+                color="neutral"
+                startDecorator={<Upload size={16} />}
+                onClick={() => {
+                  setBulkUploadState((prev) => ({
+                    ...prev,
+                    targetFolderId: currentFolderID,
+                  }));
+                  setIsBulkUploadDialogOpen(true);
+                }}
                 sx={{
-                  cursor: "pointer",
-                  "&:hover": { textDecoration: "underline" },
+                  fontSize: "0.75rem",
+                  py: 0.5,
+                  px: 1,
+                  "& svg": { strokeWidth: 2.5 },
                 }}
               >
-                {crumb.label}
-              </Typography>
-            ))}
-          </Breadcrumbs>
+                Upload Files
+              </Button>
+              <Button
+                size="sm"
+                variant="outlined"
+                color="neutral"
+                startDecorator={<CreateNewFolder />}
+                onClick={() => setIsCreateFolderModalOpen(true)}
+                sx={{
+                  fontSize: "0.75rem",
+                  py: 0.5,
+                  px: 1,
+                  "& svg": { strokeWidth: 2.5 },
+                }}
+              >
+                New Folder
+              </Button>
+            </div>
+          </div>
           <div className="p-4">
             <SearchBar onSearch={handleSearch} />
           </div>
@@ -1065,13 +1332,40 @@ export default function FileExplorer() {
           </div>
         </div>
       </div>
-      {/* Keep the existing Modals and Menus here */}
       <FileUploadDialog
         open={uploadDialogOpen}
         onClose={() => setUploadDialogOpen(false)}
-        onUpload={handleUpload}
-        folderID={currentFolderID}
+        onUpload={(file, docType, metadata, folderID) =>
+          handleUpload(
+            file,
+            docType,
+            metadata,
+            folderID ?? (currentFolderID as number),
+          )
+        }
+        folderID={currentFolderID as number}
       />
+
+      {isVisible && (
+        <Card
+          className="absolute bg-white shadow-lg rounded-lg p-2 z-50"
+          style={{
+            left: `${position.x}px`,
+            top: `${position.y}px`,
+            transform: "translate(-50%, -50%)",
+          }}
+        >
+          <div className="space-y-1">
+            <button
+              className="w-full px-4 py-2 text-left flex items-center gap-2 hover:bg-gray-100 rounded transition-colors"
+              onClick={() => handleAction("createFolder")}
+            >
+              <CreateNewFolder className="w-4 h-4" />
+              <span>New Folder</span>
+            </button>
+          </div>
+        </Card>
+      )}
 
       <Modal
         open={isCreateFolderModalOpen}
@@ -1140,60 +1434,44 @@ export default function FileExplorer() {
             setFolderToRename(null);
           }}
         >
-          <Card
-            sx={{
-              maxWidth: 400,
-              margin: "auto",
-              mt: 8,
-              padding: 3,
-              borderRadius: "12px",
-              boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
-            }}
-          >
-            <Typography level="h4" sx={{ fontWeight: "bold", mb: 2 }}>
-              Rename Folder
-            </Typography>
-            <Input
-              value={renameFolderName}
-              onChange={(e) => setRenameFolderName(e.target.value)}
-              placeholder="Enter folder name"
-              sx={{
-                mb: 3,
-                border: "1px solid rgba(0, 0, 0, 0.2)",
-                borderRadius: "8px",
-                padding: "10px",
-              }}
-            />
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: "12px",
-              }}
-            >
-              <Button
-                onClick={() => {
-                  setIsRenameModalOpen(false);
-                  setRenameFolderName("");
-                  setFolderToRename(null);
-                }}
-                variant="outlined"
-                color="neutral"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleRename}
-                disabled={!renameFolderName.trim()}
-                color="primary"
-              >
-                Rename
-              </Button>
-            </div>
+          <Card>
+            <CardContent>
+              <List>
+                {fileData.map((node) => (
+                  <ListItem key={node.id}>
+                    {editingFolderId === node.id ? (
+                      <Input
+                        autoFocus
+                        value={editedFolderName}
+                        onChange={(e) => setEditedFolderName(e.target.value)}
+                        onBlur={() =>
+                          handleFolderRename(node.id, editedFolderName)
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            handleFolderRename(node.id, editedFolderName);
+                          }
+                        }}
+                      />
+                    ) : (
+                      <ListItemButton
+                        onDoubleClick={() => {
+                          setEditingFolderId(node.id);
+                          setEditedFolderName(node.label);
+                        }}
+                      >
+                        {node.label}
+                      </ListItemButton>
+                    )}
+                  </ListItem>
+                ))}
+              </List>
+            </CardContent>
           </Card>
         </Modal>
       )}
       <Menu
+        ref={menuRef}
         open={Boolean(anchorEl)}
         anchorEl={anchorEl}
         onClose={handleCloseMenu}
@@ -1206,7 +1484,7 @@ export default function FileExplorer() {
           overflow: "hidden",
           padding: 0,
           bgcolor: "background.paper",
-          transition: "all 0.2s ease-in-out", // Animation for appearance
+          transition: "all 0.2s ease-in-out",
         }}
       >
         {menuTarget && menuTarget.type === "folder" ? (
@@ -1313,6 +1591,227 @@ export default function FileExplorer() {
       >
         {snackbar.message}
       </Snackbar>
+      <Modal
+        open={isBulkUploadDialogOpen}
+        onClose={() => {
+          setIsBulkUploadDialogOpen(false);
+          setBulkUploadState({
+            files: [],
+            targetFolderId: null,
+            processing: false,
+            progress: {},
+          });
+        }}
+        sx={{
+          display: "flex",
+          alignItems: "flex-start", // Changed from center to flex-start
+          justifyContent: "center",
+          paddingTop: "40px", // Add some top padding
+          overflow: "auto", // Make modal scrollable
+        }}
+      >
+        <Card
+          sx={{
+            maxWidth: 800,
+            width: "90%",
+            margin: "0 auto", // Changed from "auto" to "0 auto"
+            padding: 3,
+            borderRadius: "12px",
+            boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
+            maxHeight: "90vh", // Limit height to 90% of viewport
+            overflow: "auto", // Make card content scrollable
+          }}
+        >
+          <Typography level="h4" sx={{ mb: 2 }}>
+            Bulk Upload Files
+          </Typography>
+
+          <div style={{ marginBottom: "20px" }}>
+            <Typography level="body-sm" sx={{ mb: 1 }}>
+              Select Destination Folder
+            </Typography>
+            <select
+              value={bulkUploadState.targetFolderId || ""}
+              onChange={(e) =>
+                setBulkUploadState((prev) => ({
+                  ...prev,
+                  targetFolderId: Number(e.target.value),
+                }))
+              }
+              style={{
+                width: "100%",
+                padding: "8px",
+                borderRadius: "4px",
+                border: "1px solid #e0e0e0",
+                backgroundColor: "#ffffff",
+                color: "#333333",
+                fontSize: "14px",
+                outline: "none",
+                cursor: "pointer",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                transition: "border-color 0.2s ease",
+              }}
+              onMouseOver={(e) =>
+                (e.currentTarget.style.borderColor = "#bdbdbd")
+              }
+              onMouseOut={(e) =>
+                (e.currentTarget.style.borderColor = "#e0e0e0")
+              }
+            >
+              <option value="">Select a folder</option>
+              <option value="0">Root</option>
+              {folderOptions.map((folder) => (
+                <option
+                  key={folder.id}
+                  value={folder.id}
+                  style={{
+                    paddingLeft: `${folder.level * 20}px`, // Indent based on level
+                    backgroundColor:
+                      folder.level % 2 === 0 ? "#ffffff" : "#fafafa", // Alternate background
+                  }}
+                >
+                  {"  ".repeat(folder.level)}└─ {folder.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const files = e.dataTransfer.files;
+              if (files.length > 0) {
+                handleBulkUploadPrep(files);
+              }
+            }}
+            style={{
+              border: "2px dashed #ccc",
+              borderRadius: "8px",
+              padding: "40px",
+              textAlign: "center",
+              marginBottom: "20px",
+              cursor: "pointer",
+              backgroundColor:
+                bulkUploadState.files.length > 0 ? "#f5f5f5" : "white",
+            }}
+          >
+            <input
+              type="file"
+              multiple
+              accept=".zip,image/*,.pdf,.doc,.docx,.xls,.xlsx"
+              onChange={(e) => {
+                if (e.target.files?.length) {
+                  handleBulkUploadPrep(e.target.files);
+                }
+              }}
+              style={{ display: "none" }}
+              id="bulk-file-input"
+            />
+            <label htmlFor="bulk-file-input" style={{ cursor: "pointer" }}>
+              <Typography level="body-lg" sx={{ mb: 1 }}>
+                Drag and drop files here or click to select
+              </Typography>
+              <Typography level="body-sm" color="neutral">
+                Supported files: Images, PDFs, Office documents, ZIP archives
+              </Typography>
+            </label>
+          </div>
+
+          {bulkUploadState.files.length > 0 && (
+            <div
+              style={{
+                marginBottom: "20px",
+                maxHeight: "200px",
+                overflowY: "auto",
+              }}
+            >
+              <Typography level="body-sm" sx={{ mb: 1 }}>
+                Selected Files ({bulkUploadState.files.length})
+              </Typography>
+              <List>
+                {bulkUploadState.files.map((file, index) => (
+                  <ListItem
+                    key={index}
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "8px",
+                      backgroundColor:
+                        index % 2 === 0
+                          ? "background.level1"
+                          : "background.paper",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}
+                    >
+                      {file.type === "application/zip" ||
+                      file.name.endsWith(".zip") ? (
+                        <FileText size={20} />
+                      ) : (
+                        getFileIcon(file.type)
+                      )}
+                      <Typography level="body-sm">{file.name}</Typography>
+                    </div>
+                    <Button
+                      size="sm"
+                      color="danger"
+                      variant="plain"
+                      onClick={() => removeFileFromBulkUpload(file.name)}
+                    >
+                      Remove
+                    </Button>
+                  </ListItem>
+                ))}
+              </List>
+            </div>
+          )}
+
+          <div
+            style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}
+          >
+            <Button
+              variant="outlined"
+              color="neutral"
+              onClick={() => {
+                setIsBulkUploadDialogOpen(false);
+                setBulkUploadState({
+                  files: [],
+                  targetFolderId: null,
+                  processing: false,
+                  progress: {},
+                });
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleBulkUpload}
+              disabled={
+                bulkUploadState.processing ||
+                bulkUploadState.files.length === 0 ||
+                !bulkUploadState.targetFolderId
+              }
+              loading={bulkUploadState.processing}
+            >
+              Upload{" "}
+              {bulkUploadState.files.length > 0
+                ? `(${bulkUploadState.files.length} files)`
+                : ""}
+            </Button>
+          </div>
+        </Card>
+      </Modal>
     </div>
   );
 }
