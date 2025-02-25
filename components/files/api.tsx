@@ -106,8 +106,6 @@ export const addDocument = async (
       },
     );
     return res.data;
-
-    console.log("✅ Upload response:", res);
   } catch (error) {
     console.error("❌ Error uploading document:", error);
   }
