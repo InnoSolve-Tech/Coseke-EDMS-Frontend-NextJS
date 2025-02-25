@@ -58,7 +58,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import ViewFormRecord from "./view-form-record";
 import WorkflowFormRecord from "./workflow-form-record";
-
+import { addDocument, DirectoryData, getFolders } from "@/components/files/api";
 type WorkflowInstance = {
   id: number;
   workflowId: number;
@@ -235,31 +235,32 @@ export default function WorkflowInstanceCreator() {
         (node) => node.id === instance.currentStep,
       );
 
-      if (currentNode?.type === "form") {
-        console.log("Submitting form");
-        const formSubmitted = await handleFormSubmit(
-          {
-            form: selectedForm,
-            formFieldValues: Object.entries(formValues).map(
-              ([fieldId, value]) => ({
-                formField: { id: fieldId } as any,
-                value,
-              }),
-            ),
-            userId: user.id as number,
-            createdBy: user.id,
-            createdDate: new Date().toISOString(),
-          } as FormRecord,
-          instance,
-        );
+      // if (currentNode?.type === "form") {
+      //   console.log("Submitting form");
 
-        if (!formSubmitted) {
-          return;
-        }
-        instance.metadata[instance.currentStep!.toString()] =
-          formSubmitted.id?.toString() || "";
-        await updateWorkflowInstance(instance.id!.toString(), instance);
-      }
+      //   const formSubmitted = await handleFormSubmit(
+      //     {
+      //       form: selectedForm,
+      //       formFieldValues: Object.entries(formValues).map(
+      //         ([fieldId, value]) => ({
+      //           formField: { id: fieldId } as any,
+      //           value,
+      //         }),
+      //       ),
+      //       userId: user.id as number,
+      //       createdBy: user.id,
+      //       createdDate: new Date().toISOString(),
+      //     } as FormRecord,
+      //     instance,
+      //   );
+
+      //   if (!formSubmitted) {
+      //     return;
+      //   }
+      //   instance.metadata[instance.currentStep!.toString()] =
+      //     formSubmitted.id?.toString() || "";
+      //   await updateWorkflowInstance(instance.id!.toString(), instance);
+      // }
 
       if (possibleEdges.length === 0) {
         const nextNode = instance.workflow.nodes.find(
@@ -417,16 +418,21 @@ export default function WorkflowInstanceCreator() {
                               setForms={setForms}
                               selectedForm={selectedForm}
                               setSelectedForm={setSelectedForm}
+                              moveToNextStep={moveToNextStep}
                               formValues={formValues}
                               setFormValues={setFormValues}
                             />
                           )}
-                          <Button
-                            onClick={() => moveToNextStep(instance)}
-                            disabled={!canInteractWithStep(instance)}
-                          >
-                            Move to Next Step
-                          </Button>
+                          {instance.workflow.nodes.find(
+                            (node) => node.id === instance.currentStep,
+                          )?.type === "form" ? null : (
+                            <Button
+                              onClick={() => moveToNextStep(instance)}
+                              disabled={!canInteractWithStep(instance)}
+                            >
+                              Move to Next Step
+                            </Button>
+                          )}
                         </div>
                       )}
                     </DialogContent>

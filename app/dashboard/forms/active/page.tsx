@@ -1,9 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { addDocument, DirectoryData, getFolders } from "@/components/files/api";
+import FolderTreeSelector from "@/components/forms/Active/FolderTreeSelector";
+import RecordDetailsDialog from "@/components/forms/Active/RecordDetailsDialog";
 import { getUserFromSessionStorage } from "@/components/routes/sessionStorage";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -21,29 +30,30 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { createFormRecord, getFormRecordByForm } from "@/core/formrecords/api";
 import { getAllForms } from "@/core/forms/api";
 import { useToast } from "@/hooks/use-toast";
 import type { FormRecord } from "@/lib/types/formRecords";
 import type { Form, FormField } from "@/lib/types/forms";
+import { FileData } from "@/types/file";
 import { Plus } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export default function FormRecordsPage() {
+  // Separate states for create and view sections
+  const [createFormId, setCreateFormId] = useState<string | null>(null);
+  const [viewFormId, setViewFormId] = useState<string | null>(null);
+
   const [forms, setForms] = useState<Form[]>([]);
-  const [selectedFormId, setSelectedFormId] = useState<string | null>(null);
   const [selectedForm, setSelectedForm] = useState<Form | null>(null);
   const [records, setRecords] = useState<FormRecord[]>([]);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
+  const [folderValues, setFolderValues] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState<FormRecord | null>(null);
+  const [folders, setFolders] = useState<DirectoryData[]>([]);
   const [user, setUser] = useState<any>();
   const { toast } = useToast();
 
@@ -53,12 +63,38 @@ export default function FormRecordsPage() {
   }, []);
 
   useEffect(() => {
-    if (selectedFormId) {
-      fetchRecords(selectedFormId);
-      const form = forms.find((f) => f.id === Number.parseInt(selectedFormId));
+    const fetchDirectory = async () => {
+      try {
+        const response = await getFolders();
+        if (Array.isArray(response)) {
+          setFolders(response);
+        } else {
+          console.error("Invalid directory response:", response);
+        }
+      } catch (error) {
+        console.error("Error fetching directory:", error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch directory. Please try again.",
+          variant: "destructive",
+        });
+      }
+    };
+    fetchDirectory();
+  }, []);
+
+  useEffect(() => {
+    if (createFormId) {
+      const form = forms.find((f) => f.id === Number.parseInt(createFormId));
       setSelectedForm(form || null);
     }
-  }, [selectedFormId, forms]);
+  }, [createFormId, forms]);
+
+  useEffect(() => {
+    if (viewFormId) {
+      fetchRecords(viewFormId);
+    }
+  }, [viewFormId]);
 
   const fetchForms = async () => {
     try {
@@ -95,18 +131,66 @@ export default function FormRecordsPage() {
     setFormValues((prev) => ({ ...prev, [fieldId]: value }));
   };
 
+  const handleFolderSelect = (fieldId: number, folderId: string) => {
+    setFolderValues((prev) => ({ ...prev, [fieldId]: folderId }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedForm) return;
 
     setIsSubmitting(true);
-    const formFieldValues = Object.entries(formValues).map(
-      ([fieldId, value]) => ({
-        formField: { id: fieldId } as FormField,
-        value,
-      }),
-    );
+
     try {
+      // Create a copy of formValues to avoid mutating state directly
+      const updatedFormValues = { ...formValues };
+
+      // Upload files and update formValues with file IDs
+      for (const [fieldId, value] of Object.entries(formValues)) {
+        const field = selectedForm.formFields.find(
+          (f) => f.id === Number(fieldId),
+        ); // Convert fieldId to number
+        if (
+          field?.type.toLowerCase().trim() === "file" &&
+          folderValues[fieldId]
+        ) {
+          // Get the file from the input
+          const fileInput = document.getElementById(
+            `field-${fieldId}`,
+          ) as HTMLInputElement;
+          const file = fileInput?.files?.[0];
+          if (file) {
+            // Upload the file and get the file ID
+            const res: any = await addDocument(
+              file,
+              { filename: file.name, mimeType: file.type } as FileData,
+              Number(folderValues[fieldId]),
+            );
+            console.log("Data: " + res);
+            // Update the formValues with the file ID
+            updatedFormValues[fieldId] = res.id.toString();
+          }
+        }
+      }
+
+      // Create formFieldValues after all files are uploaded
+      const formFieldValues = Object.entries(updatedFormValues).map(
+        ([fieldId, value]) => {
+          const field = selectedForm.formFields.find((f) => f.id === fieldId); // Convert fieldId to number
+          if (field?.type.toLowerCase() === "file" && folderValues[fieldId]) {
+            return {
+              formField: { id: fieldId } as FormField, // Convert fieldId to number
+              value: `${value}|${folderValues[fieldId]}`,
+            };
+          }
+          return {
+            formField: { id: fieldId } as FormField, // Convert fieldId to number
+            value,
+          };
+        },
+      );
+
+      // Create the form record
       await createFormRecord({
         form: selectedForm,
         formFieldValues: formFieldValues,
@@ -114,13 +198,21 @@ export default function FormRecordsPage() {
         createdBy: user.id,
         createdDate: new Date().toISOString(),
       });
+
       toast({
         title: "Success",
         description: "Form record created successfully!",
       });
+
+      // Reset form and folder values
       setFormValues({});
+      setFolderValues({});
       setIsCreating(false);
-      fetchRecords(selectedFormId!);
+
+      // Refresh records if viewing a form
+      if (viewFormId) {
+        fetchRecords(viewFormId);
+      }
     } catch (error) {
       console.error("Error submitting form:", error);
       toast({
@@ -131,6 +223,10 @@ export default function FormRecordsPage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleViewDetails = (record: FormRecord) => {
+    setSelectedRecord(record);
   };
 
   return (
@@ -151,8 +247,8 @@ export default function FormRecordsPage() {
               <div className="space-y-2">
                 <Label htmlFor="formSelect">Select a Form</Label>
                 <Select
-                  onValueChange={(value) => setSelectedFormId(value)}
-                  value={selectedFormId || undefined}
+                  onValueChange={(value) => setCreateFormId(value)}
+                  value={createFormId || undefined}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select a form" />
@@ -174,7 +270,7 @@ export default function FormRecordsPage() {
                       {field.type.toLowerCase() === "select" ? (
                         <Select
                           onValueChange={(value) =>
-                            handleInputChange(Number.parseInt(field.id), value)
+                            handleInputChange(Number(field.id), value)
                           }
                           value={formValues[field.id] || ""}
                         >
@@ -192,16 +288,53 @@ export default function FormRecordsPage() {
                             ))}
                           </SelectContent>
                         </Select>
+                      ) : field.type.toLowerCase() === "file" ? (
+                        <div className="space-y-4">
+                          <Input
+                            id={`field-${field.id}`}
+                            type="file"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                handleInputChange(Number(field.id), file.name);
+                              }
+                            }}
+                          />
+                          <FolderTreeSelector
+                            folders={folders}
+                            onSelect={(folderId) => {
+                              handleFolderSelect(
+                                Number(field.id),
+                                folderId.toString(),
+                              );
+                            }}
+                            selectedFolderId={
+                              folderValues[field.id]
+                                ? Number(folderValues[field.id])
+                                : undefined
+                            }
+                            triggerButtonText="Select Destination Folder"
+                          />
+                          <div className="text-sm text-muted-foreground">
+                            {folderValues[field.id] && (
+                              <div>
+                                Selected folder:{" "}
+                                {folders.find(
+                                  (f) =>
+                                    f.folderID ===
+                                    Number(folderValues[field.id]),
+                                )?.name || "Unknown folder"}
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       ) : (
                         <Input
                           id={`field-${field.id}`}
                           type={field.type.toLowerCase()}
                           value={formValues[field.id] || ""}
                           onChange={(e) =>
-                            handleInputChange(
-                              Number.parseInt(field.id),
-                              e.target.value,
-                            )
+                            handleInputChange(Number(field.id), e.target.value)
                           }
                           required
                         />
@@ -222,8 +355,8 @@ export default function FormRecordsPage() {
           <div className="space-y-2">
             <Label htmlFor="formSelect">Select a Form to View Records</Label>
             <Select
-              onValueChange={setSelectedFormId}
-              value={selectedFormId || undefined}
+              onValueChange={setViewFormId}
+              value={viewFormId || undefined}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select a form" />
@@ -249,6 +382,7 @@ export default function FormRecordsPage() {
                   {records[0].form.formFields.map((field) => (
                     <TableHead key={field.id}>{field.name}</TableHead>
                   ))}
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -267,6 +401,11 @@ export default function FormRecordsPage() {
                         )?.value || ""}
                       </TableCell>
                     ))}
+                    <TableCell>
+                      <Button onClick={() => handleViewDetails(record)}>
+                        View Details
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -278,6 +417,12 @@ export default function FormRecordsPage() {
           )}
         </div>
       </CardContent>
+      {selectedRecord && (
+        <RecordDetailsDialog
+          record={selectedRecord}
+          onClose={() => setSelectedRecord(null)}
+        />
+      )}
     </Card>
   );
 }
