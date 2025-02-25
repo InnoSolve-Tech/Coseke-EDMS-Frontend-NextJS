@@ -148,7 +148,7 @@ export default function FormRecordsPage() {
       // Upload files and update formValues with file IDs
       for (const [fieldId, value] of Object.entries(formValues)) {
         const field = selectedForm.formFields.find(
-          (f) => f.id === Number(fieldId),
+          (f) => Number(f.id) === Number(fieldId),
         ); // Convert fieldId to number
         if (
           field?.type.toLowerCase().trim() === "file" &&
