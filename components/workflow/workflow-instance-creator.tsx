@@ -231,9 +231,6 @@ export default function WorkflowInstanceCreator() {
       const possibleEdges = instance.workflow.edges.filter(
         (edge: Edge) => edge.source === instance.currentStep,
       );
-      const currentNode = instance.workflow.nodes.find(
-        (node) => node.id === instance.currentStep,
-      );
 
       // if (currentNode?.type === "form") {
       //   console.log("Submitting form");
@@ -270,6 +267,7 @@ export default function WorkflowInstanceCreator() {
         if (nextNode?.type === "end") {
           const updatedInstance = {
             ...instance,
+
             status: "Completed" as const,
           };
           await updateWorkflowInstance(instance.id.toString(), updatedInstance);

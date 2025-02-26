@@ -26,6 +26,7 @@ import { addDocument, getFolders } from "@/components/files/api";
 import type { DirectoryData } from "@/components/files/api";
 import type { FileData } from "@/types/file";
 import { Workflow, WorkflowType } from "@/lib/types/workflow";
+import { updateWorkflowInstance } from "@/core/workflowInstance/api";
 
 type WorkflowInstance = {
   id: number;
@@ -280,7 +281,7 @@ const WorkflowFormRecord = ({
           throw new Error("Failed to update form record");
         }
       } else {
-        await createFormRecord({
+        let res = await createFormRecord({
           form: selectedForm,
           formFieldValues: formFieldValues,
           userId: user.id as number,
@@ -291,8 +292,13 @@ const WorkflowFormRecord = ({
         // Ensure metadata exists
         const updatedInstance = {
           ...workflowInstance,
-          metadata: workflowInstance.metadata || {},
+          metadata: { ...workflowInstance.metadata, [currentStep]: res.id },
         };
+
+        await updateWorkflowInstance(
+          updatedInstance.id.toString(),
+          updatedInstance,
+        );
 
         toast({
           title: "Success",
