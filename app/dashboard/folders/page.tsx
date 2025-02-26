@@ -1626,7 +1626,7 @@ export default function FileExplorer() {
             Bulk Upload Files
           </Typography>
 
-          <div style={{ marginBottom: "20px" }}>
+          {/* <div style={{ marginBottom: "20px" }}>
             <Typography level="body-sm" sx={{ mb: 1 }}>
               Select Destination Folder
             </Typography>
@@ -1674,7 +1674,7 @@ export default function FileExplorer() {
                 </option>
               ))}
             </select>
-          </div>
+          </div> */}
 
           <div
             onDragOver={(e) => {
