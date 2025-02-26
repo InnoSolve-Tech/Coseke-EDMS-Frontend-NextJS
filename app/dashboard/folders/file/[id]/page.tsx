@@ -1,69 +1,25 @@
 "use client";
 
-import {
-  Close as CloseIcon,
-  Description as DescriptionIcon,
-  InsertDriveFileOutlined as DocIcon,
-  Download as DownloadIcon,
-  Edit as EditIcon,
-  TableChartOutlined as ExcelIcon,
-  PictureAsPdfOutlined as PdfIcon,
-  Add as AddIcon,
-  Delete as DeleteIcon,
-  Label,
-} from "@mui/icons-material";
-import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Divider,
-  FormControl,
-  FormLabel,
-  IconButton,
-  Input,
-  Option,
-  Select,
-  Snackbar,
-  Stack,
-  Typography,
-  Modal,
-  ModalDialog,
-  ModalClose,
-} from "@mui/joy";
-import { ColorPaletteProp } from "@mui/joy/styles";
+import { Label } from "@mui/icons-material";
+import { Box, Button, Card, CardContent, Input, Typography } from "@mui/joy";
+import type { ColorPaletteProp } from "@mui/joy/styles";
 import { useParams } from "next/navigation";
-import {
-  useEffect,
-  useState,
-  useRef,
-  ReactNode,
-  AwaitedReactNode,
-  JSXElementConstructor,
-  Key,
-  ReactElement,
-  ReactPortal,
-} from "react";
+import { useEffect, useState, useRef, type ReactNode } from "react";
 import * as XLSX from "xlsx";
-import { DocViewerRenderers } from "react-doc-viewer";
 import dynamic from "next/dynamic";
-import { renderAsync } from "docx-preview";
 import {
   getFilesByHash,
   getFilesById,
   updateMetadata,
   deleteMetadata,
-  clearMetadata,
   deleteFile,
   bulkFileUpload,
-  bulkUpload,
   updateDocumentType,
   getDocumentTypes,
   deleteDocumentType,
 } from "@/components/files/api";
 import { useRouter } from "next/navigation";
-import { WebViewerInstance } from "@pdftron/webviewer";
-import axios from "axios";
+import type { WebViewerInstance } from "@pdftron/webviewer";
 import { FileQueue } from "@/components/FileQueue";
 import { useToast } from "@/hooks/use-toast";
 import { DocumentTypeCreation } from "@/components/folder/DocumentTypes";
@@ -184,6 +140,7 @@ const FileViewPage = () => {
   const [newComment, setNewComment] = useState("");
   const { toast } = useToast();
   const [metadata, setMetadata] = useState<Record<string, string>>({});
+  const [currentDocTypeId, setCurrentDocTypeId] = useState<string | null>(null);
 
   const handleClose = () => {
     router.back();
@@ -192,7 +149,7 @@ const FileViewPage = () => {
   useEffect(() => {
     const fetchFileDetails = async () => {
       try {
-        const res = await getFilesById(parseInt(id as string));
+        const res = await getFilesById(Number.parseInt(id as string));
         const response = await getFilesByHash(res.hashName);
 
         if (response) {
@@ -248,7 +205,7 @@ const FileViewPage = () => {
     };
 
     parseExcelFile();
-  }, [document?.fileLink, document?.mimeType]);
+  }, [document, document?.fileLink]); // Updated dependencies
 
   const handleMetadataChange = (key: string, value: string) => {
     if (!document) return;
@@ -440,7 +397,7 @@ const FileViewPage = () => {
       const response = await fetch(document.fileLink);
       const blob = await response.blob();
 
-      let fileType = document.mimeType.toLowerCase();
+      const fileType = document.mimeType.toLowerCase();
       console.log("📄 File type detected:", fileType);
 
       // Ensure PDFs do NOT open in Office Editing Mode
@@ -491,7 +448,7 @@ const FileViewPage = () => {
     };
 
     initializeWebViewer();
-  }, [document?.fileLink, document?.mimeType]);
+  }, [document?.fileLink, isViewerLoaded]); // Updated dependencies
 
   const renderPreview = () => {
     if (!document || !document.fileLink) {
@@ -590,13 +547,41 @@ const FileViewPage = () => {
       try {
         const types = await getDocumentTypes();
         setDocumentTypes(types);
+
+        // If document has a documentType already set, find and select it
+        if (document && document.documentType) {
+          const matchingType = types.find(
+            (type: { name: string }) => type.name === document.documentType,
+          );
+          if (matchingType) {
+            setSelectedDocType(matchingType);
+            setCurrentDocTypeId(matchingType.id.toString());
+
+            // Initialize metadata from the document type
+            if (matchingType.metadata && matchingType.metadata.length > 0) {
+              const typeMetadata = matchingType.metadata.reduce(
+                (
+                  acc: { [x: string]: any },
+                  field: { name: string | number; value: any },
+                ) => {
+                  // Use existing document value if available, otherwise use default from document type
+                  acc[field.name] =
+                    document.metadata[field.name] || field.value || "";
+                  return acc;
+                },
+                {} as Record<string, string>,
+              );
+              setMetadata(typeMetadata);
+            }
+          }
+        }
       } catch (error) {
         console.error("Failed to fetch document types:", error);
       }
     };
 
     fetchDocumentTypes();
-  }, []);
+  }, [document]);
 
   const handleAddComment = () => {
     if (!document || !newComment.trim()) return;
@@ -653,17 +638,37 @@ const FileViewPage = () => {
   const handleDocumentTypeChange = (value: string) => {
     const docType = documentTypes.find((dt) => dt.id.toString() === value);
     setSelectedDocType(docType || null);
+    setCurrentDocTypeId(value);
 
-    // Set metadata based on selected document type
-    if (docType) {
+    if (docType && docType.metadata) {
+      // Ensure the metadata values are always strings
       const initialMetadata = docType.metadata.reduce(
         (acc, field) => {
-          acc[field.name] = field.value || ""; // Initialize metadata values
+          const existingValue = document?.metadata?.[field.name];
+
+          // If existingValue is an array, convert it to a comma-separated string
+          acc[field.name] = Array.isArray(existingValue)
+            ? existingValue.join(", ")
+            : existingValue || field.value || "";
+
           return acc;
         },
         {} as Record<string, string>,
       );
+
       setMetadata(initialMetadata);
+
+      // Also update the document metadata
+      if (document) {
+        setDocument({
+          ...document,
+          documentType: docType.name,
+          metadata: initialMetadata,
+        });
+      }
+
+      // Show metadata section immediately
+      setShowMetadataUpdate(true);
     } else {
       setMetadata({});
     }
@@ -700,7 +705,7 @@ const FileViewPage = () => {
   }
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen overflow-hidden bg-background">
       {/* Main content area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
@@ -711,9 +716,11 @@ const FileViewPage = () => {
           </UiButton>
         </header>
 
-        {/* File viewer */}
-        <div ref={viewerRef} className="flex-1 bg-white">
-          {/* WebViewer will be initialized here */}
+        {/* File viewer with proper overflow handling */}
+        <div className="flex-1 relative overflow-hidden">
+          <div ref={viewerRef} className="absolute inset-0 bg-white">
+            {/* WebViewer will be initialized here */}
+          </div>
         </div>
 
         {/* Action buttons */}
@@ -727,197 +734,258 @@ const FileViewPage = () => {
         </div>
       </div>
 
-      {/* Sidebar */}
-      <aside className="w-96 border-l bg-background overflow-y-auto">
-        <Tabs defaultValue="details" className="w-full">
+      {/* Sidebar with proper overflow handling */}
+      <aside className="w-96 border-l bg-background flex flex-col overflow-hidden">
+        <Tabs defaultValue="details" className="flex-1 flex flex-col h-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="metadata">Metadata</TabsTrigger>
             <TabsTrigger value="comments">Comments</TabsTrigger>
           </TabsList>
-          <TabsContent value="details" className="p-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Document Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <UiLabel htmlFor="documentName">Document Name</UiLabel>
-                  <UiInput
-                    id="documentName"
-                    value={document.filename || ""}
-                    onChange={(e) =>
-                      handleMetadataChange("filename", e.target.value)
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <UiLabel htmlFor="documentType">Document Type</UiLabel>
-                  <UiSelect
-                    value={selectedDocType?.id.toString()}
-                    onValueChange={handleDocumentTypeChange}
-                  >
-                    <SelectTrigger id="documentType">
-                      <SelectValue placeholder="Select a document type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {documentTypes.map((type) => (
-                        <SelectItem key={type.id} value={type.id.toString()}>
-                          {type.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </UiSelect>
-                </div>
-                <div className="space-y-2">
-                  <UiLabel>Created Date</UiLabel>
-                  <p className="text-sm">
-                    {new Date(document.createdDate).toLocaleString()}
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <UiLabel>Last Modified</UiLabel>
-                  <p className="text-sm">
-                    {new Date(document.lastModifiedDateTime).toLocaleString()}
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <UiLabel>Version</UiLabel>
-                  <p className="text-sm">{document.version}</p>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          <TabsContent value="metadata" className="p-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Metadata</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {showMetadataUpdate ? (
-                  <>
-                    <ScrollArea className="h-[300px] pr-4">
-                      {Object.entries(metadata).map(([key, value]) => (
-                        <div
-                          key={key}
-                          className="flex items-center space-x-2 mb-2"
-                        >
-                          <Input value={key} disabled className="w-1/3" />
-                          <Input
-                            value={value}
-                            onChange={(e) =>
-                              handleMetadataChange(key, e.target.value)
-                            }
-                            className="w-2/3"
-                          />
-                          <Button
-                            size="sm"
-                            onClick={() => handleDeleteMetadata(key)}
-                          >
-                            <Trash className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </ScrollArea>
-                    <Separator className="my-4" />
-                    <div className="flex items-end space-x-2">
-                      <div className="flex-1 space-y-2">
-                        <Label component="label" htmlFor="newMetadataName">
-                          New Field Name
-                        </Label>
-                        <Input
-                          id="newMetadataName"
-                          value={newMetadata.name}
-                          onChange={(e) =>
-                            setNewMetadata({
-                              ...newMetadata,
-                              name: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="flex-1 space-y-2">
-                        <Label component="label" htmlFor="newMetadataValue">
-                          New Field Value
-                        </Label>
-                        <Input
-                          id="newMetadataValue"
-                          value={newMetadata.value}
-                          onChange={(e) =>
-                            setNewMetadata({
-                              ...newMetadata,
-                              value: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                      <Button onClick={handleAddMetadata}>
-                        <Plus className="mr-2 h-4 w-4" /> Add
-                      </Button>
+
+          <div className="flex-1 overflow-hidden">
+            <TabsContent value="details" className="h-full overflow-auto">
+              <div className="p-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Document Details</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <UiLabel htmlFor="documentName">Document Name</UiLabel>
+                      <UiInput
+                        id="documentName"
+                        value={document.filename || ""}
+                        onChange={(e) =>
+                          handleMetadataChange("filename", e.target.value)
+                        }
+                      />
                     </div>
-                    <Button className="w-full mt-4" onClick={handleSubmit}>
-                      <Edit className="mr-2 h-4 w-4" /> Update Metadata
-                    </Button>
-                    <Button
-                      className="mt-4"
-                      onClick={() => setShowMetadataUpdate(false)}
-                    >
-                      Cancel Metadata Update
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <DocumentTypeCreation
-                      onCreate={(newDocType) => {
-                        setDocumentTypes([newDocType]); // Refresh document types after creation
-                        setShowDocTypeDialog(false);
-                      }}
-                      onCancel={() => setShowDocTypeDialog(false)}
-                    />
-                    <Button
-                      className="mt-4"
-                      onClick={() => setShowMetadataUpdate(true)}
-                    >
-                      Update Metadata
-                    </Button>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-          <TabsContent value="comments" className="p-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Comments</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-[300px] pr-4">
-                  {document?.comments?.map((comment: Comment) => (
-                    <div key={comment.id} className="mb-4">
-                      <p className="text-sm font-medium">{comment.text}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(comment.createdAt).toLocaleString()} -{" "}
-                        {comment.user}
+                    <div className="space-y-2">
+                      <UiLabel htmlFor="documentType">Document Type</UiLabel>
+                      <UiSelect
+                        value={currentDocTypeId || ""}
+                        onValueChange={handleDocumentTypeChange}
+                      >
+                        <SelectTrigger id="documentType">
+                          <SelectValue placeholder="Select a document type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {documentTypes.map((type) => (
+                            <SelectItem
+                              key={type.id}
+                              value={type.id.toString()}
+                            >
+                              {type.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </UiSelect>
+                    </div>
+
+                    {/* Metadata Section with Matching Styles */}
+                    {selectedDocType && (
+                      <div className="mt-4 p-4 border rounded-md bg-gray-50">
+                        <h3 className="text-sm font-medium text-gray-700">
+                          Metadata
+                        </h3>
+                        <ScrollArea className="h-auto max-h-60 pr-2">
+                          {Object.entries(metadata).map(([key, value]) => (
+                            <div
+                              key={key}
+                              className="flex items-center space-x-2 mb-2"
+                            >
+                              <Input
+                                value={key}
+                                disabled
+                                className="w-1/3 text-sm font-medium bg-gray-100"
+                              />
+                              <Input
+                                value={value}
+                                onChange={(e) =>
+                                  handleMetadataChange(key, e.target.value)
+                                }
+                                className="w-2/3 text-sm font-normal"
+                              />
+                              <Button
+                                size="sm"
+                                onClick={() => handleDeleteMetadata(key)}
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </ScrollArea>
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      <UiLabel>Created Date</UiLabel>
+                      <p className="text-sm">
+                        {new Date(document.createdDate).toLocaleString()}
                       </p>
                     </div>
-                  ))}
-                </ScrollArea>
-                <Separator className="my-4" />
-                <div className="flex items-end space-x-2">
-                  <div className="flex-1 space-y-2">
-                    <UiLabel htmlFor="newComment">New Comment</UiLabel>
-                    <Textarea
-                      id="newComment"
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      rows={3}
-                    />
-                  </div>
-                  <UiButton onClick={handleAddComment}>Add Comment</UiButton>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                    <div className="space-y-2">
+                      <UiLabel>Last Modified</UiLabel>
+                      <p className="text-sm">
+                        {new Date(
+                          document.lastModifiedDateTime,
+                        ).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <UiLabel>Version</UiLabel>
+                      <p className="text-sm">{document.version}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="metadata" className="h-full overflow-auto">
+              <div className="p-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Metadata</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {showMetadataUpdate ? (
+                      <div className="space-y-4">
+                        <ScrollArea className="h-[400px] pr-4">
+                          {Object.entries(metadata).map(([key, value]) => (
+                            <div
+                              key={key}
+                              className="flex items-center space-x-2 mb-2"
+                            >
+                              <Input value={key} disabled className="w-1/3" />
+                              <Input
+                                value={value}
+                                onChange={(e) =>
+                                  handleMetadataChange(key, e.target.value)
+                                }
+                                className="w-2/3"
+                              />
+                              <Button
+                                size="sm"
+                                onClick={() => handleDeleteMetadata(key)}
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </ScrollArea>
+                        <Separator className="my-4" />
+                        <div className="flex items-end space-x-2">
+                          <div className="flex-1 space-y-2">
+                            <Label component="label" htmlFor="newMetadataName">
+                              New Field Name
+                            </Label>
+                            <Input
+                              id="newMetadataName"
+                              value={newMetadata.name}
+                              onChange={(e) =>
+                                setNewMetadata({
+                                  ...newMetadata,
+                                  name: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                          <div className="flex-1 space-y-2">
+                            <Label component="label" htmlFor="newMetadataValue">
+                              New Field Value
+                            </Label>
+                            <Input
+                              id="newMetadataValue"
+                              value={newMetadata.value}
+                              onChange={(e) =>
+                                setNewMetadata({
+                                  ...newMetadata,
+                                  value: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                          <Button onClick={handleAddMetadata}>
+                            <Plus className="mr-2 h-4 w-4" /> Add
+                          </Button>
+                        </div>
+                        <Button className="w-full mt-4" onClick={handleSubmit}>
+                          <Edit className="mr-2 h-4 w-4" /> Update Metadata
+                        </Button>
+                        <Button
+                          className="mt-4"
+                          onClick={() => setShowMetadataUpdate(false)}
+                        >
+                          Cancel Metadata Update
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <ScrollArea className="h-[400px]">
+                          <DocumentTypeCreation
+                            onCreate={(newDocType) => {
+                              setDocumentTypes([...documentTypes, newDocType]);
+                              setShowDocTypeDialog(false);
+                            }}
+                            onCancel={() => setShowDocTypeDialog(false)}
+                          />
+                        </ScrollArea>
+                        <Button
+                          className="w-full"
+                          onClick={() => setShowMetadataUpdate(true)}
+                        >
+                          Update Metadata
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="comments" className="h-full overflow-auto">
+              <div className="p-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Comments</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <ScrollArea className="h-[400px] pr-4">
+                        {document?.comments?.map((comment: Comment) => (
+                          <div key={comment.id} className="mb-4">
+                            <p className="text-sm font-medium">
+                              {comment.text}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(comment.createdAt).toLocaleString()} -{" "}
+                              {comment.user}
+                            </p>
+                          </div>
+                        ))}
+                      </ScrollArea>
+                      <Separator className="my-4" />
+                      <div className="flex items-end space-x-2">
+                        <div className="flex-1 space-y-2">
+                          <UiLabel htmlFor="newComment">New Comment</UiLabel>
+                          <Textarea
+                            id="newComment"
+                            value={newComment}
+                            onChange={(e) => setNewComment(e.target.value)}
+                            rows={3}
+                          />
+                        </div>
+                        <UiButton onClick={handleAddComment}>
+                          Add Comment
+                        </UiButton>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          </div>
         </Tabs>
       </aside>
     </div>
