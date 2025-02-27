@@ -15,6 +15,9 @@ import { getAllFiles, getFiles, getFolders } from "@/components/files/api"; // A
 export default function Page() {
   const [fileCount, setFileCount] = useState<string>("...");
   const [folderCount, setFolderCount] = useState<string>("...");
+  const [workflowInstances, setWorkflowInstances] = useState<
+    WorkflowInstance[]
+  >([]);
   const [workflowInstanceCount, setWorkflowInstanceCount] =
     useState<string>("...");
 
@@ -65,6 +68,7 @@ export default function Page() {
           .filter((wfl: WorkflowInstance) => wfl.status !== "Completed")
           .length.toString(),
       );
+      setWorkflowInstances(response);
     } catch (error) {
       console.error("Error fetching active workflow instances:", error);
     }
@@ -118,7 +122,7 @@ export default function Page() {
             <CardTitle>Workflow Status</CardTitle>
           </CardHeader>
           <CardContent>
-            <WorkflowStatusChart />
+            <WorkflowStatusChart workflowInstances={workflowInstances} />
           </CardContent>
         </Card>
         <RecentFilesCard />
