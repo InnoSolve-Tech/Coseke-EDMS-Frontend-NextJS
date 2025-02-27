@@ -43,8 +43,8 @@ export function WorkflowForm() {
     },
   });
 
-  const traceEdges = (edges: Edge[], start: any, end: any): boolean => {
-    if (!start || !end) {
+  const traceEdges = (edges: Edge[], start: any, endNodes: any[]): boolean => {
+    if (!start || endNodes.length === 0) {
       return false;
     }
 
@@ -58,7 +58,8 @@ export function WorkflowForm() {
     while (queue.length > 0) {
       const currentNode = queue.shift()!;
 
-      if (currentNode === end.id) {
+      // Check if current node is any of the end nodes
+      if (endNodes.some((endNode) => endNode.id === currentNode)) {
         return true;
       }
 
@@ -95,7 +96,8 @@ export function WorkflowForm() {
         throw new Error("Workflow must have an end node.");
       }
 
-      let end = wf.nodes.find((node: any) => node.type === "end");
+      // Get all end nodes instead of just one
+      let endNodes = wf.nodes.filter((node: any) => node.type === "end");
       let edges = wf.edges;
 
       // Check for shared target nodes
@@ -135,8 +137,11 @@ export function WorkflowForm() {
         }
       }
 
-      if (!traceEdges(edges, start, end)) {
-        throw new Error("Workflow must have a path from start to end.");
+      // Modified to check for path to any end node
+      if (!traceEdges(edges, start, endNodes)) {
+        throw new Error(
+          "Workflow must have a path from start to at least one end node.",
+        );
       }
 
       if (
