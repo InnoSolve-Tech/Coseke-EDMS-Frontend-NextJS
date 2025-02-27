@@ -54,10 +54,10 @@ export const deleteUser = async (id: number) => {
 // Update a user's basic information
 export const updateUser = async (id: number, updateData: any) => {
   try {
-    const response = await AxiosInstance.put(
-      `/api/v1/users/update/${id}`,
-      updateData,
-    );
+    const response = await AxiosInstance.put(`/api/v1/users/${id}`, {
+      ...updateData,
+      roles: updateData.roles.map((role: any) => role.id),
+    });
     return response.data;
   } catch (error) {
     throw error;
