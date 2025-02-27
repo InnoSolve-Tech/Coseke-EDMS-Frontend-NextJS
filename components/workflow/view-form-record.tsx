@@ -138,10 +138,7 @@ const ViewFormRecord = ({ instance, forms, setForms }: ViewFormRecordProps) => {
     try {
       // Update instance metadata with rejection reason
       const updatedInstance = { ...instance };
-      if (!updatedInstance.metadata) {
-        updatedInstance.metadata = {};
-      }
-      updatedInstance.metadata[instance.currentStep] = rejectionReason;
+      updatedInstance.metadata![instance.currentStep] = rejectionReason;
 
       await updateWorkflowInstance(instance.id.toString(), updatedInstance);
       await updateWorkflowInstanceStep(instance.id.toString(), nodeWithForm.id);
