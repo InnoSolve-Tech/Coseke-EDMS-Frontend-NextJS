@@ -266,20 +266,17 @@ const WorkflowFormRecord = ({
         const response = await updateFormRecord({
           id: Number.parseInt(formInstanceId),
           formFieldValues: formFieldValues,
+          form: { id: selectedForm.id },
         } as FormRecord);
 
-        if (response.ok) {
-          toast({
-            title: "Success",
-            description: "Form record updated successfully!",
-          });
-          setFormValues({});
-          setFolderValues({});
-          setSelectedForm(null);
-          await moveToNextStep(workflowInstance);
-        } else {
-          throw new Error("Failed to update form record");
-        }
+        toast({
+          title: "Success",
+          description: "Form record updated successfully!",
+        });
+        setFormValues({});
+        setFolderValues({});
+        setSelectedForm(null);
+        await moveToNextStep(workflowInstance);
       } else {
         let res = await createFormRecord({
           form: selectedForm,
@@ -294,6 +291,8 @@ const WorkflowFormRecord = ({
           ...workflowInstance,
           metadata: { ...workflowInstance.metadata, [currentStep]: res.id },
         };
+
+        console.log("updatedInstance", updatedInstance);
 
         await updateWorkflowInstance(
           updatedInstance.id.toString(),

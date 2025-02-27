@@ -1,38 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { Plus, FileText } from "lucide-react";
-import { getUserFromSessionStorage } from "../routes/sessionStorage";
-import { useToast } from "@/hooks/use-toast";
-import {
-  createWorkflowInstance,
-  getAllWorkflowInstances,
-  updateWorkflowInstance,
-  updateWorkflowInstanceStep,
-} from "@/core/workflowInstance/api";
-import { getAllWorkflows } from "@/core/workflows/api";
-import { createFormRecord, updateFormRecord } from "@/core/formrecords/api";
-import type { FormRecord } from "@/lib/types/formRecords";
-import type {
-  Edge,
-  Workflow,
-  WorkflowNode,
-  WorkflowType,
-} from "@/lib/types/workflow";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -48,6 +18,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -55,10 +26,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  createWorkflowInstance,
+  getAllWorkflowInstances,
+  updateWorkflowInstance,
+  updateWorkflowInstanceStep,
+} from "@/core/workflowInstance/api";
+import { getAllWorkflows } from "@/core/workflows/api";
+import { useToast } from "@/hooks/use-toast";
+import type { Edge, Workflow, WorkflowType } from "@/lib/types/workflow";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { FileText, Plus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
+import { getUserFromSessionStorage } from "../routes/sessionStorage";
 import ViewFormRecord from "./view-form-record";
 import WorkflowFormRecord from "./workflow-form-record";
-import { addDocument, DirectoryData, getFolders } from "@/components/files/api";
 type WorkflowInstance = {
   id: number;
   workflowId: number;
@@ -155,49 +147,6 @@ export default function WorkflowInstanceCreator() {
         title: "Error",
         description: "Failed to create workflow instance",
       });
-    }
-  };
-
-  const handleFormSubmit = async (
-    formData: FormRecord,
-    instance: WorkflowInstance,
-  ): Promise<FormRecord | null> => {
-    try {
-      if (
-        instance.metadata[instance.currentStep!] &&
-        instance.status !== "approval"
-      ) {
-        const response = await updateFormRecord({
-          ...formData,
-          id: Number.parseInt(instance.metadata[instance.currentStep!]),
-        });
-        console.log("Form record updated:", response);
-        toast({
-          title: "Success",
-          description: "Form record updated successfully!",
-        });
-        setFormValues({});
-        setSelectedForm(null);
-        return response;
-      } else {
-        const response = await createFormRecord(formData);
-        console.log("Form record created:", response);
-        toast({
-          title: "Success",
-          description: "Form record created successfully!",
-        });
-        setFormValues({});
-        setSelectedForm(null);
-        return response;
-      }
-    } catch (error) {
-      console.error("Error submitting form:", error);
-      toast({
-        title: "Error",
-        description: "Failed to create form record. Please try again.",
-        variant: "destructive",
-      });
-      return null;
     }
   };
 
