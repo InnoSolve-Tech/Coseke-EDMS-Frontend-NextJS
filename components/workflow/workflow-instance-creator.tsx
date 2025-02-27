@@ -44,7 +44,7 @@ import { getAllWorkflows } from "@/core/workflows/api";
 import { useToast } from "@/hooks/use-toast";
 import type { Edge, Workflow, WorkflowType } from "@/lib/types/workflow";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FileText, Plus } from "lucide-react";
+import { AlertTriangle, Circle, FileText, Flag, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -54,6 +54,7 @@ import WorkflowFormRecord from "./workflow-form-record";
 type WorkflowInstance = {
   id: number;
   workflowId: number;
+  priority: string;
   name: string;
   status: WorkflowType | "Completed" | "Active";
   startFormData?: Record<string, string>;
@@ -62,9 +63,16 @@ type WorkflowInstance = {
   metadata: Record<string, string>;
 };
 
+const priorities = [
+  { value: "HIGH", label: "High", icon: AlertTriangle, color: "text-red-500" },
+  { value: "MEDIUM", label: "Medium", icon: Flag, color: "text-yellow-500" },
+  { value: "LOW", label: "Low", icon: Circle, color: "text-green-500" },
+];
+
 const formSchema = z.object({
   workflowId: z.string().min(1, "Please select a workflow"),
   name: z.string().min(1, "Instance name is required"),
+  priority: z.string().min(1, "Priority is required"),
   startFormData: z.record(z.string()).optional(),
 });
 
@@ -131,6 +139,7 @@ export default function WorkflowInstanceCreator() {
       const newInstance: any = {
         workflow: { id: Number.parseInt(data.workflowId) },
         name: data.name,
+        priority: data.priority,
         status: "Active",
       };
       await createWorkflowInstance(newInstance);
@@ -272,6 +281,7 @@ export default function WorkflowInstanceCreator() {
             <TableRow>
               <TableHead>Workflow</TableHead>
               <TableHead>Instance Name</TableHead>
+              <TableHead>Priority</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
@@ -281,6 +291,10 @@ export default function WorkflowInstanceCreator() {
               <TableRow key={instance.id}>
                 <TableCell>{instance.workflow?.name}</TableCell>
                 <TableCell>{instance.name}</TableCell>
+                <TableCell>
+                  {" "}
+                  <PriorityDisplay priority={instance.priority} />
+                </TableCell>
                 <TableCell>
                   <Badge
                     variant={
@@ -429,6 +443,44 @@ export default function WorkflowInstanceCreator() {
               />
               <FormField
                 control={form.control}
+                name="priority"
+                render={({ field }) => (
+                  <FormItem className="space-y-1">
+                    <FormLabel className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Priority
+                    </FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800">
+                          <SelectValue placeholder="Select a priority" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="rounded-md bg-white shadow-lg dark:bg-gray-800">
+                        {priorities.map((priority) => (
+                          <SelectItem
+                            key={priority.value}
+                            value={priority.value}
+                            className="flex items-center space-x-2 py-2 px-3 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          >
+                            <span className="flex items-center space-x-2">
+                              <priority.icon
+                                className={`h-4 w-4 ${priority.color}`}
+                              />
+                              <span>{priority.label}</span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage className="text-xs text-red-500" />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
                 name="name"
                 render={({ field }) => (
                   <FormItem>
@@ -446,5 +498,18 @@ export default function WorkflowInstanceCreator() {
         </DialogContent>
       </Dialog>
     </Card>
+  );
+}
+
+// Separate component for priority display
+function PriorityDisplay({ priority }: { priority: string }) {
+  const priorityInfo =
+    priorities.find((p) => p.value === priority) || priorities[2]; // Default to LOW if not found
+
+  return (
+    <div className="flex items-center space-x-2">
+      <priorityInfo.icon className={`h-4 w-4 ${priorityInfo.color}`} />
+      <span>{priorityInfo.label}</span>
+    </div>
   );
 }

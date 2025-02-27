@@ -32,6 +32,7 @@ type WorkflowInstance = {
   id: number;
   workflowId: number;
   name: string;
+  priority: string;
   status: WorkflowType | "Completed" | "Active";
   startFormData?: Record<string, string>;
   currentStep: string;
