@@ -32,6 +32,7 @@ import {
   editFolder,
   getAllFiles,
   bulkUpload,
+  fullTextSearch,
 } from "@/components/files/api";
 import { type File, FolderIcon, FileIcon } from "lucide-react";
 import type { ColorPaletteProp } from "@mui/joy/styles";
@@ -125,17 +126,14 @@ export default function FileExplorer() {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [fileData, setFileData] = useState<FileNode[]>([]);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-  const [showFoldersOnly, setShowFoldersOnly] = useState(false);
+  const [searchType, setSearchType] = useState("simple");
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const router = useRouter();
   const [folderCount, setFolderCount] = useState<string>("...");
   const [currentFolderID, setCurrentFolderID] = useState<number | null>(null);
   const [isSubfolderMode, setIsSubfolderMode] = useState(false);
-  const [folderStructure, setFolderStructure] = useState<FileNode[]>([]);
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
-  const [selectedDocType, setSelectedDocType] = useState<string>("");
-  const [metadata, setMetadata] = useState<Record<string, any>>({});
   const [fileCount, setFileCount] = useState<string>("...");
   const [renameFolderName, setRenameFolderName] = useState("");
   const [folderToRename, setFolderToRename] = useState<FileNode | null>(null);
@@ -734,48 +732,99 @@ export default function FileExplorer() {
     }
   };
 
-  const handleSearch = (query: string) => {
+  const handleFullTextSearch = async (query: string) => {
+    let res = await fullTextSearch(query);
+    return res;
+  };
+
+  const handleSearch = async (query: string) => {
     if (!query.trim()) {
       setFilteredData([]);
       return;
     }
 
     const searchTerm = query.toLowerCase();
-    const results: FileNode[] = [];
 
-    const searchInNode = (node: FileNode, path: FileNode[] = []): void => {
-      const nameMatch = node.label.toLowerCase().includes(searchTerm);
-      const metadataMatch = node.metadata
-        ? JSON.stringify(node.metadata).toLowerCase().includes(searchTerm)
-        : false;
+    switch (searchType) {
+      case "simple": {
+        const results: FileNode[] = [];
+        const searchInNode = (node: FileNode, path: FileNode[] = []): void => {
+          const nameMatch = node.label.toLowerCase().includes(searchTerm);
+          const metadataMatch = node.metadata
+            ? JSON.stringify(node.metadata).toLowerCase().includes(searchTerm)
+            : false;
 
-      // Include both files and folders in search results
-      if (nameMatch || metadataMatch) {
-        results.push({
-          ...node,
-          label: `${path.map((p) => p.label).join(" / ")}${path.length ? " / " : ""}${node.label}`,
-        });
+          if (nameMatch || metadataMatch) {
+            results.push({
+              ...node,
+              label: `${path.map((p) => p.label).join(" / ")}${path.length ? " / " : ""}${node.label}`,
+            });
+          }
+
+          if (node.children) {
+            node.children.forEach((child) =>
+              searchInNode(child, [...path, node]),
+            );
+          }
+        };
+
+        fileData.forEach((node) => searchInNode(node));
+
+        if (results.length === 0) {
+          setFilteredData([
+            {
+              id: "no-results",
+              label: "No results found",
+              type: "file",
+              metadata: { message: "Try searching with different keywords" },
+            },
+          ]);
+        } else {
+          setFilteredData(results);
+        }
+        break;
       }
 
-      // Search children recursively
-      if (node.children) {
-        node.children.forEach((child) => searchInNode(child, [...path, node]));
+      case "fullText": {
+        const fullTextResults = await handleFullTextSearch(query);
+        let findFiles = fileData.filter(
+          (file) => file.id === fullTextResults[0].id.toString(),
+        );
+        const results: FileNode[] = [];
+        // Function to find the path for a given node
+        const searchInNode = (node: FileNode, path: FileNode[] = []): void => {
+          if (node.type == "file") {
+            results.push({
+              ...node,
+              label: `${path.map((p) => p.label).join(" / ")}${path.length ? " / " : ""}${node.label}`,
+            });
+          }
+          if (node.children) {
+            node.children.forEach((child) =>
+              searchInNode(child, [...path, node]),
+            );
+          }
+        };
+
+        findFiles.forEach((node) => searchInNode(node));
+        if (results.length === 0) {
+          setFilteredData([
+            {
+              id: "no-results",
+              label: "No results found",
+              type: "file",
+              metadata: { message: "Try searching with different keywords" },
+            },
+          ]);
+        } else {
+          setFilteredData(results);
+        }
+        break;
       }
-    };
 
-    fileData.forEach((node) => searchInNode(node));
-
-    if (results.length === 0) {
-      setFilteredData([
-        {
-          id: "no-results",
-          label: "No results found",
-          type: "file",
-          metadata: { message: "Try searching with different keywords" },
-        },
-      ]);
-    } else {
-      setFilteredData(results);
+      default:
+        setFilteredData([]);
+        break;
     }
   };
 
@@ -1325,7 +1374,11 @@ export default function FileExplorer() {
             </div>
           </div>
           <div className="p-4">
-            <SearchBar onSearch={handleSearch} />
+            <SearchBar
+              onSearch={handleSearch}
+              searchType={searchType}
+              setSearchType={setSearchType}
+            />
           </div>
           <div className="flex-grow overflow-auto p-4">
             {renderTree(fileData)}
