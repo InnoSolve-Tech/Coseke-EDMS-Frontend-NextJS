@@ -163,6 +163,15 @@ export const getFilesById = async (fileId: number): Promise<FileData> => {
   return response.data;
 };
 
+export const fullTextSearch = async (
+  searchTerm: string,
+): Promise<FileData[]> => {
+  const response = await AxiosInstance.get<FileData[]>(
+    `file-management/api/v1/files/search/content?searchTerm=${searchTerm}`,
+  );
+  return response.data;
+};
+
 export const getFilesByHash = async (hashName: string): Promise<Blob> => {
   const response = await axios.get(
     `http://localhost:8081/file-management/api/v1/files/download/${hashName}`,
