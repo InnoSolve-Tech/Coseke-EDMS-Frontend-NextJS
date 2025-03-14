@@ -400,8 +400,40 @@ const FileViewPage = () => {
       const fileType = document.mimeType.toLowerCase();
       console.log("📄 File type detected:", fileType);
 
-      // Ensure PDFs do NOT open in Office Editing Mode
-      if (fileType === "application/pdf") {
+      // Special handling for image files
+      if (fileType.startsWith("image/")) {
+        console.log("🖼️ Loading image with custom image viewer...");
+
+        // Clear any previous content in the viewer div
+        if (viewerRef.current) {
+          viewerRef.current.innerHTML = "";
+
+          // Use window.document to avoid confusion with your document state variable
+          const imgElement = window.document.createElement("img");
+          imgElement.src = URL.createObjectURL(blob);
+          imgElement.alt = document.filename;
+          imgElement.style.maxWidth = "100%";
+          imgElement.style.maxHeight = "100%";
+          imgElement.style.objectFit = "contain";
+          imgElement.style.display = "block";
+          imgElement.style.margin = "auto";
+
+          // Create a container div with proper styling
+          const containerDiv = window.document.createElement("div");
+          containerDiv.style.width = "100%";
+          containerDiv.style.height = "100%";
+          containerDiv.style.display = "flex";
+          containerDiv.style.alignItems = "center";
+          containerDiv.style.justifyContent = "center";
+          containerDiv.style.backgroundColor = "#f5f5f5";
+          containerDiv.style.padding = "20px";
+
+          containerDiv.appendChild(imgElement);
+          viewerRef.current.appendChild(containerDiv);
+        }
+      }
+      // Regular WebViewer handling for non-image documents
+      else if (fileType === "application/pdf") {
         console.log("📄 Loading PDF in WebViewer...");
         webViewerInstance.current.UI.loadDocument(blob, {
           filename: document.filename,
@@ -409,15 +441,14 @@ const FileViewPage = () => {
       } else if (
         fileType.includes("office") ||
         fileType.includes("doc") ||
-        fileType.includes("xls") ||
-        fileType.includes("image/png")
+        fileType.includes("xls")
       ) {
         console.log(
           "📄 Loading Office document in WebViewer with editing enabled...",
         );
         webViewerInstance.current.UI.loadDocument(blob, {
           filename: document.filename,
-          enableOfficeEditing: true, // ✅ Enable Office Editing for DOCX/XLSX
+          enableOfficeEditing: true,
         });
       } else {
         console.warn("⚠️ Unsupported file type:", fileType);

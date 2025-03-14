@@ -3,7 +3,7 @@
 import axios from "axios";
 import { getTokenFromSessionStorage } from "./sessionStorage";
 
-const baseURL = "http://localhost:8787";
+const baseURL = "https://warehouse.cosekeservices.com";
 
 export const AxiosInstance = axios.create({
   baseURL,
