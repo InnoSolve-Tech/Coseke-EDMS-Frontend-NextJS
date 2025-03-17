@@ -4,9 +4,7 @@ import { Label } from "@mui/icons-material";
 import { Box, Button, Card, CardContent, Input, Typography } from "@mui/joy";
 import type { ColorPaletteProp } from "@mui/joy/styles";
 import { useParams } from "next/navigation";
-import { useEffect, useState, useRef, type ReactNode } from "react";
-import * as XLSX from "xlsx";
-import dynamic from "next/dynamic";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   getFilesByHash,
   getFilesById,
@@ -19,7 +17,6 @@ import {
   deleteDocumentType,
 } from "@/components/files/api";
 import { useRouter } from "next/navigation";
-import type { WebViewerInstance } from "@pdftron/webviewer";
 import { FileQueue } from "@/components/FileQueue";
 import { useToast } from "@/hooks/use-toast";
 import { DocumentTypeCreation } from "@/components/folder/DocumentTypes";
@@ -39,6 +36,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { X, Download, Edit, Plus, Trash } from "lucide-react";
+import { DocumentViewer } from "@/components/document-viewer/document-viewer";
 
 interface MetadataItem {
   name: string;
@@ -91,7 +89,6 @@ interface IDocumentType {
 const FileViewPage = () => {
   const { id } = useParams();
   const router = useRouter();
-  const DocViewer = dynamic(() => import("react-doc-viewer"), { ssr: false });
   const [document, setDocument] = useState<Document | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -104,17 +101,6 @@ const FileViewPage = () => {
     message: "",
     color: "success",
   });
-  const [previewState, setPreviewState] = useState<{
-    excelData?: any[] | null;
-  }>({
-    excelData: null,
-  });
-  const [previewMode, setPreviewMode] = useState<
-    "default" | "local" | "google"
-  >("default");
-  const [fileURL, setFileURL] = useState<string | null>(null);
-  const [googleFileId, setGoogleFileId] = useState<string | null>(null);
-  const [showInstallMessage, setShowInstallMessage] = useState(false);
   const [openNewMetadataModal, setOpenNewMetadataModal] = useState(false);
   const [newMetadata, setNewMetadata] = useState<MetadataItem>({
     name: "",
@@ -122,10 +108,6 @@ const FileViewPage = () => {
     value: "",
     options: null,
   });
-  const docxContainerRef = useRef<HTMLDivElement | null>(null);
-  const viewerRef = useRef<HTMLDivElement>(null);
-  const webViewerInstance = useRef<WebViewerInstance | null>(null);
-  const [isViewerLoaded, setIsViewerLoaded] = useState(false);
   const [bulkUploadState, setBulkUploadState] = useState<BulkUploadState>({
     files: [],
     processing: false,
@@ -160,14 +142,6 @@ const FileViewPage = () => {
             ),
           };
           setDocument(fileData as Document);
-
-          // Log the file content
-          console.log("File Content:", response);
-
-          // Load WebViewer immediately after setting document
-          if (fileData.fileLink) {
-            loadWebViewer();
-          }
         } else {
           throw new Error("No file found");
         }
@@ -181,31 +155,6 @@ const FileViewPage = () => {
 
     fetchFileDetails();
   }, [id]);
-
-  useEffect(() => {
-    const parseExcelFile = async () => {
-      if (
-        document &&
-        (document.mimeType.includes("spreadsheetml") ||
-          document.mimeType === "application/vnd.ms-excel")
-      ) {
-        try {
-          const arrayBuffer = await fetch(document.fileLink!).then((res) =>
-            res.arrayBuffer(),
-          );
-          const workbook = XLSX.read(arrayBuffer, { type: "buffer" });
-          const sheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[sheetName];
-          const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-          setPreviewState((prev) => ({ ...prev, excelData: data as any[] }));
-        } catch (error) {
-          console.error("Error parsing Excel file:", error);
-        }
-      }
-    };
-
-    parseExcelFile();
-  }, [document, document?.fileLink]); // Updated dependencies
 
   const handleMetadataChange = (key: string, value: string) => {
     if (!document) return;
@@ -322,220 +271,6 @@ const FileViewPage = () => {
       showSnackbar("Failed to download file", "danger");
     }
   };
-
-  const loadWebViewer = async () => {
-    if (!viewerRef.current) {
-      console.warn("⚠️ viewerRef is missing.");
-      return;
-    }
-
-    try {
-      // Cleanup previous instance if it exists
-      if (webViewerInstance.current) {
-        try {
-          webViewerInstance.current.UI.closeDocument();
-        } catch (cleanupError) {
-          console.warn("Error during previous instance cleanup:", cleanupError);
-        }
-      }
-
-      console.log("🚀 Initializing WebViewer...");
-
-      const WebViewer = await import("@pdftron/webviewer");
-      const instance = await (window as any).WebViewer(
-        {
-          path: "/lib",
-          fullAPI: true,
-          enableAnnotations: true,
-          enableOfficeEditing: false,
-          preloadWorker: "pdf",
-        },
-        viewerRef.current,
-      );
-
-      webViewerInstance.current = instance;
-      setIsViewerLoaded(true);
-
-      // Use optional chaining and try-catch for event listeners
-      try {
-        instance.Core.documentViewer?.addEventListener("documentLoaded", () => {
-          console.log("✅ Document loaded successfully in WebViewer.");
-        });
-
-        instance.Core.documentViewer?.addEventListener(
-          "documentError",
-          (error: any) => {
-            console.error("❌ Document load error:", error);
-            setError("Failed to load document in viewer.");
-          },
-        );
-      } catch (listenerError) {
-        console.error("Error setting up event listeners:", listenerError);
-      }
-
-      // Load file if available
-      if (document?.fileLink) {
-        await loadFileIntoViewer();
-      }
-    } catch (error) {
-      console.error("❌ Error initializing WebViewer:", error);
-      setError("Failed to initialize document viewer.");
-      setIsViewerLoaded(false);
-    }
-  };
-
-  const loadFileIntoViewer = async () => {
-    if (!webViewerInstance.current || !document?.fileLink) {
-      console.error("⚠️ WebViewer not initialized or no fileLink available.");
-      return;
-    }
-
-    try {
-      console.log("🔄 Fetching file:", document.fileLink);
-
-      // Fetch the Blob file
-      const response = await fetch(document.fileLink);
-      const blob = await response.blob();
-
-      const fileType = document.mimeType.toLowerCase();
-      console.log("📄 File type detected:", fileType);
-
-      // Special handling for image files
-      if (fileType.startsWith("image/")) {
-        console.log("🖼️ Loading image with custom image viewer...");
-
-        // Clear any previous content in the viewer div
-        if (viewerRef.current) {
-          viewerRef.current.innerHTML = "";
-
-          // Use window.document to avoid confusion with your document state variable
-          const imgElement = window.document.createElement("img");
-          imgElement.src = URL.createObjectURL(blob);
-          imgElement.alt = document.filename;
-          imgElement.style.maxWidth = "100%";
-          imgElement.style.maxHeight = "100%";
-          imgElement.style.objectFit = "contain";
-          imgElement.style.display = "block";
-          imgElement.style.margin = "auto";
-
-          // Create a container div with proper styling
-          const containerDiv = window.document.createElement("div");
-          containerDiv.style.width = "100%";
-          containerDiv.style.height = "100%";
-          containerDiv.style.display = "flex";
-          containerDiv.style.alignItems = "center";
-          containerDiv.style.justifyContent = "center";
-          containerDiv.style.backgroundColor = "#f5f5f5";
-          containerDiv.style.padding = "20px";
-
-          containerDiv.appendChild(imgElement);
-          viewerRef.current.appendChild(containerDiv);
-        }
-      }
-      // Regular WebViewer handling for non-image documents
-      else if (fileType === "application/pdf") {
-        console.log("📄 Loading PDF in WebViewer...");
-        webViewerInstance.current.UI.loadDocument(blob, {
-          filename: document.filename,
-        });
-      } else if (
-        fileType.includes("office") ||
-        fileType.includes("doc") ||
-        fileType.includes("xls")
-      ) {
-        console.log(
-          "📄 Loading Office document in WebViewer with editing enabled...",
-        );
-        webViewerInstance.current.UI.loadDocument(blob, {
-          filename: document.filename,
-          enableOfficeEditing: true,
-        });
-      } else {
-        console.warn("⚠️ Unsupported file type:", fileType);
-        setError("Unsupported file type.");
-      }
-
-      console.log(
-        "✅ File successfully loaded into WebViewer:",
-        document.filename,
-      );
-    } catch (error) {
-      console.error("❌ Error loading document into WebViewer:", error);
-      setError("Failed to load document.");
-    }
-  };
-
-  useEffect(() => {
-    const initializeWebViewer = async () => {
-      if (document?.fileLink) {
-        if (!isViewerLoaded) {
-          await loadWebViewer();
-        }
-
-        if (isViewerLoaded) {
-          loadFileIntoViewer();
-        }
-      }
-    };
-
-    initializeWebViewer();
-  }, [document?.fileLink, isViewerLoaded]); // Updated dependencies
-
-  const renderPreview = () => {
-    if (!document || !document.fileLink) {
-      return (
-        <Typography level="body-lg" textAlign="center">
-          No file available to preview.
-        </Typography>
-      );
-    }
-
-    return (
-      <Card
-        variant="outlined"
-        sx={{ height: "calc(100vh - 120px)", overflow: "hidden" }}
-      >
-        <CardContent
-          sx={{
-            height: "100%",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            p: 0,
-          }}
-        >
-          <Box sx={{ width: "100%", height: "100%", minHeight: "600px" }}>
-            <div
-              ref={viewerRef}
-              className="w-full h-[600px] border border-gray-300 rounded-md bg-white overflow-hidden"
-            />
-          </Box>
-        </CardContent>
-      </Card>
-    );
-  };
-
-  useEffect(() => {
-    return () => {
-      if (webViewerInstance.current) {
-        console.log("🔄 Resetting WebViewer before unmounting...");
-        webViewerInstance.current.UI.closeDocument();
-        webViewerInstance.current = null;
-        setIsViewerLoaded(false);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (document) {
-      console.log("Document state:", {
-        fileLink: document.fileLink,
-        mimeType: document.mimeType,
-        filename: document.filename,
-      });
-    }
-  }, [document]);
 
   const handleBulkUpload = async () => {
     if (!document || bulkUploadState.files.length === 0) return;
@@ -735,6 +470,62 @@ const FileViewPage = () => {
     );
   }
 
+  const handleDownloadAndOpen = async () => {
+    if (!document || !document.hashName || !document.filename) {
+      console.error("Invalid document object");
+      showSnackbar("Invalid document", "danger");
+      return;
+    }
+
+    try {
+      const blob = await getFilesByHash(document.hashName);
+
+      if (!blob || !(blob instanceof Blob)) {
+        throw new Error("Invalid file data");
+      }
+
+      // Create a download link - use window.document to be explicit
+      const fileUrl = URL.createObjectURL(blob);
+      const link = window.document.createElement("a");
+      link.href = fileUrl;
+      link.download = document.filename;
+      window.document.body.appendChild(link);
+      link.click();
+      window.document.body.removeChild(link);
+      URL.revokeObjectURL(fileUrl);
+
+      // Inform the user that the file has been downloaded
+      showSnackbar(
+        "File downloaded successfully. Please open it with your preferred application.",
+        "success",
+      );
+    } catch (error) {
+      console.error("Download failed:", error);
+      showSnackbar("Failed to download file", "danger");
+    }
+  };
+
+  // Open the file in LibreOffice
+  const openInLibreOffice = (filePath: string) => {
+    const libreOfficePath = `"C:\\Program Files\\LibreOffice\\program\\soffice.exe"`; // Adjust if LibreOffice is installed elsewhere
+    const command = `${libreOfficePath} "${filePath}"`;
+
+    // Open the file using cmd
+    window.open(`cmd.exe /C ${command}`);
+  };
+
+  const openInWord = (filePath: string) => {
+    removeFileBlock(filePath);
+
+    const wordUrl = `ms-word:ofe|u|file:///${encodeURIComponent(filePath)}`;
+    window.location.href = wordUrl;
+  };
+
+  const removeFileBlock = (filePath: string) => {
+    const command = `powershell -Command "Unblock-File -Path '${filePath}'"`;
+    window.open(`cmd.exe /C ${command}`);
+  };
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Main content area */}
@@ -749,9 +540,11 @@ const FileViewPage = () => {
 
         {/* File viewer with proper overflow handling */}
         <div className="flex-1 relative overflow-hidden">
-          <div ref={viewerRef} className="absolute inset-0 bg-white">
-            {/* WebViewer will be initialized here */}
-          </div>
+          <DocumentViewer
+            url={document.fileLink}
+            mimeType={document.mimeType}
+            filename={document.filename}
+          />
         </div>
 
         {/* Action buttons */}
@@ -759,6 +552,59 @@ const FileViewPage = () => {
           <UiButton onClick={handleDownload} variant="outline">
             <Download className="mr-2 h-4 w-4" /> Download
           </UiButton>
+
+          {/* Microsoft 365 Edit button - only for Word documents */}
+          {document.mimeType === "application/msword" ||
+          document.mimeType ===
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ? (
+            <UiButton
+              variant="outline"
+              onClick={async () => {
+                if (!document || !document.hashName || !document.filename) {
+                  showSnackbar("Invalid document", "danger");
+                  return;
+                }
+
+                try {
+                  // Fetch the document from the server
+                  const blob = await getFilesByHash(document.hashName);
+
+                  if (!blob || !(blob instanceof Blob)) {
+                    throw new Error("Invalid file data");
+                  }
+
+                  // Define the trusted path for storing the document
+                  const trustedPath = `C:\\Users\\Public\\Documents\\${document.filename}`;
+
+                  // Ensure we are in a client-side environment
+                  if (typeof window !== "undefined") {
+                    // Create a temporary file URL
+                    const fileUrl = URL.createObjectURL(blob);
+
+                    // Download the file to the system
+                    const link = window.document.createElement("a");
+                    link.href = fileUrl;
+                    link.download = document.filename;
+                    window.document.body.appendChild(link);
+                    link.click();
+                    window.document.body.removeChild(link);
+                    URL.revokeObjectURL(fileUrl);
+
+                    // Small delay to ensure the file is saved before opening
+                    setTimeout(() => {
+                      openInWord(trustedPath);
+                    }, 1000);
+                  }
+                } catch (error) {
+                  console.error("Failed to download and open file:", error);
+                  showSnackbar("Failed to open file in Word", "danger");
+                }
+              }}
+            >
+              <Edit className="mr-2 h-4 w-4" /> Edit in Word
+            </UiButton>
+          ) : null}
+
           <UiButton onClick={handleDeleteDocument} variant="destructive">
             <Trash className="mr-2 h-4 w-4" /> Delete
           </UiButton>
