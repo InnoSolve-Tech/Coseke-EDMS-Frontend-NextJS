@@ -10,6 +10,7 @@ export interface Permission {
 }
 
 export interface User {
+  name: boolean;
   id: number;
   first_name: string;
   last_name: string;

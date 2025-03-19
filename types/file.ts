@@ -32,6 +32,8 @@ export interface FileData {
   lastModifiedBy?: number;
   createdBy?: number;
   [key: string]: unknown;
+  comments?: string;
+  versions?: any;
 }
 
 export interface DocumentType {
