@@ -41,6 +41,7 @@ export function UserDialog({
     phone: "",
     address: "",
     roles: [],
+    name: "",
   });
   const [availableRoles, setAvailableRoles] = useState<Role[]>([]);
 
@@ -57,6 +58,7 @@ export function UserDialog({
         phone: "",
         address: "",
         roles: [],
+        name: "",
       });
     }
     fetchRoles();

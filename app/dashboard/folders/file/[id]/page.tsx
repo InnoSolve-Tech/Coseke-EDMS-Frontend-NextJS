@@ -92,7 +92,7 @@ const FileViewPage = () => {
             ),
             comments: res.comments || [], // Ensure comments is initialized
           };
-          setDocument(fileData as Document);
+          setDocument(fileData as unknown as Document);
         } else {
           throw new Error("No file found");
         }
