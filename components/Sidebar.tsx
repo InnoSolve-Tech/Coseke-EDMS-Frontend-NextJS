@@ -140,6 +140,7 @@ export default function Sidebar({ children }: SidebarLayoutProps) {
     address: "",
     password: "",
     roles: [],
+    name: "",
   });
 
   const toggleCollapse = () => {

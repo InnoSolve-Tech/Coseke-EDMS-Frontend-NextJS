@@ -19,6 +19,8 @@ type DocumentType = {
 };
 
 type FileData = {
+  versions: any;
+  comments: never[];
   id: number;
   folderID: number;
   filename: string;
@@ -74,6 +76,23 @@ export interface FileManagerData {
   mimeType: string;
   metadata?: Record<string, unknown>;
   fileContent?: string;
+}
+
+interface VersionComment {
+  id: number;
+  content: string;
+  createdDate: string;
+  createdBy: number;
+  versionId: number;
+}
+
+interface CreateVersionCommentDTO {
+  content: string;
+  versionId: number;
+}
+
+interface UpdateVersionCommentDTO {
+  content: string;
 }
 
 export const addDocument = async (
@@ -605,4 +624,140 @@ export const bulkUpload = async (
     console.error("Upload error:", error);
     throw error;
   }
+};
+
+// Add a comment
+export const addComment = async (
+  documentId: number,
+  content: string,
+  userId: number,
+) => {
+  try {
+    const response = await AxiosInstance.post(
+      `${ENDPOINT_URL}document/${documentId}`,
+      {
+        userId,
+        content,
+      },
+    );
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.response?.data || "Failed to add comment");
+  }
+};
+
+// Fetch comments by document ID
+export const getCommentsByDocument = async (documentId: number) => {
+  try {
+    const response = await AxiosInstance.get(
+      `${ENDPOINT_URL}getComments/${documentId}`,
+    );
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.response?.data || "Failed to fetch comments");
+  }
+};
+
+export const updateComment = async (
+  commentId: number,
+  content: string,
+  userId: number,
+) => {
+  try {
+    const response = await AxiosInstance.put(`${ENDPOINT_URL}${commentId}`, {
+      content,
+      userId,
+    });
+
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Error updating comment:",
+      error.response?.data || error.message,
+    );
+    throw new Error(
+      error.response?.data || "You are not authorized to update this comment",
+    );
+  }
+};
+
+// Delete comment by ID
+export const deleteComment = async (commentId: number, userId: number) => {
+  try {
+    const response = await AxiosInstance.delete(`${ENDPOINT_URL}${commentId}`, {
+      data: { userId }, // Ensure the backend expects this in the request body
+    });
+
+    return response.data; // Ensure response is returned
+  } catch (error: any) {
+    console.error(
+      "Error deleting comment:",
+      error.response?.data || error.message,
+    );
+    throw new Error(
+      error.response?.data || "Failed to delete comment (unauthorized)",
+    );
+  }
+};
+
+export const getAllCommentsForVersion = async (
+  versionId: number,
+): Promise<VersionComment[]> => {
+  const response = await AxiosInstance.get<ApiResponse<VersionComment[]>>(
+    `${ENDPOINT_URL}version/${versionId}`,
+  );
+  return response.data.data;
+};
+
+export const getVersionCommentById = async (
+  commentId: number,
+): Promise<VersionComment> => {
+  const response = await AxiosInstance.get<ApiResponse<VersionComment>>(
+    `${ENDPOINT_URL}${commentId}`,
+  );
+  return response.data.data;
+};
+
+export const createVersionComment = async (
+  commentData: CreateVersionCommentDTO,
+): Promise<VersionComment> => {
+  const token = getTokenFromSessionStorage();
+  const authorization = `Bearer ${JSON.parse(token!)}`;
+
+  const response = await AxiosInstance.post<ApiResponse<VersionComment>>(
+    ENDPOINT_URL,
+    commentData,
+    {
+      headers: { Authorization: authorization },
+    },
+  );
+  return response.data.data;
+};
+
+export const updateVersionComment = async (
+  commentId: number,
+  commentData: UpdateVersionCommentDTO,
+): Promise<VersionComment> => {
+  const token = getTokenFromSessionStorage();
+  const authorization = `Bearer ${JSON.parse(token!)}`;
+
+  const response = await AxiosInstance.put<ApiResponse<VersionComment>>(
+    `${ENDPOINT_URL}${commentId}`,
+    commentData,
+    {
+      headers: { Authorization: authorization },
+    },
+  );
+  return response.data.data;
+};
+
+export const deleteVersionComment = async (
+  commentId: number,
+): Promise<void> => {
+  const token = getTokenFromSessionStorage();
+  const authorization = `Bearer ${JSON.parse(token!)}`;
+
+  await AxiosInstance.delete(`${ENDPOINT_URL}${commentId}`, {
+    headers: { Authorization: authorization },
+  });
 };
