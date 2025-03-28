@@ -109,7 +109,17 @@ export function FileSidebar({
   const [metadata, setMetadata] = useState<Record<string, string>>(
     document?.metadata || {},
   );
-  const [activeTab, setActiveTab] = useState("details");
+
+  // Initialize activeTab from localStorage or default to "details"
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    // Only run in browser environment
+    if (typeof window !== "undefined") {
+      const savedTab = localStorage.getItem(`sidebar-tab-${document?.id}`);
+      return savedTab || "details";
+    }
+    return "details";
+  });
+
   const commentsEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -119,6 +129,13 @@ export function FileSidebar({
 
   // Cache for user information
   const [usersCache, setUsersCache] = useState<Record<number, string>>({});
+
+  // Save active tab to localStorage whenever it changes
+  useEffect(() => {
+    if (document?.id) {
+      localStorage.setItem(`sidebar-tab-${document.id}`, activeTab);
+    }
+  }, [activeTab, document?.id]);
 
   // Scroll to bottom of comments when new comment is added
   useEffect(() => {
@@ -327,14 +344,14 @@ export function FileSidebar({
   };
 
   return (
-    <aside className="w-96 border-l bg-background flex flex-col overflow-hidden">
+    <aside className="w-72 border-l bg-background flex flex-col h-[calc(100vh-64px)] mt-16 overflow-hidden">
       <Tabs
-        defaultValue="details"
-        className="flex-1 flex flex-col h-full"
+        defaultValue={activeTab}
+        className="flex-1 flex flex-col"
         value={activeTab}
         onValueChange={setActiveTab}
       >
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-3 bg-background">
           <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="metadata">Metadata</TabsTrigger>
           <TabsTrigger value="comments" className="relative">
@@ -350,14 +367,14 @@ export function FileSidebar({
           </TabsTrigger>
         </TabsList>
 
-        <div className="flex-1 overflow-hidden">
-          <TabsContent value="details" className="h-full overflow-auto">
+        <div className="flex-1 overflow-auto">
+          <TabsContent value="details" className="h-full">
             <div className="p-4">
-              <Card>
-                <CardHeader>
+              <Card className="shadow-none border-0">
+                <CardHeader className="px-0 pt-0">
                   <CardTitle>Document Details</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 px-0">
                   <div className="space-y-2">
                     <UiLabel htmlFor="documentName">Document Name</UiLabel>
                     <UiInput
@@ -439,16 +456,16 @@ export function FileSidebar({
             </div>
           </TabsContent>
 
-          <TabsContent value="metadata" className="h-full overflow-auto">
+          <TabsContent value="metadata" className="h-full">
             <div className="p-4">
-              <Card>
-                <CardHeader className="pb-3">
+              <Card className="shadow-none border-0">
+                <CardHeader className="px-0 pt-0">
                   <CardTitle>Metadata</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-0">
                   {showMetadataUpdate ? (
                     <div className="space-y-4">
-                      <ScrollArea className="h-[400px] pr-4">
+                      <ScrollArea className="h-[calc(100vh-350px)] pr-4">
                         {Object.entries(document.metadata || {}).length > 0 ? (
                           Object.entries(document.metadata || {}).map(
                             ([key, value]) => (
@@ -547,7 +564,7 @@ export function FileSidebar({
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      <ScrollArea className="h-[400px]">
+                      <ScrollArea className="h-[calc(100vh-350px)]">
                         <DocumentTypeCreation
                           onCreate={(newDocType) => {
                             setDocumentTypes([...documentTypes, newDocType]);
@@ -559,7 +576,7 @@ export function FileSidebar({
                     </div>
                   )}
                 </CardContent>
-                <CardFooter className="flex justify-between border-t pt-4">
+                <CardFooter className="flex justify-between border-t pt-4 px-0 mt-4">
                   {showMetadataUpdate ? (
                     <>
                       <UiButton
@@ -588,143 +605,49 @@ export function FileSidebar({
             </div>
           </TabsContent>
 
-          <TabsContent value="comments" className="h-full flex flex-col">
-            <div className="p-4 flex-1 overflow-hidden flex flex-col">
-              <Card className="flex flex-col h-full">
-                <CardHeader className="pb-3 border-b">
-                  <CardTitle>Comments</CardTitle>
-                </CardHeader>
-
-                {/* Comments area with scroll */}
-                <CardContent className="flex-1 overflow-y-auto pt-4">
+          <TabsContent value="comments" className="flex flex-col h-full">
+            <div className="p-4 flex flex-col h-full">
+              <Card className="flex flex-col h-full shadow-none border-0">
+                {/* Comments area with scroll - make sure it doesn't take all available space */}
+                <CardContent className="flex-1 overflow-y-auto pt-3 pb-1 px-0 max-h-[400px] scrollbar-thin scrollbar-track-gray-200 scrollbar-thumb-gray-300">
                   {document?.comments?.length > 0 ? (
-                    <div className="space-y-4">
-                      {document.comments.map((comment: Comment) => (
-                        <div
-                          key={comment.id}
-                          className="flex items-start gap-3"
-                        >
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage
-                              src={`https://avatar.vercel.sh/${comment.userId}`}
-                            />
-                            <AvatarFallback>
-                              {getInitials(
-                                `${comment.userFirstName} ${comment.userLastName}`,
-                              )}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 space-y-1">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <p className="text-sm font-medium">{`${comment.userFirstName} ${comment.userLastName}`}</p>
-                                <span className="text-xs text-muted-foreground">
-                                  {formatCommentDate(comment.createdAt)}
-                                </span>
-                              </div>
-
-                              {/* Comment actions - only visible to the author */}
-                              {isCommentAuthor(comment) && (
-                                <div className="flex items-center">
-                                  {editingCommentId === comment.id ? (
-                                    <div className="flex gap-1">
-                                      <UiButton
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-7 w-7"
-                                        onClick={() =>
-                                          handleSaveEdit(comment.id)
-                                        }
-                                      >
-                                        <Check className="h-4 w-4 text-green-500" />
-                                      </UiButton>
-                                      <UiButton
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-7 w-7"
-                                        onClick={handleCancelEdit}
-                                      >
-                                        <X className="h-4 w-4 text-destructive" />
-                                      </UiButton>
-                                    </div>
-                                  ) : (
-                                    <DropdownMenu>
-                                      <DropdownMenuTrigger asChild>
-                                        <UiButton
-                                          size="icon"
-                                          variant="ghost"
-                                          className="h-7 w-7"
-                                        >
-                                          <MoreVertical className="h-4 w-4" />
-                                        </UiButton>
-                                      </DropdownMenuTrigger>
-                                      <DropdownMenuContent align="end">
-                                        <DropdownMenuItem
-                                          onClick={() =>
-                                            handleEditComment(comment)
-                                          }
-                                        >
-                                          <Edit className="h-4 w-4 mr-2" /> Edit
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem
-                                          onClick={() =>
-                                            handleDeleteComment(comment.id)
-                                          }
-                                          className="text-destructive focus:text-destructive"
-                                        >
-                                          <Trash className="h-4 w-4 mr-2" />{" "}
-                                          Delete
-                                        </DropdownMenuItem>
-                                      </DropdownMenuContent>
-                                    </DropdownMenu>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* User details */}
-                            <div className="text-xs text-muted-foreground space-y-1 mb-2">
-                              <div className="flex items-center gap-1">
-                                <span className="font-medium">Email:</span>{" "}
-                                {comment.userEmail}
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <span className="font-medium">Phone:</span>{" "}
-                                {comment.userPhone}
-                              </div>
-                            </div>
-
-                            {/* Comment content - editable if in edit mode */}
-                            {editingCommentId === comment.id ? (
-                              <Textarea
-                                value={editedCommentText}
-                                onChange={(e) =>
-                                  setEditedCommentText(e.target.value)
-                                }
-                                className="min-h-[80px] resize-none"
-                              />
-                            ) : (
-                              <div className="rounded-md bg-muted p-3">
-                                <p className="text-sm">{comment.content}</p>
-                              </div>
+                    document.comments.map((comment: Comment) => (
+                      <div
+                        key={comment.id}
+                        className="flex items-start gap-3 mb-4"
+                      >
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage
+                            src={`https://avatar.vercel.sh/${comment.userId}`}
+                          />
+                          <AvatarFallback>
+                            {getInitials(
+                              `${comment.userFirstName} ${comment.userLastName}`,
                             )}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="flex justify-between">
+                            <p className="text-sm font-medium">{`${comment.userFirstName} ${comment.userLastName}`}</p>
+                            <span className="text-xs text-muted-foreground">
+                              {formatCommentDate(comment.createdAt)}
+                            </span>
                           </div>
+                          <p className="text-sm bg-muted p-2 rounded-md">
+                            {comment.content}
+                          </p>
                         </div>
-                      ))}
-                      <div ref={commentsEndRef} />
-                    </div>
-                  ) : (
-                    <div className="h-full flex items-center justify-center">
-                      <div className="text-center text-muted-foreground">
-                        <p>No comments yet</p>
-                        <p className="text-sm">Be the first to comment</p>
                       </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <p>No comments yet</p>
                     </div>
                   )}
                 </CardContent>
 
-                {/* Comment input area */}
-                <CardFooter className="border-t pt-3 pb-3">
+                {/* Comment input area - explicitly set as flex-shrink-0 to prevent it from disappearing */}
+                <CardFooter className="border-t pt-3 pb-3 bg-background z-10 px-0 flex-shrink-0">
                   <form
                     className="flex w-full items-end gap-2"
                     onSubmit={(e) => {
@@ -732,22 +655,22 @@ export function FileSidebar({
                       handleAddComment();
                     }}
                   >
-                    <div className="flex-1 space-y-1">
+                    <div className="flex-1">
                       <Textarea
                         id="newComment"
                         value={newComment}
                         onChange={(e) => setNewComment(e.target.value)}
                         placeholder="Add a comment..."
-                        className="min-h-[80px] resize-none"
+                        className="min-h-[40px] max-h-[80px] resize-none text-sm"
                       />
                     </div>
                     <UiButton
                       type="submit"
                       size="icon"
-                      className="h-10 w-10"
+                      className="h-9 w-9 flex-shrink-0"
                       disabled={!newComment.trim()}
                     >
-                      <Send className="h-4 w-4" />
+                      <Send className="h-3.5 w-3.5" />
                     </UiButton>
                   </form>
                 </CardFooter>

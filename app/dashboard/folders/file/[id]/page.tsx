@@ -4,7 +4,7 @@ import type React from "react";
 
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Box, Typography } from "@mui/joy";
 import type { ColorPaletteProp } from "@mui/joy/styles";
 import { Button } from "@/components/ui/button";
@@ -67,6 +67,7 @@ const FileViewPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [documentTypes, setDocumentTypes] = useState<IDocumentType[]>([]);
   const [currentDocTypeId, setCurrentDocTypeId] = useState<string | null>(null);
+  const [showSidebar, setShowSidebar] = useState(true); // Always show sidebar by default
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     color: ColorPaletteProp;
@@ -130,6 +131,20 @@ const FileViewPage = () => {
 
     fetchDocumentTypes();
   }, [document]);
+
+  // Ensure sidebar visibility is restored from localStorage
+  useEffect(() => {
+    // Check if we have a stored preference for sidebar visibility
+    const storedSidebarState = localStorage.getItem("document-sidebar-visible");
+    if (storedSidebarState !== null) {
+      setShowSidebar(storedSidebarState === "true");
+    }
+  }, []);
+
+  // Save sidebar visibility state
+  useEffect(() => {
+    localStorage.setItem("document-sidebar-visible", String(showSidebar));
+  }, [showSidebar]);
 
   // Handlers
   const handleMetadataChange = (key: string, value: string) => {
@@ -247,6 +262,10 @@ const FileViewPage = () => {
     }
   };
 
+  const toggleSidebar = () => {
+    setShowSidebar((prev) => !prev);
+  };
+
   const showSnackbar = (message: string, color: ColorPaletteProp) => {
     setSnackbar({ open: true, message, color });
     toast({
@@ -290,14 +309,6 @@ const FileViewPage = () => {
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Main content area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="flex justify-between items-center p-4 border-b">
-          <h1 className="text-2xl font-bold">{document.filename}</h1>
-          <Button variant="ghost" size="icon" onClick={() => router.back()}>
-            <X className="h-6 w-6" />
-          </Button>
-        </header>
-
         {/* File viewer with proper overflow handling */}
         <div className="flex-1 relative overflow-hidden">
           <DocumentViewer
@@ -315,18 +326,36 @@ const FileViewPage = () => {
         />
       </div>
 
-      {/* Sidebar */}
-      <FileSidebar
-        document={document}
-        setDocument={setDocument}
-        documentTypes={documentTypes}
-        setDocumentTypes={setDocumentTypes}
-        handleMetadataChange={handleMetadataChange}
-        handleDeleteMetadata={handleDeleteMetadata}
-        handleSubmit={handleSubmit}
-        currentDocTypeId={currentDocTypeId}
-        handleDocumentTypeChange={handleDocumentTypeChange}
-      />
+      {/* Sidebar toggle button - fixed position */}
+      <div className="fixed top-20 right-0 z-10">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={toggleSidebar}
+          className="rounded-l-md rounded-r-none border-r-0 h-8 px-2 shadow-md"
+        >
+          {showSidebar ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <ChevronLeft className="h-4 w-4" />
+          )}
+        </Button>
+      </div>
+
+      {/* Sidebar - conditionally rendered based on showSidebar state */}
+      {showSidebar && (
+        <FileSidebar
+          document={document}
+          setDocument={setDocument}
+          documentTypes={documentTypes}
+          setDocumentTypes={setDocumentTypes}
+          handleMetadataChange={handleMetadataChange}
+          handleDeleteMetadata={handleDeleteMetadata}
+          handleSubmit={handleSubmit}
+          currentDocTypeId={currentDocTypeId}
+          handleDocumentTypeChange={handleDocumentTypeChange}
+        />
+      )}
     </div>
   );
 };

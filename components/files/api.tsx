@@ -6,6 +6,37 @@ import { getTokenFromSessionStorage } from "../routes/sessionStorage";
 import { FileQueue } from "../FileQueue";
 
 const ENDPOINT_URL = "file-management/api/v1/files/";
+const VERSION_ENDPOINT = "file-management/api/versions";
+export type VersionType = "MAJOR" | "MINOR";
+
+interface CreateVersionCommentDTO {
+  content: string;
+  versionId: number;
+}
+
+interface UpdateVersionCommentDTO {
+  content: string;
+}
+
+export interface VersionDTO {
+  id: number;
+  versionName: string;
+  changes: string;
+  fileUrl: string;
+  createdDate: string;
+}
+
+export interface CreateVersionDTO {
+  changes: string;
+  fileUrl: string;
+  documentId: number;
+  versionType: VersionType;
+}
+
+export interface UpdateVersionDTO {
+  versionName?: string;
+  changes?: string;
+}
 
 type DocumentProps = {
   documentName: string;
@@ -93,6 +124,27 @@ interface CreateVersionCommentDTO {
 
 interface UpdateVersionCommentDTO {
   content: string;
+}
+
+export interface VersionDTO {
+  id: number;
+  versionName: string;
+  changes: string;
+  fileUrl: string;
+  createdDate: string;
+  createdBy: number;
+  versionFileId: number;
+}
+
+export interface CreateVersionDTO {
+  versionName: string;
+  changes: string;
+  fileUrl: string;
+}
+
+export interface UpdateVersionDTO {
+  versionName?: string;
+  changes?: string;
 }
 
 export const addDocument = async (
@@ -690,11 +742,51 @@ export const deleteComment = async (commentId: number, userId: number) => {
   }
 };
 
+export const updateVersion = async (
+  versionId: number,
+  versionData: UpdateVersionDTO,
+): Promise<VersionDTO> => {
+  try {
+    const token = getTokenFromSessionStorage();
+    const authorization = `Bearer ${JSON.parse(token!)}`;
+
+    const response = await AxiosInstance.put<VersionDTO>(
+      `${VERSION_ENDPOINT}/${versionId}`,
+      versionData,
+      {
+        headers: {
+          Authorization: authorization,
+        },
+      },
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error updating version:", error);
+    throw error;
+  }
+};
+
+export const deleteVersion = async (versionId: number): Promise<void> => {
+  try {
+    const token = getTokenFromSessionStorage();
+    const authorization = `Bearer ${JSON.parse(token!)}`;
+
+    await AxiosInstance.delete(`${VERSION_ENDPOINT}/${versionId}`, {
+      headers: {
+        Authorization: authorization,
+      },
+    });
+  } catch (error) {
+    console.error("Error deleting version:", error);
+    throw error;
+  }
+};
+
 export const getAllCommentsForVersion = async (
   versionId: number,
 ): Promise<VersionComment[]> => {
   const response = await AxiosInstance.get<ApiResponse<VersionComment[]>>(
-    `${ENDPOINT_URL}version/${versionId}`,
+    `${VERSION_ENDPOINT}/${versionId}`,
   );
   return response.data.data;
 };
@@ -703,7 +795,7 @@ export const getVersionCommentById = async (
   commentId: number,
 ): Promise<VersionComment> => {
   const response = await AxiosInstance.get<ApiResponse<VersionComment>>(
-    `${ENDPOINT_URL}${commentId}`,
+    `${VERSION_ENDPOINT}/${commentId}`,
   );
   return response.data.data;
 };
@@ -715,7 +807,7 @@ export const createVersionComment = async (
   const authorization = `Bearer ${JSON.parse(token!)}`;
 
   const response = await AxiosInstance.post<ApiResponse<VersionComment>>(
-    ENDPOINT_URL,
+    VERSION_ENDPOINT,
     commentData,
     {
       headers: { Authorization: authorization },
@@ -732,7 +824,7 @@ export const updateVersionComment = async (
   const authorization = `Bearer ${JSON.parse(token!)}`;
 
   const response = await AxiosInstance.put<ApiResponse<VersionComment>>(
-    `${ENDPOINT_URL}${commentId}`,
+    `${VERSION_ENDPOINT}/${commentId}`,
     commentData,
     {
       headers: { Authorization: authorization },
@@ -747,7 +839,163 @@ export const deleteVersionComment = async (
   const token = getTokenFromSessionStorage();
   const authorization = `Bearer ${JSON.parse(token!)}`;
 
-  await AxiosInstance.delete(`${ENDPOINT_URL}${commentId}`, {
+  await AxiosInstance.delete(`${VERSION_ENDPOINT}${commentId}`, {
     headers: { Authorization: authorization },
   });
+};
+
+export const getAllVersionsForDocument = async (
+  documentId: number,
+): Promise<VersionDTO[]> => {
+  try {
+    const response = await AxiosInstance.get<VersionDTO[]>(
+      `${VERSION_ENDPOINT}/document/${documentId}`,
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching document versions:", error);
+    throw error;
+  }
+};
+
+export const getVersionById = async (
+  versionId: number,
+): Promise<VersionDTO> => {
+  try {
+    const response = await AxiosInstance.get<VersionDTO>(
+      `${VERSION_ENDPOINT}/${versionId}`,
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching version:", error);
+    throw error;
+  }
+};
+
+// Update the createVersion function to handle version type
+export const createVersion = async (
+  documentId: number,
+  versionData: { versionName: string; changes: string; fileUrl: string },
+): Promise<VersionDTO> => {
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
+  const newVersion: VersionDTO = {
+    id: Math.floor(Math.random() * 1000), // Mock ID
+    versionName: versionData.versionName,
+    changes: versionData.changes,
+    fileUrl: versionData.fileUrl,
+    createdDate: new Date().toISOString(),
+    createdBy: 0,
+    versionFileId: 0,
+  };
+
+  return newVersion;
+};
+
+// Update the createMajorVersion and createMinorVersion functions to use the version name from the data
+export const createMajorVersion = async (
+  data: Omit<CreateVersionDTO, "versionType">,
+  userId: number,
+): Promise<VersionDTO> => {
+  const token = getTokenFromSessionStorage();
+  const authorization = `Bearer ${JSON.parse(token!)}`;
+
+  const response = await AxiosInstance.post<VersionDTO>(
+    `${VERSION_ENDPOINT}/major`,
+    { ...data, versionType: "MAJOR" },
+    {
+      headers: {
+        Authorization: authorization,
+        userId: userId.toString(),
+      },
+    },
+  );
+
+  return response.data;
+};
+
+export const createMinorVersion = async (
+  data: Omit<CreateVersionDTO, "versionType">,
+  userId: number,
+): Promise<VersionDTO> => {
+  const token = getTokenFromSessionStorage();
+  const authorization = `Bearer ${JSON.parse(token!)}`;
+
+  const response = await AxiosInstance.post<VersionDTO>(
+    `${VERSION_ENDPOINT}/minor`,
+    { ...data, versionType: "MINOR" },
+    {
+      headers: {
+        Authorization: authorization,
+        userId: userId.toString(),
+      },
+    },
+  );
+
+  return response.data;
+};
+
+export const uploadVersionFiles = async (
+  file: File,
+  versionData: {
+    documentId: number;
+    changes: string;
+    versionType: VersionType;
+    versionName?: string;
+  },
+  userId: number,
+): Promise<VersionDTO> => {
+  const token = getTokenFromSessionStorage();
+  const authorization = `Bearer ${JSON.parse(token!)}`;
+
+  const formData = new FormData();
+
+  // Append file with exact name 'file' that backend expects
+  formData.append("file", file);
+
+  // Include userId in the version data payload
+  const payload = {
+    ...versionData,
+    userId, // Add userId to the payload
+  };
+
+  formData.append(
+    "versionData",
+    new Blob([JSON.stringify(payload)], { type: "application/json" }),
+  );
+
+  console.log("📦 Version Upload FormData contents:");
+  for (let [key, value] of formData.entries()) {
+    console.log(
+      `${key}:`,
+      value instanceof File
+        ? { name: value.name, type: value.type, size: value.size }
+        : value,
+    );
+  }
+
+  try {
+    const response = await axios.post<VersionDTO>(
+      "http://localhost:8081/file-management/api/v1/files/upload-version",
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          "X-Proxy-Secret": "my-proxy-secret-key",
+          Authorization: authorization,
+          // Removed X-User-ID header since we're sending userId in payload
+        },
+      },
+    );
+
+    console.log("✅ Version upload successful:", response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error("❌ Version upload failed:", {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+    });
+    throw error;
+  }
 };

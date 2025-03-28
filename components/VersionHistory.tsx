@@ -1,40 +1,44 @@
 "use client";
 
-import type React from "react";
-import { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Box, Typography, List, ListItem } from "@mui/joy";
 import { ListItemText } from "@mui/material";
-
-interface Version {
-  id: number;
-  versionNumber: number;
-  createdAt: string;
-  createdBy: string;
-}
+import { getAllVersionsForDocument, VersionDTO } from "./files/api";
 
 interface VersionHistoryProps {
   documentId: number;
+  onVersionSelect?: (versionId: number, fileUrl: string) => void;
+  onClose?: () => void;
 }
 
 export const VersionHistory: React.FC<VersionHistoryProps> = ({
   documentId,
+  onVersionSelect,
+  onClose,
 }) => {
-  const [versions, setVersions] = useState<Version[]>([]);
+  const [versions, setVersions] = useState<VersionDTO[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch version history for the document
-    fetchVersionHistory();
-  }, []);
+    if (documentId) {
+      fetchVersionHistory(documentId);
+    }
+  }, [documentId]);
 
-  const fetchVersionHistory = async () => {
+  const fetchVersionHistory = async (id: number) => {
     try {
-      // Replace with actual API call
-      const response = await fetch(`/api/versions?documentId=${documentId}`);
-      const data = await response.json();
+      const data = await getAllVersionsForDocument(id);
       setVersions(data);
     } catch (error) {
       console.error("Error fetching version history:", error);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleSelectVersion = (version: VersionDTO) => {
+    onVersionSelect?.(version.id, version.fileUrl);
+    onClose?.();
   };
 
   return (
@@ -42,16 +46,35 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
       <Typography level="h4" sx={{ fontSize: "1rem", fontWeight: 600, mb: 2 }}>
         Version History
       </Typography>
-      <List>
-        {versions.map((version) => (
-          <ListItem key={version.id}>
-            <ListItemText
-              primary={`Version ${version.versionNumber}`}
-              secondary={`${version.createdBy} - ${new Date(version.createdAt).toLocaleString()}`}
-            />
-          </ListItem>
-        ))}
-      </List>
+      {loading ? (
+        <Typography level="body-sm">Loading...</Typography>
+      ) : versions.length === 0 ? (
+        <Typography level="body-sm">No versions found.</Typography>
+      ) : (
+        <List>
+          {versions.map((version) => (
+            <ListItem
+              key={version.id}
+              onClick={() => handleSelectVersion(version)}
+              sx={{
+                cursor: "pointer",
+                "&:hover": { backgroundColor: "neutral.softHoverBg" },
+              }}
+            >
+              <ListItemText
+                primary={
+                  version.versionName === "Original Copy"
+                    ? "📄 Original Copy"
+                    : `Version ${version.versionName}`
+                }
+                secondary={`${version.createdBy ?? "Unknown"} - ${new Date(
+                  version.createdDate,
+                ).toLocaleString()}`}
+              />
+            </ListItem>
+          ))}
+        </List>
+      )}
     </Box>
   );
 };
