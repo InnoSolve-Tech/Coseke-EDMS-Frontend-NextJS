@@ -33,7 +33,11 @@ import {
   Undo,
   Redo,
   Highlighter,
+  History,
 } from "lucide-react";
+import { useParams } from "next/navigation";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { VersionHistory } from "./version-history";
 
 type AnnotationTool =
   | "pen"
@@ -69,7 +73,7 @@ interface PdfViewerProps {
 export function PdfViewer({
   url,
   onSave,
-  version = "1.0",
+  version = "0.0",
   versionHistory = [],
 }: PdfViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -97,24 +101,71 @@ export function PdfViewer({
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
-
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const params = useParams();
+  const documentId = params?.id || params?.fileId || params?.documentId;
   const { toast } = useToast();
+  const [pdfUrl, setPdfUrl] = useState<string>(url);
+  // Add state to track if we're viewing a version or the original document
+  const [viewingVersion, setViewingVersion] = useState(false);
 
-  const [showVersionDialog, setShowVersionDialog] = useState(false);
-  const [newVersionName, setNewVersionName] = useState("");
-  const [localVersionHistory, setLocalVersionHistory] =
-    useState(versionHistory);
+  // Add a helper function to ensure we're loading a direct PDF URL
+  const ensureDirectPdfUrl = (url: string): string => {
+    // If it's a blob URL, return it directly
+    if (url.startsWith("blob:")) {
+      return url;
+    }
+
+    // Check if the URL is already a direct PDF link
+    if (url.toLowerCase().endsWith(".pdf")) {
+      return url;
+    }
+
+    // If it's a relative URL, make sure it points to the PDF file
+    if (url.startsWith("/")) {
+      // This is a relative URL, try to extract the PDF path if it exists
+      const pdfMatch = url.match(/\/([^/]+\.pdf)/i);
+      if (pdfMatch) {
+        return pdfMatch[0];
+      }
+    }
+
+    // If it contains a PDF filename in the path, extract it
+    const pdfInPath = url.match(/\/([^/]+\.pdf)/i);
+    if (pdfInPath) {
+      // Try to extract just the PDF part of the URL
+      return pdfInPath[0];
+    }
+
+    // If we can't determine a direct PDF URL, return the original
+    // but log a warning
+    console.warn("Could not determine direct PDF URL from:", url);
+    return url;
+  };
 
   // Check for valid URL
   useEffect(() => {
+    // Always initialize with the provided URL
+    setPdfUrl(url);
+    setViewingVersion(false);
+
     if (!url) {
       toast({
         title: "No document",
         description: "No PDF document provided.",
         variant: "destructive",
       });
+    } else {
+      console.log("PDF URL set to:", url);
+      // Reset loading state to trigger iframe reload
+      setIsLoading(true);
     }
   }, [url, toast]);
+
+  useEffect(() => {
+    console.log("Params:", params);
+    console.log("Document ID from path:", documentId);
+  }, [params]);
 
   useEffect(() => {
     if (!containerRef.current || !canvasRef.current || !iframeRef.current)
@@ -371,6 +422,7 @@ export function PdfViewer({
     setCurrentAnnotation(updatedAnnotation);
     drawAnnotations(currentPage);
   };
+
   const handleMouseUp = () => {
     if (!isDrawing || !currentAnnotation) return;
 
@@ -571,98 +623,55 @@ export function PdfViewer({
     setIsSignatureModalOpen(false);
   };
 
-  const handlePrevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
+  // Modify the handleVersionSelect function to set the viewingVersion flag
+  const handleVersionSelect = (versionId: number, fileUrl: string) => {
+    console.log(`Loading version ${versionId} with URL: ${fileUrl}`);
 
-      // In a real implementation, you would navigate the PDF to the previous page
-      if (iframeRef.current) {
-        // This is a simplified approach - in a real app you'd use PDF.js API
-        // to navigate pages
-      }
-    }
+    // Update the PDF URL to load the selected version
+    setPdfUrl(fileUrl);
+
+    // Set flag that we're viewing a version, not the original
+    setViewingVersion(true);
+
+    // Reset annotations when switching versions
+    setAnnotations([]);
+    setUndoStack([]);
+    setRedoStack([]);
+
+    // Reset loading state to trigger the iframe onLoad event
+    setIsLoading(true);
+
+    // Close the version history dialog
+    setShowVersionHistory(false);
+
+    toast({
+      title: "Version Loaded",
+      description: `Loaded version ${versionId}`,
+    });
   };
 
-  const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
+  // Add a function to return to the original document
+  const handleViewOriginal = () => {
+    console.log("Loading original document with URL:", url);
 
-      // In a real implementation, you would navigate the PDF to the next page
-      if (iframeRef.current) {
-        // This is a simplified approach - in a real app you'd use PDF.js API
-        // to navigate pages
-      }
-    }
-  };
+    // Reset to the original document URL
+    setPdfUrl(url);
 
-  const handleCreateVersion = async () => {
-    if (!newVersionName.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a version name",
-        variant: "destructive",
-      });
-      return;
-    }
+    // Set flag that we're viewing the original, not a version
+    setViewingVersion(false);
 
-    try {
-      if (!canvasRef.current || !iframeRef.current) return;
+    // Reset annotations
+    setAnnotations([]);
+    setUndoStack([]);
+    setRedoStack([]);
 
-      // Create a composite image of the PDF and annotations
-      const canvas = document.createElement("canvas");
-      const iframe = iframeRef.current;
-      const rect = iframe.getBoundingClientRect();
+    // Reset loading state
+    setIsLoading(true);
 
-      canvas.width = rect.width;
-      canvas.height = rect.height;
-
-      const context = canvas.getContext("2d");
-      if (!context) throw new Error("Could not get canvas context");
-
-      // Create a screenshot of the iframe
-      context.fillStyle = "#ffffff";
-      context.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Draw the annotations on top
-      const annotationCanvas = canvasRef.current;
-      context.drawImage(annotationCanvas, 0, 0);
-
-      // Convert to blob
-      const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob((blob) => {
-          if (blob) resolve(blob);
-          else reject(new Error("Failed to create blob from canvas"));
-        }, "image/png");
-      });
-
-      // Create a new version entry
-      const newVersion = {
-        version: newVersionName,
-        date: new Date().toISOString(),
-      };
-
-      // Update local version history
-      setLocalVersionHistory([...localVersionHistory, newVersion]);
-
-      if (onSave) {
-        await onSave(blob, newVersionName);
-      }
-
-      toast({
-        title: "Success",
-        description: `Version "${newVersionName}" created successfully`,
-      });
-
-      setShowVersionDialog(false);
-      setNewVersionName("");
-    } catch (error) {
-      console.error("Error creating version:", error);
-      toast({
-        title: "Error",
-        description: "Failed to create version",
-        variant: "destructive",
-      });
-    }
+    toast({
+      title: "Original Document",
+      description: "Loaded original document",
+    });
   };
 
   const handleZoomIn = () => {
@@ -679,6 +688,9 @@ export function PdfViewer({
 
   return (
     <div className="flex flex-col h-full" ref={containerRef}>
+      {/* Hidden file input */}
+      {/* <input type="file" ref={fileInputRef} className="hidden" accept="application/pdf" onChange={handleFileChange} /> */}
+
       {/* Toolbar */}
       <div className="overflow-x-auto border-b bg-muted/20">
         <div className="flex items-center justify-between p-2 min-w-max">
@@ -910,44 +922,15 @@ export function PdfViewer({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setShowVersionDialog(true)}
+              onClick={() => setShowVersionHistory(true)}
             >
-              Create Version
+              <History className="h-4 w-4 mr-1" /> Version History
             </Button>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm">
-                  Version History
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80">
-                <div className="space-y-2">
-                  <h4 className="font-medium">Version History</h4>
-                  {localVersionHistory.length > 0 ? (
-                    <div className="max-h-60 overflow-y-auto">
-                      {localVersionHistory.map((v, index) => (
-                        <div
-                          key={index}
-                          className="flex justify-between items-center p-2 hover:bg-muted rounded"
-                        >
-                          <div>
-                            <div className="font-medium">{v.version}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {new Date(v.date).toLocaleString()}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      No versions saved yet
-                    </p>
-                  )}
-                </div>
-              </PopoverContent>
-            </Popover>
+            {viewingVersion && (
+              <Button variant="outline" size="sm" onClick={handleViewOriginal}>
+                <History className="h-4 w-4 mr-1" /> View Original
+              </Button>
+            )}
 
             <Button variant="outline" size="sm" onClick={handleZoomOut}>
               -
@@ -974,11 +957,16 @@ export function PdfViewer({
             {/* PDF iframe */}
             <iframe
               ref={iframeRef}
-              src={`${url}#toolbar=0&view=FitH`}
+              src={
+                pdfUrl.startsWith("blob:")
+                  ? pdfUrl
+                  : `${ensureDirectPdfUrl(pdfUrl)}#toolbar=0&view=FitH&t=${Date.now()}`
+              }
               className="w-full h-full"
               style={{ border: "none" }}
               onLoad={() => {
                 setIsLoading(false);
+                console.log("PDF iframe loaded successfully");
                 // Ensure canvas is resized after PDF loads
                 if (
                   containerRef.current &&
@@ -991,6 +979,15 @@ export function PdfViewer({
                   canvas.width = rect.width;
                   canvas.height = rect.height;
                 }
+              }}
+              onError={() => {
+                console.error("Failed to load PDF:", pdfUrl);
+                setIsLoading(false);
+                toast({
+                  title: "Error",
+                  description: "Failed to load PDF document",
+                  variant: "destructive",
+                });
               }}
             />
 
@@ -1080,39 +1077,127 @@ export function PdfViewer({
           </div>
         </div>
       )}
+
       {/* Version creation dialog */}
-      {showVersionDialog && (
+      {/* {showVersionDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
             <h3 className="text-lg font-medium mb-4">Create New Version</h3>
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="versionName">Version Name</Label>
-                <Input
-                  id="versionName"
-                  value={newVersionName}
-                  onChange={(e) => setNewVersionName(e.target.value)}
-                  placeholder="e.g., v1.2 or Draft Review"
-                  autoFocus
+              {/* File upload section */}
+      {/* <div className="space-y-2">
+                <Label htmlFor="versionFile">Upload Document</Label>
+                <div
+                  className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <input
+                    type="file"
+                    id="versionFile"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept="application/pdf"
+                    onChange={handleFileChange}
+                  />
+                  {uploadedFile ? (
+                    <div className="flex flex-col items-center">
+                      <p className="font-medium text-sm">{uploadedFile.name}</p>
+                      <p className="text-xs text-muted-foreground">{(uploadedFile.size / 1024).toFixed(1)} KB</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center">
+                      <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+                      <p className="text-sm font-medium">Click to upload a PDF file</p>
+                      <p className="text-xs text-muted-foreground">or drag and drop</p>
+                    </div>
+                  )}
+                </div>
+              </div> */}
+
+      {/* Version comment */}
+      {/* <div className="space-y-2">
+                <Label htmlFor="versionComment">Version Comment</Label>
+                <Textarea
+                  id="versionComment"
+                  placeholder="Describe the changes in this version..."
+                  value={versionComment}
+                  onChange={(e) => setVersionComment(e.target.value)}
+                  className="resize-none"
+                  rows={3}
                 />
+              </div> */}
+
+      {/* Version type selection with radio buttons */}
+      {/* <div className="space-y-2">
+                <p className="text-sm font-medium">Version Type</p>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="minorVersion"
+                      name="versionType"
+                      className="h-4 w-4"
+                      checked={selectedVersionType === "M INOR"}
+                      onChange={() => setSelectedVersionType("MINOR")}
+                    />
+                    <Label htmlFor="minorVersion" className="cursor-pointer">
+                      <span className="font-medium">Minor Version</span>
+                      <span className="ml-2 text-sm text-muted-foreground">(Next: {suggestedVersions.minor})</span>
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="majorVersion"
+                      name="versionType"
+                      className="h-4 w-4"
+                      checked={selectedVersionType === "MAJOR"}
+                      onChange={() => setSelectedVersionType("MAJOR")}
+                    />
+                    <Label htmlFor="majorVersion" className="cursor-pointer">
+                      <span className="font-medium">Major Version</span>
+                      <span className="ml-2 text-sm text-muted-foreground">(Next: {suggestedVersions.major})</span>
+                    </Label>
+                  </div>
+                </div>
               </div>
-              <div className="text-sm text-muted-foreground">
-                Creating a version will save the current state of the document
-                with all annotations.
-              </div>
-              <div className="flex justify-end space-x-2">
+
+              <div className="flex justify-end space-x-2 pt-2">
                 <Button
                   variant="outline"
-                  onClick={() => setShowVersionDialog(false)}
+                  onClick={() => {
+                    setShowVersionDialog(false)
+                    setUploadedFile(null)
+                    setVersionComment("")
+                    if (uploadedFileUrl) {
+                      URL.revokeObjectURL(uploadedFileUrl)
+                      setUploadedFileUrl(null)
+                    }
+                  }}
                 >
                   Cancel
                 </Button>
-                <Button onClick={handleCreateVersion}>Create Version</Button>
+                <Button onClick={() => handleCreateVersion(selectedVersionType)} disabled={!uploadedFile}>
+                  Create Version
+                </Button>
               </div>
             </div>
           </div>
         </div>
-      )}
+      )} */}
+
+      {/* Version History Dialog */}
+      <Dialog open={showVersionHistory} onOpenChange={setShowVersionHistory}>
+        <DialogContent className="max-w-4xl h-[80vh]">
+          {documentId && (
+            <VersionHistory
+              documentId={Number(documentId)}
+              onVersionSelect={handleVersionSelect}
+              onClose={() => setShowVersionHistory(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
