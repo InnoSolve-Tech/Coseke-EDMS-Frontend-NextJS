@@ -482,45 +482,6 @@ export function VersionHistory({
 
       <Separator />
 
-      {/* Comments Section */}
-      <div className="grid gap-2 flex-1">
-        <div className="flex items-center">
-          <MessageSquare className="mr-2 h-4 w-4" />
-          <h3 className="text-lg font-medium">
-            Comments on{" "}
-            {selectedVersion &&
-              versions.find((v) => v.id === selectedVersion)?.versionName}
-          </h3>
-        </div>
-        <ScrollArea className="flex-1 h-[200px]">
-          <div className="space-y-4">
-            {selectedVersion && comments[selectedVersion]?.length > 0 ? (
-              comments[selectedVersion].map((comment) => (
-                <div key={comment.id} className="border-b pb-2 last:border-0">
-                  <p className="text-sm">{comment.content}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(comment.createdDate).toLocaleString()} by User #
-                    {comment.createdBy}
-                  </p>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                No comments for this version
-              </p>
-            )}
-          </div>
-        </ScrollArea>
-        <div className="grid gap-2">
-          <Textarea
-            placeholder="Add a comment about this version..."
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-          />
-          <Button onClick={handleAddComment}>Add Comment</Button>
-        </div>
-      </div>
-
       {/* Hidden file input */}
       <input
         type="file"

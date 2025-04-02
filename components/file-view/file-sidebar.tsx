@@ -447,10 +447,6 @@ export function FileSidebar({
                       {new Date(document.lastModifiedDateTime).toLocaleString()}
                     </p>
                   </div>
-                  <div className="space-y-2">
-                    <UiLabel>Version</UiLabel>
-                    <p className="text-sm">{document.version || "1.0"}</p>
-                  </div>
                 </CardContent>
               </Card>
             </div>
