@@ -1,5 +1,5 @@
 "use client";
-import { FileText, Image, Table, Upload } from "lucide-react";
+import { FileText, Image, Scan, Table, Upload } from "lucide-react";
 import type React from "react";
 import { useState, useEffect, useRef } from "react";
 import { CreateNewFolder } from "@mui/icons-material";
@@ -1370,6 +1370,21 @@ export default function FileExplorer() {
                 }}
               >
                 New Folder
+              </Button>
+              <Button
+                size="sm"
+                variant="outlined"
+                color="primary"
+                startDecorator={<Scan size={16} />}
+                onClick={() => router.push("/scanner")}
+                sx={{
+                  fontSize: "0.75rem",
+                  py: 0.5,
+                  px: 1,
+                  "& svg": { strokeWidth: 2.5 },
+                }}
+              >
+                Open Scanner
               </Button>
             </div>
           </div>

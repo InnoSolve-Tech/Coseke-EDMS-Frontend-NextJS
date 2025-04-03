@@ -65,6 +65,7 @@
     "cmdk": "^1.0.4",
     "dayjs": "^1.11.13",
     "docx-preview": "^0.3.4",
+    "dwt": "^19.0.0",
     "embla-carousel-react": "^8.5.1",
     "fabric": "^6.5.4",
     "formik": "^2.4.6",
