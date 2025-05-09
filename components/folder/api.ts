@@ -8,6 +8,7 @@ export interface IDocumentType {
   metadata: MetadataItem[];
   createdDate?: string;
   lastModifiedDateTime?: string;
+  documentTypeId?: number;
 }
 
 export interface IDocumentTypeForm {
@@ -53,6 +54,18 @@ export async function updateDocumentType(
 export async function deleteDocumentType(id: number): Promise<void> {
   await AxiosInstance.delete(
     `file-management/api/v1/document-types/delete/${id}`,
+  );
+}
+
+export async function updateFileWithDocumentType(
+  documentId: number,
+  documentType: string,
+): Promise<void> {
+  await AxiosInstance.put(
+    `/file-management/api/v1/files/file/${documentId}/document-type`,
+    {
+      documentType,
+    },
   );
 }
 
