@@ -1,8 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useEffect, useState } from "react";
-import Image from "next/image";
+import { useEffect, useState, useRef } from "react";
 import { Loader2 } from "lucide-react";
 import "./scanner.css";
 
@@ -12,20 +11,37 @@ export default function ScannerPage() {
   const [DynamicDWT, setDynamicDWT] = useState<React.ComponentType<any> | null>(
     null,
   );
+  const componentMounted = useRef(false);
 
-  useEffect(() => {
-    // Dynamically import the component to avoid issues during build time
-    const loadDynamicComponent = async () => {
-      try {
+  // Function to load the dynamic component
+  const loadDynamicComponent = async () => {
+    try {
+      // Only load if not already loaded
+      if (!componentMounted.current) {
+        setDynamicDWT(null);
+        setIsDynamicComponentLoaded(false);
+
+        // Import the module
         const DWTModule = await import("@/components/DynamsoftSDK");
         setDynamicDWT(() => DWTModule.default);
         setIsDynamicComponentLoaded(true);
-      } catch (error) {
-        console.error("Failed to load DWT component:", error);
+        componentMounted.current = true;
       }
-    };
+    } catch (error) {
+      console.error("Failed to load DWT component:", error);
+    }
+  };
 
+  useEffect(() => {
+    // Initial load only
     loadDynamicComponent();
+
+    // Cleanup function
+    return () => {
+      // Only reset the mounted flag when the component is fully unmounted
+      // Not when the page is just hidden
+      componentMounted.current = false;
+    };
   }, []);
 
   return (
@@ -37,8 +53,8 @@ export default function ScannerPage() {
             Document Scanner
           </h1>
 
-          {isDynamicComponentLoaded && DynamicDWT ? (
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            {isDynamicComponentLoaded && DynamicDWT ? (
               <DynamicDWT
                 features={[
                   "scan",
@@ -50,15 +66,15 @@ export default function ScannerPage() {
                   "uploader",
                 ]}
               />
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center bg-white rounded-lg shadow-md p-12">
-              <Loader2 className="h-10 w-10 text-blue-500 animate-spin mb-4" />
-              <p className="text-gray-600 text-lg">
-                Loading scanner component...
-              </p>
-            </div>
-          )}
+            ) : (
+              <div className="flex flex-col items-center justify-center p-12">
+                <Loader2 className="h-10 w-10 text-blue-500 animate-spin mb-4" />
+                <p className="text-gray-600 text-lg">
+                  Loading scanner component...
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </main>
 

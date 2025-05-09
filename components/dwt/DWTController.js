@@ -994,8 +994,15 @@ export default class DWTController extends React.Component {
                             }
                           >
                             <option value="100">100 DPI</option>
+                            <option value="150">150 DPI</option>
                             <option value="200">200 DPI</option>
+                            <option value="250">250 DPI</option>
                             <option value="300">300 DPI</option>
+                            <option value="350">350 DPI</option>
+                            <option value="400">400 DPI</option>
+                            <option value="450">450 DPI</option>
+                            <option value="500">500 DPI</option>
+                            <option value="550">550 DPI</option>
                             <option value="600">600 DPI</option>
                           </select>
                         </li>

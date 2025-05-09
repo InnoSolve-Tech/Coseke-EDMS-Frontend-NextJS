@@ -20,6 +20,7 @@ import {
   deleteFile,
   getDocumentTypes,
 } from "@/components/files/api";
+import { updateFileWithDocumentType } from "@/components/folder/api";
 
 interface MetadataItem {
   name: string;
@@ -233,32 +234,35 @@ const FileViewPage = () => {
     }
   };
 
-  const handleDocumentTypeChange = (value: string) => {
+  const handleDocumentTypeChange = async (value: string) => {
     const docType = documentTypes.find((dt) => dt.id.toString() === value);
     setCurrentDocTypeId(value);
 
     if (docType && document) {
-      // Initialize metadata from the document type
       const initialMetadata = docType.metadata.reduce(
         (acc, field) => {
           const existingValue = document?.metadata?.[field.name];
-
-          // If existingValue is an array, convert it to a comma-separated string
           acc[field.name] = Array.isArray(existingValue)
             ? existingValue.join(", ")
             : existingValue || field.value || "";
-
           return acc;
         },
         {} as Record<string, string>,
       );
 
-      // Update the document metadata
-      setDocument({
+      const updatedDocument = {
         ...document,
         documentType: docType.name,
         metadata: initialMetadata,
-      });
+      };
+
+      setDocument(updatedDocument);
+
+      try {
+        await updateFileWithDocumentType(document.id, docType.name); // 👈 persist
+      } catch (error) {
+        console.error("Failed to update document type:", error);
+      }
     }
   };
 

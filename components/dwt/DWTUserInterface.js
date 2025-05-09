@@ -4,6 +4,15 @@ import React, { Suspense } from "react";
 import "./DWTUserInterface.css";
 import DWTOutPut from "./DWTOutPut";
 import DWTView from "./DWTView";
+import {
+  ArrowDownTrayIcon,
+  ArrowUpTrayIcon,
+  CameraIcon,
+  DocumentScannerIcon,
+  MoonIcon,
+  SunIcon,
+  XMarkIcon,
+} from "./icons";
 const DWTController = React.lazy(() => import("./DWTController"));
 
 /**
@@ -35,8 +44,11 @@ export default class DWTUserInterface extends React.Component {
       bNoScroll: false,
       bNoNavigating: false,
       barcodeRects: [],
+      isDarkMode: false,
+      isCollapsed: false,
     };
   }
+
   componentDidUpdate(prevProps) {
     if (prevProps.status !== this.props.status) {
       let _statusChange = this.props.status - prevProps.status;
@@ -44,10 +56,8 @@ export default class DWTUserInterface extends React.Component {
       if (_text.indexOf("_ALLDONE_") !== -1) {
         this.handleOutPutMessage(_text.substr(9));
         this.handleOutPutMessage(
-          "All ready... <initialization took " +
-            (new Date().getTime() - this.props.startTime) +
-            " milliseconds>",
-          "important",
+          `All ready... <initialization took ${new Date().getTime() - this.props.startTime} milliseconds>`,
+          "success",
         );
       } else this.handleOutPutMessage(_text);
     }
@@ -59,16 +69,17 @@ export default class DWTUserInterface extends React.Component {
       this.props.buffer.updated && this.props.handleBufferChange();
     }
   }
+
   statusChangeText(_status, _statusChange) {
     let text = "Initializing...";
     if (_statusChange) {
       text = [];
-      _statusChange & 1 && text.push("Core module ");
-      _statusChange & 2 && text.push("Webcam module ");
-      _statusChange & 32 && text.push("Barcode Reader module ");
-      _statusChange & 64 && text.push("File Uploader module ");
+      _statusChange & 1 && text.push("Core module");
+      _statusChange & 2 && text.push("Webcam module");
+      _statusChange & 32 && text.push("Barcode Reader module");
+      _statusChange & 64 && text.push("File Uploader module");
       if (text.length > 1) text = text.join(" & ");
-      text += "ready...";
+      text += " ready...";
     }
     if (_status === this.props.features) {
       if (_statusChange) text = "_ALLDONE_" + text;
@@ -76,6 +87,7 @@ export default class DWTUserInterface extends React.Component {
     }
     return text;
   }
+
   handleBarcodeResults(results) {
     if (results === "clear") this.setState({ barcodeRects: [] });
     else {
@@ -127,6 +139,7 @@ export default class DWTUserInterface extends React.Component {
       }
     }
   }
+
   handleOutPutMessage(message, type, bReset, bNoScroll) {
     let _noScroll = false,
       _type = "info";
@@ -167,87 +180,158 @@ export default class DWTUserInterface extends React.Component {
       }
     }
   }
+
   handleException(ex) {
     this.handleOutPutMessage(ex.message, "error");
   }
+
   handleNavigating(bAllow) {
     this.setState({ bNoNavigating: !bAllow });
   }
+
   handleEvent(evt) {
     switch (evt) {
       default:
         break;
       case "doubleClick":
-        this.handleOutPutMessage("", "", true);
-        break;
       case "delete":
         this.handleOutPutMessage("", "", true);
         break;
     }
   }
+
+  toggleDarkMode = () => {
+    this.setState((prevState) => ({
+      isDarkMode: !prevState.isDarkMode,
+    }));
+  };
+
+  toggleCollapse = () => {
+    this.setState((prevState) => ({
+      isCollapsed: !prevState.isCollapsed,
+    }));
+  };
+
   render() {
+    const { isDarkMode, isCollapsed } = this.state;
+
     return (
-      <div id="DWTcontainer" className="container">
-        <div
-          style={{
-            textAlign: "left",
-            position: "relative",
-            float: "left",
-            width: "980px",
-          }}
-          className="fullWidth clearfix"
-        >
-          <DWTView
-            blocks={0b11} /** 1: navigate 2: quick edit */
-            dwt={this.props.dwt}
-            buffer={this.props.buffer}
-            zones={this.props.zones}
-            containerId={this.props.containerId}
-            runtimeInfo={this.props.runtimeInfo}
-            bNoNavigating={this.state.bNoNavigating}
-            barcodeRects={this.state.barcodeRects}
-            handleViewerSizeChange={(viewSize) =>
-              this.props.handleViewerSizeChange(viewSize)
-            }
-            handleBufferChange={() => this.props.handleBufferChange()}
-            handleOutPutMessage={(message, type, bReset, bNoScroll) =>
-              this.handleOutPutMessage(message, type, bReset, bNoScroll)
-            }
-          />
-          <Suspense>
-            <DWTController
-              Dynamsoft={this.props.Dynamsoft}
-              startTime={this.props.startTime}
-              features={this.props.features}
+      <div
+        id="DWTcontainer"
+        className={`scanner-container ${isDarkMode ? "dark-mode" : "light-mode"}`}
+      >
+        <div className="header-bar">
+          <div className="header-left">
+            <DocumentScannerIcon className="header-icon" />
+            <h2>Dynamic Web TWAIN</h2>
+          </div>
+          <div className="header-actions">
+            <button
+              className="action-button"
+              onClick={this.toggleCollapse}
+              aria-label={
+                isCollapsed ? "Expand controller" : "Collapse controller"
+              }
+            >
+              {isCollapsed ? <ArrowDownTrayIcon /> : <ArrowUpTrayIcon />}
+            </button>
+            <button
+              className="action-button theme-toggle-btn"
+              onClick={this.toggleDarkMode}
+              aria-label={
+                isDarkMode ? "Switch to light mode" : "Switch to dark mode"
+              }
+            >
+              {isDarkMode ? <SunIcon /> : <MoonIcon />}
+            </button>
+          </div>
+        </div>
+
+        <div className="scanner-main-content">
+          <div className="scanner-view-section">
+            <div className="section-header">
+              <h3>Scanner View</h3>
+              <div className="status-indicator">
+                <span className="status-dot active"></span>
+                <span className="status-text">Active</span>
+              </div>
+            </div>
+            <DWTView
+              blocks={0b11} /** 1: navigate 2: quick edit */
               dwt={this.props.dwt}
               buffer={this.props.buffer}
-              selected={this.props.selected}
               zones={this.props.zones}
+              containerId={this.props.containerId}
               runtimeInfo={this.props.runtimeInfo}
+              bNoNavigating={this.state.bNoNavigating}
               barcodeRects={this.state.barcodeRects}
-              handleStatusChange={(value) =>
-                this.props.handleStatusChange(value)
+              handleViewerSizeChange={(viewSize) =>
+                this.props.handleViewerSizeChange(viewSize)
               }
-              handleBarcodeResults={(results) =>
-                this.handleBarcodeResults(results)
-              }
-              handleNavigating={(bAllow) => this.handleNavigating(bAllow)}
-              handleException={(ex) => this.handleException(ex)}
+              handleBufferChange={() => this.props.handleBufferChange()}
               handleOutPutMessage={(message, type, bReset, bNoScroll) =>
                 this.handleOutPutMessage(message, type, bReset, bNoScroll)
               }
             />
-          </Suspense>
+          </div>
+
+          {!isCollapsed && (
+            <div className="controller-section">
+              <div className="section-header">
+                <h3>Scanner Controls</h3>
+                <div className="controller-tabs">
+                  <button className="tab-button active">Scan</button>
+                  <button className="tab-button">Edit</button>
+                  <button className="tab-button">Save</button>
+                </div>
+              </div>
+              <Suspense
+                fallback={
+                  <div className="loading-fallback">
+                    <div className="spinner"></div>
+                    <p>Loading controller...</p>
+                  </div>
+                }
+              >
+                <DWTController
+                  Dynamsoft={this.props.Dynamsoft}
+                  startTime={this.props.startTime}
+                  features={this.props.features}
+                  dwt={this.props.dwt}
+                  buffer={this.props.buffer}
+                  selected={this.props.selected}
+                  zones={this.props.zones}
+                  runtimeInfo={this.props.runtimeInfo}
+                  barcodeRects={this.state.barcodeRects}
+                  handleStatusChange={(value) =>
+                    this.props.handleStatusChange(value)
+                  }
+                  handleBarcodeResults={(results) =>
+                    this.handleBarcodeResults(results)
+                  }
+                  handleNavigating={(bAllow) => this.handleNavigating(bAllow)}
+                  handleException={(ex) => this.handleException(ex)}
+                  handleOutPutMessage={(message, type, bReset, bNoScroll) =>
+                    this.handleOutPutMessage(message, type, bReset, bNoScroll)
+                  }
+                />
+              </Suspense>
+            </div>
+          )}
         </div>
-        <div
-          style={{
-            textAlign: "left",
-            position: "relative",
-            float: "left",
-            width: "980px",
-          }}
-          className="fullWidth clearfix"
-        >
+
+        <div className="output-section">
+          <div className="section-header">
+            <h3>Output Log</h3>
+            <button
+              className="clear-button"
+              onClick={() => this.handleEvent("delete")}
+              aria-label="Clear output log"
+            >
+              <XMarkIcon />
+              <span>Clear</span>
+            </button>
+          </div>
           <DWTOutPut
             note={"(Double click or hit 'delete' to clear!)"}
             handleEvent={(evt) => this.handleEvent(evt)}
@@ -255,7 +339,34 @@ export default class DWTUserInterface extends React.Component {
             bNoScroll={this.state.bNoScroll}
           />
         </div>
+
+        <div className="footer-bar">
+          <div className="buffer-info">
+            <span>Images: {this.props.buffer.count || 0}</span>
+            <span>Current: {this.props.buffer.current + 1 || 0}</span>
+          </div>
+          <div className="copyright">
+            © {new Date().getFullYear()} Dynamic Web TWAIN
+          </div>
+        </div>
       </div>
     );
+  }
+}
+
+export function cleanupScanner() {
+  try {
+    if (window.Dynamsoft && window.Dynamsoft.DWT) {
+      const twain = window.Dynamsoft.DWT.GetWebTwain("dwtObject");
+      if (twain) {
+        twain.UnregisterAllEvents?.();
+        twain.CloseSource?.();
+        twain.RemoveAllImages?.();
+        twain.Release?.();
+        console.log("✅ Scanner cleaned up.");
+      }
+    }
+  } catch (e) {
+    console.error("❌ Cleanup error:", e);
   }
 }
