@@ -1,4 +1,4 @@
-FROM node:18-alpine AS builder
+FROM node:slim AS builder
 
 WORKDIR /app
 
@@ -15,7 +15,7 @@ COPY . .
 RUN npm run build
 
 # Use a lightweight image for production
-FROM node:21-alpine AS runner
+FROM node:slim AS runner
 
 WORKDIR /app
 

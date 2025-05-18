@@ -31,7 +31,28 @@ import { Edge, WorkflowNode } from "@/lib/types/workflow";
 import { WorkflowInstance } from "@/lib/types/workflowInstance";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
-import { FileText, FileImage, File } from "lucide-react";
+import { FileText, FileImage, File, CheckCircle } from "lucide-react";
+import { DocusealForm } from "@docuseal/react";
+import { title } from "process";
+import { IUserDetails } from "@/core/authentication/interface";
+import { getUserFromSessionStorage } from "../routes/sessionStorage";
+
+// DocuSeal types
+interface DocuSealResponse {
+  submissionId: string;
+  status: "pending" | "completed" | "expired";
+  signUrl: string;
+}
+
+interface DocuSealTemplateParams {
+  templateId: string;
+  signers: {
+    name: string;
+    email: string;
+    fields?: Record<string, string>;
+  }[];
+  metadata?: Record<string, string>;
+}
 
 interface ViewFormRecordProps {
   instance: WorkflowInstance;
@@ -47,6 +68,15 @@ const ViewFormRecord = ({ instance, forms, setForms }: ViewFormRecordProps) => {
   const [rejectionReason, setRejectionReason] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [formRecordId, setFormRecordId] = useState<string>("");
+  const user: IUserDetails = getUserFromSessionStorage() as IUserDetails;
+
+  // DocuSeal related states
+  const [isDocuSealDialogOpen, setIsDocuSealDialogOpen] = useState(false);
+  const [docuSealStatus, setDocuSealStatus] = useState<
+    "idle" | "pending" | "completed" | "error"
+  >("idle");
+  const [docuSealUrl, setDocuSealUrl] = useState<string>("");
+  const [signerName, setSignerName] = useState<string>("");
 
   const { toast } = useToast();
   const router = useRouter();
@@ -109,6 +139,82 @@ const ViewFormRecord = ({ instance, forms, setForms }: ViewFormRecordProps) => {
     [router],
   );
 
+  // Mock DocuSeal API call to create a submission
+  const createDocuSealSubmission = async (
+    params: DocuSealTemplateParams,
+  ): Promise<DocuSealResponse> => {
+    // This is a mock function that simulates an API call to DocuSeal
+    console.log("Creating DocuSeal submission with params:", params);
+
+    // In a real implementation, you would make an actual API request to DocuSeal
+    // For now, we'll simulate a response after a delay
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve({
+          submissionId: "mock-" + Math.random().toString(36).substring(2, 10),
+          status: "pending",
+          signUrl: "https://docuseal.com/d/otBhVwViacpfkX", // Sample URL from your provided link
+        });
+      }, 1000);
+    });
+  };
+
+  // Handle DocuSeal initiation
+  const handleInitiateDocuSeal = async () => {
+    setDocuSealStatus("pending");
+    try {
+      // Prepare form fields for DocuSeal
+      const docuSealFields = Object.entries(formValues).reduce(
+        (acc, [key, value]) => {
+          // Only include text-based values that would be relevant for the document
+          if (typeof value === "string" && !value.startsWith("file-")) {
+            acc[key] = value;
+          }
+          return acc;
+        },
+        {} as Record<string, string>,
+      );
+
+      // In a real implementation, you might want to store the submissionId
+      // in your database or in the workflow instance metadata
+
+      toast({
+        title: "DocuSeal Request Created",
+        description: "E-signature request has been sent to the signer.",
+      });
+    } catch (error) {
+      console.error("Error creating DocuSeal submission:", error);
+      setDocuSealStatus("error");
+      toast({
+        title: "Error",
+        description: "Failed to create e-signature request.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Mock function for a successful DocuSeal submission
+  const handleDocuSealSuccess = async () => {
+    setDocuSealStatus("completed");
+
+    // Update metadata to indicate document was signed
+    if (instance.id) {
+      const updatedInstance = { ...instance };
+      if (!updatedInstance.metadata) updatedInstance.metadata = {};
+      updatedInstance.metadata.docuSealSigned = "true";
+      updatedInstance.metadata.docuSealSignedAt = new Date().toISOString();
+
+      await updateWorkflowInstance(instance.id.toString(), updatedInstance);
+
+      toast({
+        title: "Document Signed",
+        description: "The document has been successfully signed!",
+      });
+
+      setIsDocuSealDialogOpen(false);
+    }
+  };
+
   // Handle form approval
   const handleApprove = async () => {
     setIsLoading(true);
@@ -138,7 +244,8 @@ const ViewFormRecord = ({ instance, forms, setForms }: ViewFormRecordProps) => {
     try {
       // Update instance metadata with rejection reason
       const updatedInstance = { ...instance };
-      updatedInstance.metadata![instance.currentStep] = rejectionReason;
+      if (!updatedInstance.metadata) updatedInstance.metadata = {};
+      updatedInstance.metadata[instance.currentStep] = rejectionReason;
 
       await updateWorkflowInstance(instance.id.toString(), updatedInstance);
       await updateWorkflowInstanceStep(instance.id.toString(), nodeWithForm.id);
@@ -263,6 +370,72 @@ const ViewFormRecord = ({ instance, forms, setForms }: ViewFormRecordProps) => {
   if (!selectedForm) {
     return <div className="p-4">Loading form details...</div>;
   }
+  const downloadFile = async (url: string, filename: string): Promise<Blob> => {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to download file: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+
+      // Create a temporary link element to trigger download
+      const downloadLink = document.createElement("a");
+      const objectUrl = URL.createObjectURL(blob);
+
+      downloadLink.href = objectUrl;
+      downloadLink.download = filename;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+
+      // Clean up
+      document.body.removeChild(downloadLink);
+      URL.revokeObjectURL(objectUrl);
+
+      return blob;
+    } catch (error) {
+      console.error("Error downloading file:", error);
+      throw error;
+    }
+  };
+
+  const handleCompletion = async (link: string): Promise<void> => {
+    console.log("DocuSeal form completed");
+    setDocuSealStatus("completed");
+
+    console.log(link);
+
+    let doc = downloadFile(link, "docuseal.png");
+    console.log("DocuSeal document downloaded:", doc);
+
+    // Update metadata to indicate document was signed
+    if (instance.id) {
+      try {
+        const updatedInstance = { ...instance };
+        if (!updatedInstance.metadata) updatedInstance.metadata = {};
+
+        //await updateWorkflowInstance(instance.id.toString(), updatedInstance);
+
+        toast({
+          title: "Document Signed",
+          description: "The document has been successfully signed!",
+        });
+
+        // Close dialog after a short delay to show success message
+        setTimeout(() => {
+          setIsDocuSealDialogOpen(false);
+        }, 2000);
+      } catch (error) {
+        console.error("Error updating workflow instance:", error);
+        toast({
+          title: "Error",
+          description:
+            "The document was signed but we couldn't update the workflow.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
 
   return (
     <div>
@@ -333,24 +506,36 @@ const ViewFormRecord = ({ instance, forms, setForms }: ViewFormRecordProps) => {
           </div>
         )}
 
-        <div className="flex justify-end space-x-4 mt-6">
+        <div className="flex justify-between items-center mt-6">
           <Button
-            onClick={handleApprove}
-            className="bg-green-600 hover:bg-green-700"
+            onClick={() => setIsDocuSealDialogOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
             disabled={isLoading}
           >
-            {isLoading ? "Processing..." : "Approve"}
+            <FileText size={16} />
+            Request E-Signature
           </Button>
-          <Button
-            onClick={handleReject}
-            variant="destructive"
-            disabled={isLoading}
-          >
-            Reject
-          </Button>
+
+          <div className="flex space-x-4">
+            <Button
+              onClick={handleApprove}
+              className="bg-green-600 hover:bg-green-700"
+              disabled={isLoading}
+            >
+              {isLoading ? "Processing..." : "Approve"}
+            </Button>
+            <Button
+              onClick={handleReject}
+              variant="destructive"
+              disabled={isLoading}
+            >
+              Reject
+            </Button>
+          </div>
         </div>
       </div>
 
+      {/* Rejection Dialog */}
       <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -381,6 +566,120 @@ const ViewFormRecord = ({ instance, forms, setForms }: ViewFormRecordProps) => {
             >
               {isLoading ? "Processing..." : "Confirm Rejection"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* DocuSeal Dialog */}
+      <Dialog
+        open={isDocuSealDialogOpen}
+        onOpenChange={(open) => {
+          if (!open && docuSealStatus === "pending") {
+            // Prevent closing if a request is in progress
+            toast({
+              title: "Request in Progress",
+              description:
+                "Please wait until the e-signature request is processed.",
+              variant: "destructive",
+            });
+            return;
+          }
+          setIsDocuSealDialogOpen(open);
+          if (!open) {
+            setDocuSealStatus("idle");
+            setDocuSealUrl("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Request E-Signature</DialogTitle>
+          </DialogHeader>
+
+          {docuSealStatus === "completed" ? (
+            <div className="py-6 text-center">
+              <div className="flex justify-center mb-4">
+                <CheckCircle className="h-16 w-16 text-green-500" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900">
+                E-Signature Complete!
+              </h3>
+              <p className="mt-2 text-sm text-gray-500">
+                The document has been successfully signed.
+              </p>
+            </div>
+          ) : docuSealStatus === "pending" ? (
+            <div className="py-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">DocuSeal Signing URL:</p>
+                  <a
+                    href={docuSealUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                  >
+                    Open signing page
+                  </a>
+                </div>
+
+                {/* This button simulates a webhook that would notify your app when the document is signed */}
+                <Button
+                  onClick={handleDocuSealSuccess}
+                  className="w-full mt-4 bg-green-600 hover:bg-green-700"
+                >
+                  Simulate Signed Document (Mock)
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="py-4">
+              <div className="space-y-4">
+                <DocusealForm
+                  rememberSignature={false}
+                  reuseSignature={false}
+                  src="https://docuseal.com/d/4itzd1sGVUtzzB"
+                  email={user.email}
+                  onComplete={async (data) =>
+                    handleCompletion(data.values[0].value)
+                  }
+                  completedMessage={{ title: "", body: "" }}
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            {docuSealStatus === "completed" ? (
+              <Button onClick={() => setIsDocuSealDialogOpen(false)}>
+                Close
+              </Button>
+            ) : docuSealStatus === "pending" ? (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDocuSealStatus("idle");
+                  setDocuSealUrl("");
+                }}
+              >
+                Cancel Request
+              </Button>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsDocuSealDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleInitiateDocuSeal}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  Send for Signature
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
