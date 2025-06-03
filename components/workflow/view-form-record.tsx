@@ -18,8 +18,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { IUserDetails } from "@/core/authentication/interface";
 import { getFormRecordById } from "@/core/formrecords/api";
 import { getAllForms } from "@/core/forms/api";
+import {
+  createSignature,
+  getSignatureLinkById,
+  getSignatures,
+} from "@/core/signature/api";
 import {
   updateWorkflowInstance,
   updateWorkflowInstanceStep,
@@ -29,61 +35,385 @@ import { FormRecord } from "@/lib/types/formRecords";
 import { Form } from "@/lib/types/forms";
 import { Edge, WorkflowNode } from "@/lib/types/workflow";
 import { WorkflowInstance } from "@/lib/types/workflowInstance";
+import { CheckCircle, FileText, Pen, Upload, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useCallback } from "react";
-import { FileText, FileImage, File, CheckCircle } from "lucide-react";
-import { DocusealForm } from "@docuseal/react";
-import { title } from "process";
-import { IUserDetails } from "@/core/authentication/interface";
-import { getUserFromSessionStorage } from "../routes/sessionStorage";
-
-// DocuSeal types
-interface DocuSealResponse {
-  submissionId: string;
-  status: "pending" | "completed" | "expired";
-  signUrl: string;
-}
-
-interface DocuSealTemplateParams {
-  templateId: string;
-  signers: {
-    name: string;
-    email: string;
-    fields?: Record<string, string>;
-  }[];
-  metadata?: Record<string, string>;
-}
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  getTokenFromSessionStorage,
+  getUserFromSessionStorage,
+} from "../routes/sessionStorage";
 
 interface ViewFormRecordProps {
   instance: WorkflowInstance;
   forms: Form[];
   setForms: (forms: Form[]) => void;
+  isLoading: boolean;
+  setIsLoading: (loading: boolean) => void;
+  closeDialog: () => void;
 }
 
-const ViewFormRecord = ({ instance, forms, setForms }: ViewFormRecordProps) => {
+const ViewFormRecord = ({
+  instance,
+  forms,
+  setForms,
+  isLoading,
+  setIsLoading,
+  closeDialog,
+}: ViewFormRecordProps) => {
   const [selectedForm, setSelectedForm] = useState<Form>();
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [nodeWithForm, setNodeWithForm] = useState<WorkflowNode>();
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [formRecordId, setFormRecordId] = useState<string>("");
   const user: IUserDetails = getUserFromSessionStorage() as IUserDetails;
 
-  // DocuSeal related states
-  const [isDocuSealDialogOpen, setIsDocuSealDialogOpen] = useState(false);
-  const [docuSealStatus, setDocuSealStatus] = useState<
-    "idle" | "pending" | "completed" | "error"
+  // Signature related states
+  const [isSignatureDialogOpen, setIsSignatureDialogOpen] = useState(false);
+  const [signatureMode, setSignatureMode] = useState<
+    "upload" | "draw" | "existing"
+  >("upload");
+  const [uploadedSignature, setUploadedSignature] = useState<string>("");
+  const [drawnSignature, setDrawnSignature] = useState<string>("");
+  const [existingSignatures, setExistingSignatures] = useState<
+    Array<{ id: number; name: string }>
+  >([]);
+  const [selectedExistingSignature, setSelectedExistingSignature] =
+    useState<string>("");
+  const [selectedExistingSignatureId, setSelectedExistingSignatureId] =
+    useState<string>("");
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [signatureStatus, setSignatureStatus] = useState<
+    "idle" | "signed" | "error"
   >("idle");
-  const [docuSealUrl, setDocuSealUrl] = useState<string>("");
-  const [signerName, setSignerName] = useState<string>("");
+  const [signerName, setSignerName] = useState<string>(user?.email || "");
+
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { toast } = useToast();
   const router = useRouter();
 
+  const handlerSetExistingSignatures = useCallback(
+    async (signature: { id: number; name: string }) => {
+      try {
+        const link = await getSignatureLinkById(signature.id);
+
+        const token = getTokenFromSessionStorage().replace(/^"|"$/g, "");
+
+        const response = await fetch(link, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) throw new Error("Failed to fetch signature blob");
+
+        const blob = await response.blob();
+
+        // Convert blob to Data URL (base64)
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64DataUrl = reader.result as string;
+          setSelectedExistingSignature(base64DataUrl); // Used for preview or downstream processing
+          setSelectedExistingSignatureId(signature.id.toString()); // Store ID for submission
+        };
+        reader.readAsDataURL(blob);
+
+        return link;
+      } catch (error) {
+        console.error("Error fetching signature blob:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load signature.",
+          variant: "destructive",
+        });
+        return null;
+      }
+    },
+    [],
+  );
+
+  // Load existing signatures from localStorage or API
+  const loadExistingSignatures = useCallback(async () => {
+    try {
+      const saved = await getSignatures();
+      if (saved) {
+        setExistingSignatures(saved);
+      }
+    } catch (error) {
+      console.error("Error loading existing signatures:", error);
+    }
+  }, [user?.id]);
+
+  // Save signature to localStorage or API
+  const saveSignature = useCallback(
+    async (name: string, file: File) => {
+      try {
+        const extension = file.name.split(".").pop();
+        const timestamp = new Date()
+          .toISOString()
+          .replace(/:/g, "-") // Replace colons with hyphens
+          .replace(/\./g, "-") // Replace dots in milliseconds
+          .replace("T", "_") // Replace T with underscore
+          .replace("Z", ""); // Remove Z if unnecessary
+
+        const safeEmail = user.email.replace(/[@.]/g, "_"); // Replace @ and . with underscores
+
+        const newSignature = {
+          name: `${safeEmail}-${timestamp}.${extension}`,
+        };
+
+        const savedSignature = await createSignature(newSignature, file); // <-- return this
+
+        toast({
+          title: "Signature Saved",
+          description: "Your signature has been saved for future use.",
+        });
+
+        return savedSignature;
+      } catch (error) {
+        console.error("Error saving signature:", error);
+        toast({
+          title: "Error",
+          description: "Failed to save signature.",
+          variant: "destructive",
+        });
+        return null;
+      }
+    },
+    [existingSignatures, user?.id, toast],
+  );
+
+  // Handle file upload for signature
+  const handleSignatureUpload = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith("image/")) {
+        toast({
+          title: "Invalid File",
+          description: "Please upload an image file (PNG, JPG, etc.)",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string;
+        setUploadedSignature(dataUrl);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Canvas drawing functions
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    setIsDrawing(true);
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const rect = canvas.getBoundingClientRect();
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.beginPath();
+        ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+      }
+    }
+  };
+
+  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing) return;
+
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const rect = canvas.getBoundingClientRect();
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+        ctx.stroke();
+      }
+    }
+  };
+
+  const stopDrawing = () => {
+    if (isDrawing) {
+      setIsDrawing(false);
+      const canvas = canvasRef.current;
+      if (canvas) {
+        setDrawnSignature(canvas.toDataURL());
+      }
+    }
+  };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        setDrawnSignature("");
+      }
+    }
+  };
+
+  // Initialize canvas
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.strokeStyle = "#000";
+        ctx.lineWidth = 2;
+        ctx.lineCap = "round";
+      }
+    }
+  }, [signatureMode]);
+
+  // Load existing signatures when component mounts
+  useEffect(() => {
+    loadExistingSignatures();
+  }, []);
+
+  // Handle signature submission
+  const handleSignatureSubmit = async () => {
+    let finalSignature = "";
+    let signatureName = "";
+
+    switch (signatureMode) {
+      case "upload":
+        if (!uploadedSignature) {
+          toast({
+            title: "No Signature",
+            description: "Please upload a signature image.",
+            variant: "destructive",
+          });
+          return;
+        }
+        finalSignature = uploadedSignature;
+        signatureName = `Uploaded signature - ${new Date().toLocaleDateString()}`;
+        break;
+
+      case "draw":
+        if (!drawnSignature) {
+          toast({
+            title: "No Signature",
+            description: "Please draw your signature.",
+            variant: "destructive",
+          });
+          return;
+        }
+        finalSignature = drawnSignature;
+        signatureName = `Hand-drawn signature - ${new Date().toLocaleDateString()}`;
+        break;
+
+      case "existing":
+        if (!selectedExistingSignatureId) {
+          toast({
+            title: "No Signature Selected",
+            description: "Please select an existing signature.",
+            variant: "destructive",
+          });
+          return;
+        }
+        break;
+    }
+
+    if (!signerName.trim()) {
+      toast({
+        title: "Name Required",
+        description: "Please enter your name for the signature.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    let signature;
+    try {
+      setIsLoading(true);
+
+      // Save new signatures (upload/draw) for future use
+      if (
+        (signatureMode === "upload" || signatureMode === "draw") &&
+        finalSignature
+      ) {
+        const file =
+          fileInputRef.current?.files?.[0] ||
+          (() => {
+            // Convert data URL to File for drawn signatures
+            const byteString = atob(finalSignature.split(",")[1]);
+            const mimeString = finalSignature
+              .split(",")[0]
+              .split(":")[1]
+              .split(";")[0];
+            const ab = new ArrayBuffer(byteString.length);
+            const ia = new Uint8Array(ab);
+            for (let i = 0; i < byteString.length; i++) {
+              ia[i] = byteString.charCodeAt(i);
+            }
+            return new File([ab], `signature-${Date.now()}.png`, {
+              type: mimeString,
+            });
+          })();
+        const extension = file.name.split(".").pop();
+        const timestamp = new Date()
+          .toISOString()
+          .replace(/:/g, "-") // Replace colons with hyphens
+          .replace(/\./g, "-") // Replace dots in milliseconds
+          .replace("T", "_") // Replace T with underscore
+          .replace("Z", ""); // Remove Z if unnecessary
+
+        const safeEmail = user.email.replace(/[@.]/g, "_"); // Replace @ and . with underscores
+
+        const newSignature = {
+          name: `${safeEmail}-${timestamp}.${extension}`,
+        };
+        signature = await saveSignature(newSignature.name, file);
+      }
+
+      // Update workflow instance with signature data
+      if (instance.id) {
+        const updatedInstance = { ...instance };
+        if (!updatedInstance.metadata) updatedInstance.metadata = {};
+
+        updatedInstance.metadata.signature = signature
+          ? signature.id.toString()
+          : selectedExistingSignatureId;
+        updatedInstance.metadata.userId = user.id!.toString();
+
+        await updateWorkflowInstance(instance.id.toString(), updatedInstance);
+
+        setSignatureStatus("signed");
+
+        toast({
+          title: "Document Signed",
+          description: "Your signature has been successfully applied!",
+        });
+        closeDialog();
+
+        // Close dialog after showing success
+        setTimeout(() => {
+          setIsSignatureDialogOpen(false);
+          setSignatureStatus("idle");
+        }, 2000);
+      }
+    } catch (error) {
+      console.error("Error applying signature:", error);
+      setSignatureStatus("error");
+      toast({
+        title: "Error",
+        description: "Failed to apply signature.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Fetch all forms
   const fetchForms = useCallback(async () => {
-    if (forms.length > 0) return; // Only fetch if forms aren't already loaded
+    if (forms.length > 0) return;
 
     try {
       const response = await getAllForms();
@@ -104,9 +434,7 @@ const ViewFormRecord = ({ instance, forms, setForms }: ViewFormRecordProps) => {
 
       try {
         setIsLoading(true);
-        console.log("Fetching form record with ID:", recordId);
         const response: FormRecord = await getFormRecordById(Number(recordId));
-        console.log("Form record response:", response);
 
         const formFieldValues = response.formFieldValues.reduce(
           (acc, field) => {
@@ -139,86 +467,20 @@ const ViewFormRecord = ({ instance, forms, setForms }: ViewFormRecordProps) => {
     [router],
   );
 
-  // Mock DocuSeal API call to create a submission
-  const createDocuSealSubmission = async (
-    params: DocuSealTemplateParams,
-  ): Promise<DocuSealResponse> => {
-    // This is a mock function that simulates an API call to DocuSeal
-    console.log("Creating DocuSeal submission with params:", params);
-
-    // In a real implementation, you would make an actual API request to DocuSeal
-    // For now, we'll simulate a response after a delay
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          submissionId: "mock-" + Math.random().toString(36).substring(2, 10),
-          status: "pending",
-          signUrl: "https://docuseal.com/d/otBhVwViacpfkX", // Sample URL from your provided link
-        });
-      }, 1000);
-    });
-  };
-
-  // Handle DocuSeal initiation
-  const handleInitiateDocuSeal = async () => {
-    setDocuSealStatus("pending");
-    try {
-      // Prepare form fields for DocuSeal
-      const docuSealFields = Object.entries(formValues).reduce(
-        (acc, [key, value]) => {
-          // Only include text-based values that would be relevant for the document
-          if (typeof value === "string" && !value.startsWith("file-")) {
-            acc[key] = value;
-          }
-          return acc;
-        },
-        {} as Record<string, string>,
-      );
-
-      // In a real implementation, you might want to store the submissionId
-      // in your database or in the workflow instance metadata
-
-      toast({
-        title: "DocuSeal Request Created",
-        description: "E-signature request has been sent to the signer.",
-      });
-    } catch (error) {
-      console.error("Error creating DocuSeal submission:", error);
-      setDocuSealStatus("error");
-      toast({
-        title: "Error",
-        description: "Failed to create e-signature request.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Mock function for a successful DocuSeal submission
-  const handleDocuSealSuccess = async () => {
-    setDocuSealStatus("completed");
-
-    // Update metadata to indicate document was signed
-    if (instance.id) {
-      const updatedInstance = { ...instance };
-      if (!updatedInstance.metadata) updatedInstance.metadata = {};
-      updatedInstance.metadata.docuSealSigned = "true";
-      updatedInstance.metadata.docuSealSignedAt = new Date().toISOString();
-
-      await updateWorkflowInstance(instance.id.toString(), updatedInstance);
-
-      toast({
-        title: "Document Signed",
-        description: "The document has been successfully signed!",
-      });
-
-      setIsDocuSealDialogOpen(false);
-    }
-  };
-
   // Handle form approval
   const handleApprove = async () => {
     setIsLoading(true);
     try {
+      if (instance.metadata!.signature === undefined) {
+        toast({
+          title: "Signature Required",
+          description: "Please add your signature before approving.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
       await moveToNextStep(instance);
     } catch (error) {
       toast({
@@ -242,7 +504,6 @@ const ViewFormRecord = ({ instance, forms, setForms }: ViewFormRecordProps) => {
 
     setIsLoading(true);
     try {
-      // Update instance metadata with rejection reason
       const updatedInstance = { ...instance };
       if (!updatedInstance.metadata) updatedInstance.metadata = {};
       updatedInstance.metadata[instance.currentStep] = rejectionReason;
@@ -279,7 +540,6 @@ const ViewFormRecord = ({ instance, forms, setForms }: ViewFormRecordProps) => {
     );
 
     if (possibleEdges.length === 0) {
-      // Check if we've reached the end node
       const endNode = instance.workflow.nodes.find(
         (node: WorkflowNode) => node.type === "end",
       );
@@ -326,42 +586,30 @@ const ViewFormRecord = ({ instance, forms, setForms }: ViewFormRecordProps) => {
       (node) => node.id === instance.currentStep,
     );
 
-    if (!currentNode) {
-      console.log("No current node found for step:", instance.currentStep);
-      return;
-    }
+    if (!currentNode) return;
 
-    console.log("Current node:", currentNode);
     const form = forms.find(
       (form) => form.id == Number(currentNode.data?.formId),
     );
 
-    if (!form) {
-      console.log("No form found for formId:", currentNode.data?.formId);
-      return;
-    }
+    if (!form) return;
     setSelectedForm(form);
 
     const formNode = instance.workflow.nodes.find(
       (node) => Number(node.data?.formId) === form.id && node.type === "form",
     );
 
-    if (!formNode) {
-      console.log("No form node found");
-      return;
-    }
+    if (!formNode) return;
     setNodeWithForm(formNode);
 
     if (instance.metadata && formNode.id) {
       const newFormRecordId = instance.metadata[formNode.id] || "";
-      console.log("Form record ID from metadata:", newFormRecordId);
       setFormRecordId(newFormRecordId);
     }
   }, [forms, instance]);
 
   // Fetch form record when the formRecordId changes
   useEffect(() => {
-    console.log("Form record ID changed to:", formRecordId);
     if (formRecordId) {
       fetchFormRecord(formRecordId);
     }
@@ -370,72 +618,6 @@ const ViewFormRecord = ({ instance, forms, setForms }: ViewFormRecordProps) => {
   if (!selectedForm) {
     return <div className="p-4">Loading form details...</div>;
   }
-  const downloadFile = async (url: string, filename: string): Promise<Blob> => {
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Failed to download file: ${response.statusText}`);
-      }
-
-      const blob = await response.blob();
-
-      // Create a temporary link element to trigger download
-      const downloadLink = document.createElement("a");
-      const objectUrl = URL.createObjectURL(blob);
-
-      downloadLink.href = objectUrl;
-      downloadLink.download = filename;
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-
-      // Clean up
-      document.body.removeChild(downloadLink);
-      URL.revokeObjectURL(objectUrl);
-
-      return blob;
-    } catch (error) {
-      console.error("Error downloading file:", error);
-      throw error;
-    }
-  };
-
-  const handleCompletion = async (link: string): Promise<void> => {
-    console.log("DocuSeal form completed");
-    setDocuSealStatus("completed");
-
-    console.log(link);
-
-    let doc = downloadFile(link, "docuseal.png");
-    console.log("DocuSeal document downloaded:", doc);
-
-    // Update metadata to indicate document was signed
-    if (instance.id) {
-      try {
-        const updatedInstance = { ...instance };
-        if (!updatedInstance.metadata) updatedInstance.metadata = {};
-
-        //await updateWorkflowInstance(instance.id.toString(), updatedInstance);
-
-        toast({
-          title: "Document Signed",
-          description: "The document has been successfully signed!",
-        });
-
-        // Close dialog after a short delay to show success message
-        setTimeout(() => {
-          setIsDocuSealDialogOpen(false);
-        }, 2000);
-      } catch (error) {
-        console.error("Error updating workflow instance:", error);
-        toast({
-          title: "Error",
-          description:
-            "The document was signed but we couldn't update the workflow.",
-          variant: "destructive",
-        });
-      }
-    }
-  };
 
   return (
     <div>
@@ -508,12 +690,12 @@ const ViewFormRecord = ({ instance, forms, setForms }: ViewFormRecordProps) => {
 
         <div className="flex justify-between items-center mt-6">
           <Button
-            onClick={() => setIsDocuSealDialogOpen(true)}
+            onClick={() => setIsSignatureDialogOpen(true)}
             className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
             disabled={isLoading}
           >
-            <FileText size={16} />
-            Request E-Signature
+            <Pen size={16} />
+            Add Signature
           </Button>
 
           <div className="flex space-x-4">
@@ -570,113 +752,192 @@ const ViewFormRecord = ({ instance, forms, setForms }: ViewFormRecordProps) => {
         </DialogContent>
       </Dialog>
 
-      {/* DocuSeal Dialog */}
+      {/* Signature Dialog */}
       <Dialog
-        open={isDocuSealDialogOpen}
-        onOpenChange={(open) => {
-          if (!open && docuSealStatus === "pending") {
-            // Prevent closing if a request is in progress
-            toast({
-              title: "Request in Progress",
-              description:
-                "Please wait until the e-signature request is processed.",
-              variant: "destructive",
-            });
-            return;
-          }
-          setIsDocuSealDialogOpen(open);
-          if (!open) {
-            setDocuSealStatus("idle");
-            setDocuSealUrl("");
-          }
-        }}
+        open={isSignatureDialogOpen}
+        onOpenChange={setIsSignatureDialogOpen}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Request E-Signature</DialogTitle>
+            <DialogTitle>Add Your Signature</DialogTitle>
           </DialogHeader>
 
-          {docuSealStatus === "completed" ? (
+          {signatureStatus === "signed" ? (
             <div className="py-6 text-center">
               <div className="flex justify-center mb-4">
                 <CheckCircle className="h-16 w-16 text-green-500" />
               </div>
               <h3 className="text-lg font-medium text-gray-900">
-                E-Signature Complete!
+                Signature Applied!
               </h3>
               <p className="mt-2 text-sm text-gray-500">
-                The document has been successfully signed.
+                Your signature has been successfully added to the document.
               </p>
             </div>
-          ) : docuSealStatus === "pending" ? (
-            <div className="py-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">DocuSeal Signing URL:</p>
-                  <a
-                    href={docuSealUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
-                  >
-                    Open signing page
-                  </a>
-                </div>
-
-                {/* This button simulates a webhook that would notify your app when the document is signed */}
-                <Button
-                  onClick={handleDocuSealSuccess}
-                  className="w-full mt-4 bg-green-600 hover:bg-green-700"
-                >
-                  Simulate Signed Document (Mock)
-                </Button>
-              </div>
-            </div>
           ) : (
-            <div className="py-4">
-              <div className="space-y-4">
-                <DocusealForm
-                  rememberSignature={false}
-                  reuseSignature={false}
-                  src="https://docuseal.com/d/4itzd1sGVUtzzB"
-                  email={user.email}
-                  onComplete={async (data) =>
-                    handleCompletion(data.values[0].value)
-                  }
-                  completedMessage={{ title: "", body: "" }}
+            <div className="space-y-4">
+              {/* Signer Name Input */}
+              <div>
+                <Label htmlFor="signerName">Your Name</Label>
+                <Input
+                  id="signerName"
+                  value={signerName}
+                  onChange={(e) => setSignerName(e.target.value)}
+                  placeholder="Enter your full name"
+                  className="mt-1"
                 />
               </div>
+
+              {/* Signature Mode Selection */}
+              <div>
+                <Label>Signature Method</Label>
+                <div className="flex gap-2 mt-2">
+                  <Button
+                    variant={signatureMode === "upload" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSignatureMode("upload")}
+                  >
+                    <Upload size={16} className="mr-1" />
+                    Upload
+                  </Button>
+                  <Button
+                    variant={signatureMode === "draw" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSignatureMode("draw")}
+                  >
+                    <Pen size={16} className="mr-1" />
+                    Draw
+                  </Button>
+                  {existingSignatures.length > 0 && (
+                    <Button
+                      variant={
+                        signatureMode === "existing" ? "default" : "outline"
+                      }
+                      size="sm"
+                      onClick={() => setSignatureMode("existing")}
+                    >
+                      <FileText size={16} className="mr-1" />
+                      Saved
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Upload Mode */}
+              {signatureMode === "upload" && (
+                <div className="space-y-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleSignatureUpload}
+                    className="hidden"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full"
+                  >
+                    <Upload size={16} className="mr-2" />
+                    Choose Signature Image
+                  </Button>
+                  {uploadedSignature && (
+                    <div className="mt-2">
+                      <img
+                        src={uploadedSignature}
+                        alt="Uploaded signature"
+                        className="max-h-20 border rounded"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Draw Mode */}
+              {signatureMode === "draw" && (
+                <div className="space-y-2">
+                  <canvas
+                    ref={canvasRef}
+                    width={400}
+                    height={150}
+                    className="border border-gray-300 rounded cursor-crosshair w-full"
+                    onMouseDown={startDrawing}
+                    onMouseMove={draw}
+                    onMouseUp={stopDrawing}
+                    onMouseLeave={stopDrawing}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={clearCanvas}
+                    className="w-full"
+                  >
+                    <X size={16} className="mr-1" />
+                    Clear
+                  </Button>
+                </div>
+              )}
+
+              {/* Existing Signatures Mode */}
+              {signatureMode === "existing" && (
+                <div className="space-y-2">
+                  <Select
+                    value={selectedExistingSignatureId}
+                    onValueChange={(value) =>
+                      handlerSetExistingSignatures({
+                        id: parseInt(value),
+                        name: "",
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a saved signature" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {existingSignatures.map((sig) => (
+                        <SelectItem key={sig.id} value={sig.id.toString()}>
+                          {sig.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedExistingSignature && (
+                    <div className="mt-2">
+                      {(() => {
+                        return selectedExistingSignature ? (
+                          <img
+                            src={selectedExistingSignature}
+                            alt="Selected signature"
+                            className="max-h-20 border rounded"
+                          />
+                        ) : null;
+                      })()}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
           <DialogFooter>
-            {docuSealStatus === "completed" ? (
-              <Button onClick={() => setIsDocuSealDialogOpen(false)}>
+            {signatureStatus === "signed" ? (
+              <Button onClick={() => setIsSignatureDialogOpen(false)}>
                 Close
-              </Button>
-            ) : docuSealStatus === "pending" ? (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setDocuSealStatus("idle");
-                  setDocuSealUrl("");
-                }}
-              >
-                Cancel Request
               </Button>
             ) : (
               <>
                 <Button
                   variant="outline"
-                  onClick={() => setIsDocuSealDialogOpen(false)}
+                  onClick={() => setIsSignatureDialogOpen(false)}
                 >
                   Cancel
                 </Button>
                 <Button
-                  onClick={handleInitiateDocuSeal}
+                  onClick={handleSignatureSubmit}
+                  disabled={isLoading}
                   className="bg-blue-600 hover:bg-blue-700"
                 >
-                  Send for Signature
+                  {isLoading ? "Applying..." : "Apply Signature"}
                 </Button>
               </>
             )}

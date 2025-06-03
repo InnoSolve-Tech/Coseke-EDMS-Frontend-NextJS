@@ -89,6 +89,7 @@ export default function WorkflowInstanceCreator() {
   const [selectedForm, setSelectedForm] = useState<any | null>(null);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [user, setUser] = useState<any>();
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -104,7 +105,7 @@ export default function WorkflowInstanceCreator() {
     setUser(getUserFromSessionStorage());
     fetchWorkflows();
     fetchInstances();
-  }, []);
+  }, [loading]);
 
   const fetchWorkflows = async () => {
     try {
@@ -336,6 +337,13 @@ export default function WorkflowInstanceCreator() {
                           instance={instance}
                           forms={forms}
                           setForms={setForms}
+                          isLoading={loading}
+                          setIsLoading={setLoading}
+                          closeDialog={() => {
+                            setSelectedInstanceId(null);
+                            setSelectedForm(null);
+                            setFormValues({});
+                          }}
                         />
                       ) : (
                         <div className="space-y-4">
