@@ -77,3 +77,20 @@ export const getFormRecordsByUserId = async (userId: number) => {
     throw error;
   }
 };
+
+// Function to update form record by ID (PUT)
+export const updateFormRecord = async (formRecord: FormRecord) => {
+  try {
+    const response = await AxiosInstance.put(
+      `/forms/api/v1/form-records/${formRecord.id}`,
+      formRecord,
+    );
+    return response.data; // Return the updated form record
+  } catch (error) {
+    console.error(
+      `Error updating form record with ID ${formRecord.id}:`,
+      error,
+    );
+    throw error;
+  }
+};

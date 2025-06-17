@@ -150,8 +150,9 @@ export interface UpdateVersionDTO {
 export const addDocument = async (
   file: File,
   data: any,
-  folderId: number, // ✅ folderId should be correct here
-): Promise<void> => {
+  folderId: number,
+): Promise<FileData | undefined> => {
+  // Create FormData object
   let formData = new FormData();
 
   console.log("📌 API Call - Folder ID Received:", folderId); // ✅ Debug log
@@ -175,8 +176,7 @@ export const addDocument = async (
         },
       },
     );
-
-    console.log("✅ Upload response:", res);
+    return res.data;
   } catch (error) {
     console.error("❌ Error uploading document:", error);
   }
@@ -186,7 +186,7 @@ export const addDocumentByFolderId = async (
   data: DocumentProps,
   file: File,
   folderId: number,
-): Promise<void> => {
+): Promise<ApiResponse<FileData>> => {
   const token = getTokenFromSessionStorage();
   const authorization = `Bearer ${JSON.parse(token!)}`;
 
@@ -202,7 +202,7 @@ export const addDocumentByFolderId = async (
   formData.append("file", file);
 
   try {
-    const response = await AxiosInstance.post<ApiResponse<void>>(
+    const response = await AxiosInstance.post<ApiResponse<FileData>>(
       `/api/v1/files/${folderId}`,
       formData,
       {
@@ -213,6 +213,7 @@ export const addDocumentByFolderId = async (
       },
     );
     console.log(response);
+    return response.data;
   } catch (error) {
     console.error("Error uploading document:", error);
     throw error; // Re-throw to handle in the calling function
@@ -229,6 +230,15 @@ export const getFiles = async (): Promise<ApiResponse<FileData[]>> => {
 export const getFilesById = async (fileId: number): Promise<FileData> => {
   const response = await AxiosInstance.get<FileData>(
     `file-management/api/v1/files/file/${fileId}`,
+  );
+  return response.data;
+};
+
+export const fullTextSearch = async (
+  searchTerm: string,
+): Promise<FileData[]> => {
+  const response = await AxiosInstance.get<FileData[]>(
+    `file-management/api/v1/files/search/content?searchTerm=${searchTerm}`,
   );
   return response.data;
 };

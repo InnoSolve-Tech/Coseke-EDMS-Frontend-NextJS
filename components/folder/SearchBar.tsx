@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/select";
 
 interface SearchBarProps {
+  setSearchType: (saerchType: string) => void;
+  searchType: string;
   onSearch: (
     query: string,
     searchType: string,
@@ -17,9 +19,12 @@ interface SearchBarProps {
   ) => void;
 }
 
-export default function SearchBar({ onSearch }: SearchBarProps) {
+export default function SearchBar({
+  onSearch,
+  searchType,
+  setSearchType,
+}: SearchBarProps) {
   const [query, setQuery] = useState("");
-  const [searchType, setSearchType] = useState("simple");
   const [metadata, setMetadata] = useState<Record<string, string>>({});
 
   // Debounce function to avoid too many search calls
@@ -29,7 +34,7 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
     }, 300); // Wait 300ms after last keystroke before searching
 
     return () => clearTimeout(timeoutId);
-  }, [query, searchType, metadata, onSearch]);
+  }, [query, searchType, metadata]);
 
   const handleMetadataChange = (key: string, value: string) => {
     setMetadata((prev) => ({ ...prev, [key]: value }));
@@ -57,8 +62,8 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="simple">Simple</SelectItem>
-          {/* <SelectItem value="fullText">Full Text</SelectItem>
-          <SelectItem value="metadata">Metadata</SelectItem> */}
+          <SelectItem value="fullText">Full Text</SelectItem>
+          {/* <SelectItem value="metadata">Metadata</SelectItem> */}
         </SelectContent>
       </Select>
 

@@ -94,3 +94,15 @@ export const updateWorkflowInstance = async (
     throw new Error(`Unable to update Workflow Instance with ID ${id}`);
   }
 };
+
+export const updateWorkflowInstanceStep = async (id: string, step: string) => {
+  try {
+    const response = await AxiosInstance.put(
+      `/workflows/api/v1/workflow-instances/${id}/current-step?step=${encodeURIComponent(step)}`,
+    );
+    return response.data; // Return the updated workflow instance data
+  } catch (error) {
+    console.error(`Error updating Workflow Instance with ID ${id}:`, error);
+    throw new Error(`Unable to update Workflow Instance with ID ${id}`);
+  }
+};

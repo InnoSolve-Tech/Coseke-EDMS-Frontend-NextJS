@@ -6,6 +6,8 @@ import {
   Diamond,
   PlayCircle,
   StopCircle,
+  CheckSquare,
+  Bell,
 } from "lucide-react";
 
 export const nodeTypes = {
@@ -38,6 +40,18 @@ export const nodeTypes = {
     label: "Form",
     color: "bg-purple-500",
     description: "Represents a form to be filled",
+  },
+  approval: {
+    icon: CheckSquare,
+    label: "Approval",
+    color: "bg-orange-500",
+    description: "Represents an approval step",
+  },
+  notification: {
+    icon: Bell,
+    label: "Notification",
+    color: "bg-indigo-500",
+    description: "Sends a notification",
   },
 } as const;
 

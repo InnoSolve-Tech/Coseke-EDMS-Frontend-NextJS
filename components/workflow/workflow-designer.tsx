@@ -34,6 +34,7 @@ type WorkflowNodeData = {
   conditions?: { id: string; field: string; operator: string; value: string }[];
   assignee?: { assignee_type: "role" | "user"; assignee_id: string };
   dueDate?: string;
+  shouldDelegate: boolean;
   form?: Form;
   branches?: string[];
 };
@@ -44,6 +45,8 @@ const nodeTypes = {
   task: WorkflowNode,
   decision: WorkflowNode,
   form: WorkflowNode,
+  approval: WorkflowNode,
+  notification: WorkflowNode,
 };
 
 export function WorkflowDesigner() {
@@ -52,7 +55,14 @@ export function WorkflowDesigner() {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState<
     | (Node<WorkflowNodeData> & {
-        type: "start" | "end" | "task" | "decision" | "form";
+        type:
+          | "start"
+          | "end"
+          | "task"
+          | "decision"
+          | "form"
+          | "approval"
+          | "notification";
       })
     | null
   >(null);
@@ -81,6 +91,7 @@ export function WorkflowDesigner() {
         label: nodeConfig[type].label,
         nodeId: nodeId,
         description: nodeConfig[type].description,
+        shouldDelegate: false,
       },
     };
     setNodes((nds) => [...nds, newNode]);
@@ -119,22 +130,24 @@ export function WorkflowDesigner() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <div className="flex gap-2">
+      <div className="flex flex-col space-y-4 sm:flex-row sm:justify-between sm:items-center">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7">
           {Object.entries(nodeConfig).map(([type, config]) => (
             <Button
               key={type}
               variant="outline"
               size="sm"
               onClick={() => addNode(type as keyof typeof nodeConfig)}
-              className="flex items-center gap-2"
+              className="flex items-center justify-start gap-2 w-full"
             >
-              <config.icon className="h-4 w-4" />
-              {config.label}
+              <config.icon
+                className={`h-4 w-4 ${config.color} text-white rounded-full p-0.5`}
+              />
+              <span className="truncate">{config.label}</span>
             </Button>
           ))}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex justify-end">
           <WorkflowHelpDialog />
         </div>
       </div>

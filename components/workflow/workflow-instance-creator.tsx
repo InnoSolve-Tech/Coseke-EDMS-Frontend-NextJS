@@ -34,40 +34,45 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   createWorkflowInstance,
   getAllWorkflowInstances,
   updateWorkflowInstance,
+  updateWorkflowInstanceStep,
 } from "@/core/workflowInstance/api";
 import { getAllWorkflows } from "@/core/workflows/api";
 import { useToast } from "@/hooks/use-toast";
-import { User } from "@/lib/types/user";
-import { Edge, Workflow } from "@/lib/types/workflow";
+import type { Edge, Workflow, WorkflowType } from "@/lib/types/workflow";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FileText } from "lucide-react";
+import { AlertTriangle, Circle, FileText, Flag, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { getUserFromSessionStorage } from "../routes/sessionStorage";
+import ViewFormRecord from "./view-form-record";
 import WorkflowFormRecord from "./workflow-form-record";
-import { createFormRecord } from "@/core/formrecords/api";
-import { FormRecord } from "@/lib/types/formRecords";
-
 type WorkflowInstance = {
   id: number;
   workflowId: number;
+  priority: string;
   name: string;
-  status: "Active" | "Completed" | "Suspended";
+  status: WorkflowType | "Completed" | "Active";
   startFormData?: Record<string, string>;
-  currentStep?: string;
+  currentStep: string;
   workflow: Workflow;
   metadata: Record<string, string>;
 };
 
+const priorities = [
+  { value: "HIGH", label: "High", icon: AlertTriangle, color: "text-red-500" },
+  { value: "MEDIUM", label: "Medium", icon: Flag, color: "text-yellow-500" },
+  { value: "LOW", label: "Low", icon: Circle, color: "text-green-500" },
+];
+
 const formSchema = z.object({
   workflowId: z.string().min(1, "Please select a workflow"),
   name: z.string().min(1, "Instance name is required"),
+  priority: z.string().min(1, "Priority is required"),
   startFormData: z.record(z.string()).optional(),
 });
 
@@ -75,28 +80,45 @@ export default function WorkflowInstanceCreator() {
   const [workflowInstances, setWorkflowInstances] = useState<
     WorkflowInstance[]
   >([]);
-  const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(
-    null,
-  );
-  const [forms, setForms] = useState<any[]>([]);
-  const [selectedForm, setSelectedForm] = useState<any | null>(null);
-  const [formValues, setFormValues] = useState<Record<string, string>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [existingWorkflows, setExistingWorkflows] = useState<Workflow[]>([]);
   const [selectedInstanceId, setSelectedInstanceId] = useState<number | null>(
     null,
   );
-
-  const [existingWorkflows, setExistingWorkflows] = useState<Workflow[]>([]);
-  const { toast } = useToast();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isCreatingInstance, setIsCreatingInstance] = useState(false);
+  const [forms, setForms] = useState<any[]>([]);
+  const [selectedForm, setSelectedForm] = useState<any | null>(null);
+  const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [user, setUser] = useState<any>();
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      workflowId: "",
+      name: "",
+      startFormData: {},
+    },
+  });
 
   useEffect(() => {
     setUser(getUserFromSessionStorage());
-  }, []);
+    fetchWorkflows();
+    fetchInstances();
+  }, [loading]);
 
-  const closeDialog = () => {
-    setSelectedInstanceId(null);
+  const fetchWorkflows = async () => {
+    try {
+      const wfs = await getAllWorkflows();
+      setExistingWorkflows(wfs);
+    } catch (error) {
+      console.error("Failed to fetch workflows:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to fetch workflows",
+      });
+    }
   };
 
   const fetchInstances = async () => {
@@ -113,71 +135,18 @@ export default function WorkflowInstanceCreator() {
     }
   };
 
-  const handleFormSubmit = async (
-    formData: FormRecord,
-  ): Promise<FormRecord | null> => {
-    setIsSubmitting(true);
-    try {
-      const response = await createFormRecord(formData);
-      console.log("Form record created:", response);
-      toast({
-        title: "Success",
-        description: "Form record created successfully!",
-      });
-      setFormValues({});
-      setSelectedForm(null);
-      return response;
-    } catch (error) {
-      console.error("Error submitting form:", error);
-      toast({
-        title: "Error",
-        description: "Failed to create form record. Please try again.",
-        variant: "destructive",
-      });
-      return null;
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  useEffect(() => {
-    const fetchWorkflows = async () => {
-      try {
-        const wfs = await getAllWorkflows();
-        setExistingWorkflows(wfs);
-        await fetchInstances();
-      } catch (error) {
-        console.error("Failed to fetch workflows:", error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to fetch workflows",
-        });
-      }
-    };
-
-    fetchWorkflows();
-  }, []);
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      workflowId: "",
-      name: "",
-      startFormData: {},
-    },
-  });
-
   const onSubmit = async (data: z.infer<typeof formSchema>) => {
     try {
       const newInstance: any = {
-        workflow: { id: parseInt(data.workflowId) },
+        workflow: { id: Number.parseInt(data.workflowId) },
         name: data.name,
+        priority: data.priority,
         status: "Active",
       };
       await createWorkflowInstance(newInstance);
       await fetchInstances();
       form.reset();
+      setIsCreatingInstance(false);
       toast({
         title: "Success",
         description: "Workflow instance created successfully",
@@ -191,32 +160,25 @@ export default function WorkflowInstanceCreator() {
     }
   };
 
-  const handleWorkflowSelect = (workflowId: string) => {
-    const workflow = existingWorkflows.find(
-      (w) => w.id.toString() === workflowId,
-    );
-    setSelectedWorkflow(workflow || null);
-  };
-
-  const canInteractWithStep = (instance: any) => {
+  const canInteractWithStep = (instance: WorkflowInstance) => {
     if (!instance.currentStep) return false;
 
     const currentNode = instance.workflow.nodes.find(
       (node: any) => node.id === instance.currentStep,
     );
 
-    if (!currentNode.data.assignee) return false;
+    if (!currentNode?.data.assignee) return false;
 
-    // Check user assignment
     if (currentNode.data.assignee.assignee_type === "user") {
-      return parseInt(currentNode.data.assignee.assignee_id) === user?.id;
+      return (
+        Number.parseInt(currentNode.data.assignee.assignee_id) === user?.id
+      );
     }
 
-    // Check role assignment
     if (currentNode.data.assignee.assignee_type === "role") {
       return user?.roles?.some(
         (role: any) =>
-          role.id === parseInt(currentNode.data.assignee.assignee_id),
+          role.id === Number.parseInt(currentNode.data.assignee!.assignee_id),
       );
     }
 
@@ -228,32 +190,33 @@ export default function WorkflowInstanceCreator() {
       const possibleEdges = instance.workflow.edges.filter(
         (edge: Edge) => edge.source === instance.currentStep,
       );
-      const currentNode = instance.workflow.nodes.find(
-        (node) => node.id === instance.currentStep,
-      );
 
-      if (currentNode?.type === "form") {
-        console.log("Submitting form");
-        const formSubmitted = await handleFormSubmit({
-          form: selectedForm,
-          formFieldValues: Object.entries(formValues).map(
-            ([fieldId, value]) => ({
-              formField: { id: fieldId } as any,
-              value,
-            }),
-          ),
-          userId: user.id as number,
-          createdBy: user.id,
-          createdDate: new Date().toISOString(),
-        } as FormRecord);
+      // if (currentNode?.type === "form") {
+      //   console.log("Submitting form");
 
-        if (!formSubmitted) {
-          return;
-        }
-        instance.metadata[instance.currentStep!.toString()] =
-          formSubmitted.id?.toString() || "";
-        await updateWorkflowInstance(instance.id!.toString(), instance);
-      }
+      //   const formSubmitted = await handleFormSubmit(
+      //     {
+      //       form: selectedForm,
+      //       formFieldValues: Object.entries(formValues).map(
+      //         ([fieldId, value]) => ({
+      //           formField: { id: fieldId } as any,
+      //           value,
+      //         }),
+      //       ),
+      //       userId: user.id as number,
+      //       createdBy: user.id,
+      //       createdDate: new Date().toISOString(),
+      //     } as FormRecord,
+      //     instance,
+      //   );
+
+      //   if (!formSubmitted) {
+      //     return;
+      //   }
+      //   instance.metadata[instance.currentStep!.toString()] =
+      //     formSubmitted.id?.toString() || "";
+      //   await updateWorkflowInstance(instance.id!.toString(), instance);
+      // }
 
       if (possibleEdges.length === 0) {
         const nextNode = instance.workflow.nodes.find(
@@ -263,6 +226,7 @@ export default function WorkflowInstanceCreator() {
         if (nextNode?.type === "end") {
           const updatedInstance = {
             ...instance,
+
             status: "Completed" as const,
           };
           await updateWorkflowInstance(instance.id.toString(), updatedInstance);
@@ -275,16 +239,10 @@ export default function WorkflowInstanceCreator() {
           throw new Error("No valid paths found from current step");
         }
       } else if (possibleEdges.length === 1) {
-        const nextNode = instance.workflow.nodes.find(
-          (node: any) => node.id === possibleEdges[0].target,
+        await updateWorkflowInstanceStep(
+          instance.id.toString(),
+          possibleEdges[0].target,
         );
-        const updatedInstance = {
-          ...instance,
-          currentStep: possibleEdges[0].target,
-          status: nextNode?.type! as any,
-        };
-
-        await updateWorkflowInstance(instance.id.toString(), updatedInstance);
         await fetchInstances();
 
         toast({
@@ -297,7 +255,7 @@ export default function WorkflowInstanceCreator() {
         );
       }
 
-      closeDialog();
+      setSelectedInstanceId(null);
     } catch (error) {
       toast({
         variant: "destructive",
@@ -312,203 +270,254 @@ export default function WorkflowInstanceCreator() {
 
   return (
     <Card className="w-full">
-      <CardHeader>
-        <CardTitle>Workflow Instance Creator</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-2xl font-bold">Processes</CardTitle>
+        <Button onClick={() => setIsCreatingInstance(true)}>
+          <Plus className="mr-2 h-4 w-4" /> Create New Process
+        </Button>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="create" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="create">Create Instance</TabsTrigger>
-            <TabsTrigger value="view">View Instances</TabsTrigger>
-          </TabsList>
-          <TabsContent value="create">
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-4"
-              >
-                <FormField
-                  control={form.control}
-                  name="workflowId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Select Workflow</FormLabel>
-                      <Select
-                        onValueChange={(value) => {
-                          field.onChange(value);
-                          handleWorkflowSelect(value);
-                        }}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a workflow" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent className="bg-white bg-opacity-100">
-                          {existingWorkflows.map((workflow) => (
-                            <SelectItem
-                              key={workflow.id}
-                              value={workflow.id.toString()}
-                            >
-                              <div className="flex items-center">
-                                <span>{workflow.name}</span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Instance Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter instance name" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button type="submit">Create Workflow Instance</Button>
-              </form>
-            </Form>
-          </TabsContent>
-          <TabsContent value="view">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Workflow</TableHead>
-                  <TableHead>Instance Name</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {workflowInstances &&
-                  workflowInstances.map((instance) => (
-                    <TableRow key={instance.id}>
-                      <TableCell>{instance.workflow?.name}</TableCell>
-                      <TableCell>{instance.name}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            instance.status === "Active"
-                              ? "default"
-                              : instance.status === "Completed"
-                                ? "secondary"
-                                : "destructive"
-                          }
-                        >
-                          {instance.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Dialog
-                          open={selectedInstanceId === instance.id}
-                          onOpenChange={(open) => {
-                            if (open) {
-                              setSelectedInstanceId(instance.id);
-                            } else {
-                              setSelectedInstanceId(null);
-                            }
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Workflow</TableHead>
+              <TableHead>Instance Name</TableHead>
+              <TableHead>Priority</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {workflowInstances.map((instance) => (
+              <TableRow key={instance.id}>
+                <TableCell>{instance.workflow?.name}</TableCell>
+                <TableCell>{instance.name}</TableCell>
+                <TableCell>
+                  {" "}
+                  <PriorityDisplay priority={instance.priority} />
+                </TableCell>
+                <TableCell>
+                  <Badge
+                    variant={
+                      instance.status === "Active"
+                        ? "default"
+                        : instance.status === "Completed"
+                          ? "secondary"
+                          : "destructive"
+                    }
+                  >
+                    {instance.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Dialog
+                    open={selectedInstanceId === instance.id}
+                    onOpenChange={(open) => {
+                      if (open) {
+                        setSelectedInstanceId(instance.id);
+                      } else {
+                        setSelectedInstanceId(null);
+                      }
+                    }}
+                  >
+                    {canInteractWithStep(instance) && (
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <FileText className="mr-2 h-4 w-4" />
+                          View Details
+                        </Button>
+                      </DialogTrigger>
+                    )}
+                    <DialogContent className="sm:max-w-[425px]">
+                      <DialogHeader>
+                        <DialogTitle>Instance Details</DialogTitle>
+                      </DialogHeader>
+                      {instance.status === "approval" ? (
+                        <ViewFormRecord
+                          instance={instance}
+                          forms={forms}
+                          setForms={setForms}
+                          isLoading={loading}
+                          setIsLoading={setLoading}
+                          closeDialog={() => {
+                            setSelectedInstanceId(null);
+                            setSelectedForm(null);
+                            setFormValues({});
                           }}
-                        >
-                          {canInteractWithStep(instance) && (
-                            <DialogTrigger>
-                              <Button variant="outline" size="sm">
-                                <FileText className="w-4 h-4 m-2" />
-                                View Details
-                              </Button>
-                            </DialogTrigger>
+                        />
+                      ) : (
+                        <div className="space-y-4">
+                          <div>
+                            <h4 className="font-semibold">Workflow</h4>
+                            <p>{instance.workflow?.name}</p>
+                          </div>
+                          <div>
+                            <h4 className="font-semibold">Instance Name</h4>
+                            <p>{instance.name}</p>
+                          </div>
+                          <div>
+                            <h4 className="font-semibold">Status</h4>
+                            <Badge
+                              variant={
+                                instance.status === "Active"
+                                  ? "default"
+                                  : instance.status === "Completed"
+                                    ? "secondary"
+                                    : "destructive"
+                              }
+                            >
+                              {instance.status}
+                            </Badge>
+                          </div>
+                          {instance.workflow.nodes.find(
+                            (node) => node.id === instance.currentStep,
+                          )?.data.formId && (
+                            <WorkflowFormRecord
+                              formId={
+                                instance.workflow.nodes.find(
+                                  (node) => node.id === instance.currentStep,
+                                )?.data.formId
+                              }
+                              formInstanceId={
+                                instance.metadata[instance.currentStep!]
+                              }
+                              workflowInstance={instance}
+                              currentStep={instance.currentStep!}
+                              forms={forms}
+                              setForms={setForms}
+                              selectedForm={selectedForm}
+                              setSelectedForm={setSelectedForm}
+                              moveToNextStep={moveToNextStep}
+                              formValues={formValues}
+                              setFormValues={setFormValues}
+                            />
                           )}
-                          <DialogContent className="bg-white bg-opacity-100">
-                            <DialogHeader>
-                              <DialogTitle>Instance Details</DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4">
-                              <div>
-                                <h4 className="font-semibold">Workflow</h4>
-                                <p>{instance.workflow?.name}</p>
-                              </div>
-                              <div>
-                                <h4 className="font-semibold">Instance Name</h4>
-                                <p>{instance.name}</p>
-                              </div>
-                              <div>
-                                <h4 className="font-semibold">Status</h4>
-                                <Badge
-                                  variant={
-                                    instance.status === "Active"
-                                      ? "default"
-                                      : instance.status === "Completed"
-                                        ? "secondary"
-                                        : "destructive"
-                                  }
-                                >
-                                  {instance.status}
-                                </Badge>
-                              </div>
-                              {instance.startFormData && (
-                                <div>
-                                  <h4 className="font-semibold">
-                                    Start Form Data
-                                  </h4>
-                                  <div className="bg-muted p-4 rounded-md">
-                                    {Object.entries(instance.startFormData).map(
-                                      ([key, value]) => (
-                                        <p key={key}>
-                                          <strong>{key}:</strong> {value}
-                                        </p>
-                                      ),
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                            {instance.workflow.nodes.find(
-                              (node) => node.id === instance.currentStep,
-                            )?.data.formId && (
-                              <WorkflowFormRecord
-                                formId={
-                                  instance.workflow.nodes.find(
-                                    (node) => node.id === instance.currentStep,
-                                  )?.data.formId
-                                }
-                                formInstanceId={
-                                  instance.metadata["formInstanceId"]
-                                }
-                                workflowInstance={instance}
-                                currentStep={instance.currentStep!}
-                                forms={forms}
-                                setForms={setForms}
-                                selectedForm={selectedForm}
-                                setSelectedForm={setSelectedForm}
-                                formValues={formValues}
-                                setFormValues={setFormValues}
-                              />
-                            )}
+                          {instance.workflow.nodes.find(
+                            (node) => node.id === instance.currentStep,
+                          )?.type === "form" ? null : (
                             <Button
                               onClick={() => moveToNextStep(instance)}
                               disabled={!canInteractWithStep(instance)}
                             >
                               Move to Next Step
                             </Button>
-                          </DialogContent>
-                        </Dialog>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-              </TableBody>
-            </Table>
-          </TabsContent>
-        </Tabs>
+                          )}
+                        </div>
+                      )}
+                    </DialogContent>
+                  </Dialog>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </CardContent>
+      <Dialog open={isCreatingInstance} onOpenChange={setIsCreatingInstance}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Create New Workflow Instance</DialogTitle>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="workflowId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Select Workflow</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a workflow" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {existingWorkflows.map((workflow) => (
+                          <SelectItem
+                            key={workflow.id}
+                            value={workflow.id.toString()}
+                          >
+                            {workflow.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="priority"
+                render={({ field }) => (
+                  <FormItem className="space-y-1">
+                    <FormLabel className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Priority
+                    </FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800">
+                          <SelectValue placeholder="Select a priority" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="rounded-md bg-white shadow-lg dark:bg-gray-800">
+                        {priorities.map((priority) => (
+                          <SelectItem
+                            key={priority.value}
+                            value={priority.value}
+                            className="flex items-center space-x-2 py-2 px-3 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          >
+                            <span className="flex items-center space-x-2">
+                              <priority.icon
+                                className={`h-4 w-4 ${priority.color}`}
+                              />
+                              <span>{priority.label}</span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage className="text-xs text-red-500" />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Instance Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter instance name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit">Create Workflow Instance</Button>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </Card>
+  );
+}
+
+// Separate component for priority display
+function PriorityDisplay({ priority }: { priority: string }) {
+  const priorityInfo =
+    priorities.find((p) => p.value === priority) || priorities[2]; // Default to LOW if not found
+
+  return (
+    <div className="flex items-center space-x-2">
+      <priorityInfo.icon className={`h-4 w-4 ${priorityInfo.color}`} />
+      <span>{priorityInfo.label}</span>
+    </div>
   );
 }

@@ -18,17 +18,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { getAllForms } from "@/core/forms/api";
-import { Form } from "@/lib/types/forms";
+import type { Form } from "@/lib/types/forms";
 import { getFormRecordByForm } from "@/core/formrecords/api";
-import { FormRecord } from "@/lib/types/formRecords";
+import type { FormRecord } from "@/lib/types/formRecords";
+import RecordDetailsDialog from "./RecordDetailsDialog";
 
 export default function ViewFormRecords() {
   const [forms, setForms] = useState<Form[]>([]);
   const [selectedFormId, setSelectedFormId] = useState<string | null>(null);
   const [records, setRecords] = useState<FormRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState<FormRecord | null>(null);
 
   useEffect(() => {
     const fetchForms = async () => {
@@ -57,7 +60,7 @@ export default function ViewFormRecords() {
   const fetchRecords = async (formId: string) => {
     setIsLoading(true);
     try {
-      const response = await getFormRecordByForm(parseInt(formId));
+      const response = await getFormRecordByForm(Number.parseInt(formId));
       setRecords(response);
     } catch (error) {
       console.error("Error fetching records:", error);
@@ -69,6 +72,10 @@ export default function ViewFormRecords() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleViewDetails = (record: FormRecord) => {
+    setSelectedRecord(record);
   };
 
   return (
@@ -111,6 +118,7 @@ export default function ViewFormRecords() {
                     records[0].form.formFields.map((value, index) => (
                       <TableHead key={index}>{value.name}</TableHead>
                     ))}
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -127,6 +135,11 @@ export default function ViewFormRecords() {
                         <TableCell key={index}>{value.value}</TableCell>
                       ),
                     )}
+                    <TableCell>
+                      <Button onClick={() => handleViewDetails(record)}>
+                        View Details
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -138,6 +151,12 @@ export default function ViewFormRecords() {
           )}
         </div>
       </CardContent>
+      {selectedRecord && (
+        <RecordDetailsDialog
+          record={selectedRecord}
+          onClose={() => setSelectedRecord(null)}
+        />
+      )}
     </Card>
   );
 }

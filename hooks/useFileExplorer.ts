@@ -1,17 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { getFolders } from "@/components/files/api";
+import { FileData, FileNode } from "@/types/file";
 import { useRouter } from "next/navigation";
-import { FileNode, FileData } from "@/types/file";
-import {
-  getFiles,
-  getFolders,
-  deleteFile,
-  deleteFolder,
-  editFolder,
-  createFolders,
-  createSubFolders,
-} from "@/lib/api";
+import { useEffect, useState } from "react";
 
 export function useFileExplorer() {
   const [currentPath, setCurrentPath] = useState<FileNode[]>([
