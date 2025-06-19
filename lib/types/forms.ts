@@ -12,7 +12,8 @@ export type FieldType =
   | "checkbox"
   | "radio"
   | "date"
-  | "textarea";
+  | "textarea"
+  | "file";
 
 export interface FormField {
   id: string;

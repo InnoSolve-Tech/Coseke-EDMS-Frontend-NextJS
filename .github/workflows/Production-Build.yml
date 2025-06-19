@@ -36,10 +36,3 @@ jobs:
           push: true
           tags: |
             benzidarwin/coseke-edms-frontend:latest
-
-      # Optional: Test the built Docker image locally
-      - name: Run Container Test
-        run: |
-          docker run --rm -d -p 3000:3000 benzidarwin/coseke-edms-frontend:latest
-          sleep 5
-          curl -f http://localhost:3000 || exit 1

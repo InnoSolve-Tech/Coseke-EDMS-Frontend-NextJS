@@ -1,17 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -19,8 +17,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PlusIcon, TrashIcon, XIcon } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
 import { Form, FormField } from "@/lib/types/forms";
+import { PlusIcon, TrashIcon, XIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface EditFormDialogProps {
   isOpen: boolean;
@@ -37,6 +38,7 @@ const fieldTypes = [
   "radio",
   "date",
   "textarea",
+  "file",
 ] as const;
 
 // Default empty form state
@@ -44,6 +46,17 @@ const defaultFormState: Form = {
   name: "",
   description: "",
   formFields: [],
+};
+
+const validateFormFields = (fields: FormField[]): string | null => {
+  const fieldNames = new Set();
+  for (const field of fields) {
+    if (fieldNames.has(field.name)) {
+      return `Duplicate field name: ${field.name}`;
+    }
+    fieldNames.add(field.name);
+  }
+  return null;
 };
 
 export function EditFormDialog({
@@ -54,14 +67,12 @@ export function EditFormDialog({
 }: EditFormDialogProps) {
   // Initialize with defaultFormState
   const [formData, setFormData] = useState<Form>(defaultFormState);
-
   const [newSelectOption, setNewSelectOption] = useState<{
     [key: string]: string;
   }>({});
 
   useEffect(() => {
     if (initialData) {
-      // Ensure formFields is an array even if initialData.formFields is undefined
       setFormData({
         ...initialData,
         formFields: initialData.formFields || [],
@@ -150,6 +161,15 @@ export function EditFormDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const error = validateFormFields(formData.formFields);
+    if (error) {
+      toast({
+        title: "Error",
+        description: error,
+        variant: "destructive",
+      });
+      return;
+    }
     onSave(formData);
   };
 

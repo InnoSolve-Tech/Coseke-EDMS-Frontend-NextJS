@@ -13,6 +13,8 @@ const nodeTypes = {
   task: WorkflowNode,
   decision: WorkflowNode,
   form: WorkflowNode,
+  approval: WorkflowNode,
+  notification: WorkflowNode,
 };
 
 export function WorkflowViewer({ id }: { id: string }) {

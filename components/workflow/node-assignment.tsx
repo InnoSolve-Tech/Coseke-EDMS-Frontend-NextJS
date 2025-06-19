@@ -9,24 +9,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { Role, User } from "@/lib/types/user";
+import type { Role, User } from "@/lib/types/user";
 import { getAllRoles, getAllUsers } from "@/core/authentication/api";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 interface NodeAssignmentProps {
-  value?: { assignee_type: "user" | "role"; assignee_id: string };
-  onChange: (
+  assignee?: { assignee_type: "user" | "role"; assignee_id: string };
+  shouldDelegate: boolean;
+  onAssigneeChange: (
     value: { assignee_type: "user" | "role"; assignee_id: string } | undefined,
   ) => void;
+  onShouldDelegateChange: (value: boolean) => void;
 }
 
-export function NodeAssignment({ value, onChange }: NodeAssignmentProps) {
+export function NodeAssignment({
+  assignee,
+  shouldDelegate,
+  onAssigneeChange,
+  onShouldDelegateChange,
+}: NodeAssignmentProps) {
   const [assignmentType, setAssignmentType] = useState<"user" | "role">(
-    value?.assignee_type || "role",
+    assignee?.assignee_type || "role",
   );
   const [roles, setRoles] = useState<Role[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [selectedId, setSelectedId] = useState<string | undefined>(
-    value?.assignee_id,
+    assignee?.assignee_id,
   );
 
   // Fetch roles and users
@@ -46,23 +55,28 @@ export function NodeAssignment({ value, onChange }: NodeAssignmentProps) {
     fetchData();
   }, []);
 
-  // Update selectedId when value prop changes
+  // Update selectedId and delegate info when props change
   useEffect(() => {
-    setSelectedId(value?.assignee_id);
-    setAssignmentType(value?.assignee_type || "role");
-  }, [value]);
+    setSelectedId(assignee?.assignee_id);
+    setAssignmentType(assignee?.assignee_type || "role");
+  }, [assignee]);
 
   // Handle assignment type switch
   const handleAssignmentTypeChange = (type: "user" | "role") => {
     setAssignmentType(type);
     setSelectedId(undefined);
-    onChange(undefined); // Clear the current selection
+    onAssigneeChange({ assignee_type: type, assignee_id: "" });
   };
 
   // Handle selection change
   const handleSelectionChange = (assignee_id: string) => {
     setSelectedId(assignee_id);
-    onChange({ assignee_type: assignmentType, assignee_id });
+    onAssigneeChange({ assignee_type: assignmentType, assignee_id });
+  };
+
+  // Handle delegate node checkbox change
+  const handleDelegateNodeChange = (checked: boolean) => {
+    onShouldDelegateChange(checked);
   };
 
   return (
@@ -123,6 +137,16 @@ export function NodeAssignment({ value, onChange }: NodeAssignmentProps) {
               ))}
         </SelectContent>
       </Select>
+
+      {/* Delegate Node Checkbox */}
+      <div className="flex items-center space-x-2">
+        <Checkbox
+          id="delegateNode"
+          checked={shouldDelegate}
+          onCheckedChange={handleDelegateNodeChange}
+        />
+        <Label htmlFor="delegateNode">Delegate Node</Label>
+      </div>
     </div>
   );
 }
