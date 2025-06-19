@@ -34,6 +34,10 @@ import {
   Redo,
   Highlighter,
   History,
+  ChevronLeft,
+  ChevronRight,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -76,11 +80,13 @@ export function PdfViewer({
   version = "0.0",
   versionHistory = [],
 }: PdfViewerProps) {
+  // Refs
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const signatureCanvasRef = useRef<HTMLCanvasElement>(null);
 
+  // State
   const [isLoading, setIsLoading] = useState(true);
   const [tool, setTool] = useState<AnnotationTool>("pen");
   const [color, setColor] = useState("#FF0000");
@@ -102,50 +108,27 @@ export function PdfViewer({
   const [totalPages, setTotalPages] = useState(1);
   const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string>(url);
+  const [viewingVersion, setViewingVersion] = useState(false);
+
   const params = useParams();
   const documentId = params?.id || params?.fileId || params?.documentId;
   const { toast } = useToast();
-  const [pdfUrl, setPdfUrl] = useState<string>(url);
-  // Add state to track if we're viewing a version or the original document
-  const [viewingVersion, setViewingVersion] = useState(false);
 
-  // Add a helper function to ensure we're loading a direct PDF URL
+  // Helper function to ensure direct PDF URL
   const ensureDirectPdfUrl = (url: string): string => {
-    // If it's a blob URL, return it directly
-    if (url.startsWith("blob:")) {
-      return url;
-    }
+    if (url.startsWith("blob:")) return url;
+    if (url.toLowerCase().endsWith(".pdf")) return url;
 
-    // Check if the URL is already a direct PDF link
-    if (url.toLowerCase().endsWith(".pdf")) {
-      return url;
-    }
+    const pdfMatch = url.match(/\/([^/]+\.pdf)/i);
+    if (pdfMatch) return pdfMatch[0];
 
-    // If it's a relative URL, make sure it points to the PDF file
-    if (url.startsWith("/")) {
-      // This is a relative URL, try to extract the PDF path if it exists
-      const pdfMatch = url.match(/\/([^/]+\.pdf)/i);
-      if (pdfMatch) {
-        return pdfMatch[0];
-      }
-    }
-
-    // If it contains a PDF filename in the path, extract it
-    const pdfInPath = url.match(/\/([^/]+\.pdf)/i);
-    if (pdfInPath) {
-      // Try to extract just the PDF part of the URL
-      return pdfInPath[0];
-    }
-
-    // If we can't determine a direct PDF URL, return the original
-    // but log a warning
     console.warn("Could not determine direct PDF URL from:", url);
     return url;
   };
 
-  // Check for valid URL
+  // Initialize with provided URL
   useEffect(() => {
-    // Always initialize with the provided URL
     setPdfUrl(url);
     setViewingVersion(false);
 
@@ -157,16 +140,11 @@ export function PdfViewer({
       });
     } else {
       console.log("PDF URL set to:", url);
-      // Reset loading state to trigger iframe reload
       setIsLoading(true);
     }
   }, [url, toast]);
 
-  useEffect(() => {
-    console.log("Params:", params);
-    console.log("Document ID from path:", documentId);
-  }, [params]);
-
+  // Resize canvas when tool changes
   useEffect(() => {
     if (!containerRef.current || !canvasRef.current || !iframeRef.current)
       return;
@@ -178,17 +156,14 @@ export function PdfViewer({
       const iframe = iframeRef.current;
       const canvas = canvasRef.current;
 
-      // Set canvas dimensions to match the iframe document size
       const rect = iframe.getBoundingClientRect();
       canvas.width = rect.width;
       canvas.height = rect.height;
 
-      // Align canvas with the PDF
       canvas.style.position = "absolute";
       canvas.style.top = `${iframe.offsetTop}px`;
       canvas.style.left = `${iframe.offsetLeft}px`;
 
-      // Only enable pointer events when not in hand mode
       canvas.style.pointerEvents = tool === "hand" ? "none" : "auto";
 
       drawAnnotations(currentPage);
@@ -199,8 +174,9 @@ export function PdfViewer({
     return () => {
       window.removeEventListener("resize", resizeCanvas);
     };
-  }, [tool]); // Add tool as a dependency to re-run when tool changes
+  }, [tool, currentPage]);
 
+  // Update canvas position and size when scale or page changes
   useEffect(() => {
     const updateCanvasPositionAndSize = () => {
       if (!iframeRef.current || !canvasRef.current) return;
@@ -209,30 +185,36 @@ export function PdfViewer({
       const canvas = canvasRef.current;
       const rect = iframe.getBoundingClientRect();
 
-      // Set canvas dimensions to match the iframe document size
       canvas.width = rect.width;
       canvas.height = rect.height;
 
-      // Align canvas with the PDF viewport
       canvas.style.top = `${iframe.offsetTop}px`;
       canvas.style.left = `${iframe.offsetLeft}px`;
 
-      // Apply scale transformation
       canvas.style.transform = `scale(${scale})`;
       canvas.style.transformOrigin = "top left";
+
+      // Only enable pointer events when not in hand mode
+      canvas.style.pointerEvents = tool === "hand" ? "none" : "auto";
 
       drawAnnotations(currentPage);
     };
 
     updateCanvasPositionAndSize();
-    window.addEventListener("resize", updateCanvasPositionAndSize);
-    window.addEventListener("scroll", updateCanvasPositionAndSize);
+
+    const handlers = ["resize", "scroll"];
+    handlers.forEach((event) =>
+      window.addEventListener(event, updateCanvasPositionAndSize),
+    );
+
     return () => {
-      window.removeEventListener("resize", updateCanvasPositionAndSize);
-      window.removeEventListener("scroll", updateCanvasPositionAndSize);
+      handlers.forEach((event) =>
+        window.removeEventListener(event, updateCanvasPositionAndSize),
+      );
     };
   }, [tool, scale, currentPage]);
 
+  // Draw annotations on canvas
   const drawAnnotations = (pageNumber: number) => {
     if (!canvasRef.current) return;
 
@@ -251,6 +233,7 @@ export function PdfViewer({
     // Draw each annotation with scale adjustment
     context.save();
     context.scale(scale, scale);
+
     pageAnnotations.forEach((annotation) => {
       context.strokeStyle = annotation.color;
       context.fillStyle = annotation.color;
@@ -324,7 +307,7 @@ export function PdfViewer({
             signatureDataUrl
           ) {
             const point = annotation.points[0];
-            const img = document.createElement("img");
+            const img = new Image();
             img.crossOrigin = "anonymous";
             img.onload = () => {
               context.drawImage(
@@ -340,11 +323,23 @@ export function PdfViewer({
           break;
       }
     });
+
     context.restore();
   };
 
+  // Mouse event handlers for annotations
+  const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
+    // If in hand mode or holding the Ctrl key (for zoom), let the event pass through
+    if (tool === "hand" || e.ctrlKey) {
+      return;
+    }
+
+    // Otherwise, prevent default to avoid accidental drawing while scrolling
+    e.stopPropagation();
+  };
+
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!canvasRef.current || isLoading) return;
+    if (!canvasRef.current || isLoading || tool === "hand") return;
 
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
@@ -388,12 +383,8 @@ export function PdfViewer({
 
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
-    let x = e.clientX - rect.left;
-    let y = e.clientY - rect.top;
-
-    // Prevent drawing outside the PDF viewer
-    x = Math.max(0, Math.min(rect.width, x));
-    y = Math.max(0, Math.min(rect.height, y));
+    const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+    const y = Math.max(0, Math.min(rect.height, e.clientY - rect.top));
 
     const updatedAnnotation = { ...currentAnnotation };
 
@@ -444,6 +435,7 @@ export function PdfViewer({
     drawAnnotations(currentPage);
   };
 
+  // Text annotation handlers
   const handleTextAnnotationSubmit = () => {
     if (!currentAnnotation || !textAnnotation.trim()) {
       setShowTextInput(false);
@@ -468,6 +460,7 @@ export function PdfViewer({
     drawAnnotations(currentPage);
   };
 
+  // Undo/Redo handlers
   const handleUndo = () => {
     if (undoStack.length === 0) return;
 
@@ -478,7 +471,6 @@ export function PdfViewer({
     setUndoStack(newUndoStack);
     setAnnotations(previousAnnotations);
 
-    // Redraw the canvas
     drawAnnotations(currentPage);
   };
 
@@ -492,18 +484,15 @@ export function PdfViewer({
     setRedoStack(newRedoStack);
     setAnnotations(nextAnnotations);
 
-    // Redraw the canvas
     drawAnnotations(currentPage);
   };
 
+  // Save handler
   const handleSave = async () => {
     if (!canvasRef.current || !iframeRef.current) return;
 
     try {
-      // In a real implementation, you would save the annotations to your backend
-      // and/or generate a new PDF with the annotations embedded
-
-      // For this example, we'll create a composite image of the PDF and annotations
+      // Create a composite image of the PDF and annotations
       const canvas = document.createElement("canvas");
       const iframe = iframeRef.current;
       const rect = iframe.getBoundingClientRect();
@@ -514,8 +503,7 @@ export function PdfViewer({
       const context = canvas.getContext("2d");
       if (!context) throw new Error("Could not get canvas context");
 
-      // Create a screenshot of the iframe (this is a simplified approach)
-      // In a real implementation, you would use PDF.js to render the PDF to the canvas
+      // Create a white background
       context.fillStyle = "#ffffff";
       context.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -559,6 +547,7 @@ export function PdfViewer({
     }
   };
 
+  // Signature handlers
   const handleSignatureStart = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!signatureCanvasRef.current) return;
 
@@ -592,12 +581,8 @@ export function PdfViewer({
 
   const handleSignatureEnd = () => {
     if (!signatureCanvasRef.current) return;
-
     setIsDrawing(false);
-
-    // Save the signature as a data URL
-    const dataUrl = signatureCanvasRef.current.toDataURL();
-    setSignatureDataUrl(dataUrl);
+    setSignatureDataUrl(signatureCanvasRef.current.toDataURL());
   };
 
   const handleClearSignature = () => {
@@ -623,25 +608,16 @@ export function PdfViewer({
     setIsSignatureModalOpen(false);
   };
 
-  // Modify the handleVersionSelect function to set the viewingVersion flag
+  // Version handling
   const handleVersionSelect = (versionId: number, fileUrl: string) => {
     console.log(`Loading version ${versionId} with URL: ${fileUrl}`);
 
-    // Update the PDF URL to load the selected version
     setPdfUrl(fileUrl);
-
-    // Set flag that we're viewing a version, not the original
     setViewingVersion(true);
-
-    // Reset annotations when switching versions
     setAnnotations([]);
     setUndoStack([]);
     setRedoStack([]);
-
-    // Reset loading state to trigger the iframe onLoad event
     setIsLoading(true);
-
-    // Close the version history dialog
     setShowVersionHistory(false);
 
     toast({
@@ -650,22 +626,14 @@ export function PdfViewer({
     });
   };
 
-  // Add a function to return to the original document
   const handleViewOriginal = () => {
     console.log("Loading original document with URL:", url);
 
-    // Reset to the original document URL
     setPdfUrl(url);
-
-    // Set flag that we're viewing the original, not a version
     setViewingVersion(false);
-
-    // Reset annotations
     setAnnotations([]);
     setUndoStack([]);
     setRedoStack([]);
-
-    // Reset loading state
     setIsLoading(true);
 
     toast({
@@ -674,26 +642,55 @@ export function PdfViewer({
     });
   };
 
+  // Page navigation
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  // Zoom handlers
   const handleZoomIn = () => {
-    setScale(scale + 0.1);
-    // In a real implementation, you would zoom the PDF
+    setScale(Math.min(scale + 0.1, 2.0));
   };
 
   const handleZoomOut = () => {
-    if (scale > 0.5) {
-      setScale(scale - 0.1);
-      // In a real implementation, you would zoom the PDF
+    setScale(Math.max(scale - 0.1, 0.5));
+  };
+
+  // Detect total pages from PDF
+  const detectTotalPages = () => {
+    if (!iframeRef.current) return;
+
+    try {
+      // This is a simplified approach - in a real implementation,
+      // you would use PDF.js to get the total page count
+      const iframe = iframeRef.current;
+      const iframeDoc =
+        iframe.contentDocument || iframe.contentWindow?.document;
+
+      if (iframeDoc) {
+        // For demonstration, we'll set a default of 10 pages
+        // In a real implementation, you would extract this from the PDF
+        setTotalPages(10);
+      }
+    } catch (error) {
+      console.error("Error detecting total pages:", error);
     }
   };
 
   return (
     <div className="flex flex-col h-full" ref={containerRef}>
-      {/* Hidden file input */}
-      {/* <input type="file" ref={fileInputRef} className="hidden" accept="application/pdf" onChange={handleFileChange} /> */}
-
       {/* Toolbar */}
       <div className="overflow-x-auto border-b bg-muted/20">
         <div className="flex items-center justify-between p-2 min-w-max">
+          {/* Annotation tools */}
           <div className="flex items-center space-x-1">
             <TooltipProvider>
               <Tooltip>
@@ -840,6 +837,7 @@ export function PdfViewer({
             </TooltipProvider>
           </div>
 
+          {/* Color and line width */}
           <div className="flex items-center space-x-1 ml-4">
             <Popover>
               <PopoverTrigger asChild>
@@ -896,6 +894,7 @@ export function PdfViewer({
             </Popover>
           </div>
 
+          {/* Actions */}
           <div className="flex items-center space-x-1 ml-4">
             <Button
               variant="outline"
@@ -926,82 +925,124 @@ export function PdfViewer({
             >
               <History className="h-4 w-4 mr-1" /> Version History
             </Button>
+
             {viewingVersion && (
               <Button variant="outline" size="sm" onClick={handleViewOriginal}>
                 <History className="h-4 w-4 mr-1" /> View Original
               </Button>
             )}
+          </div>
 
+          {/* Zoom controls */}
+          <div className="flex items-center space-x-1 ml-4">
             <Button variant="outline" size="sm" onClick={handleZoomOut}>
-              -
+              <ZoomOut className="h-4 w-4" />
             </Button>
             <span className="text-sm">{Math.round(scale * 100)}%</span>
             <Button variant="outline" size="sm" onClick={handleZoomIn}>
-              +
+              <ZoomIn className="h-4 w-4" />
             </Button>
           </div>
         </div>
       </div>
 
       {/* PDF viewer with annotation overlay */}
-      <div className="flex-1 overflow-auto p-4 flex justify-center bg-muted/20">
+      <div className="flex-1 overflow-auto p-4 flex flex-col items-center bg-muted/20">
         {isLoading && (
           <Skeleton className="h-[500px] w-full max-w-3xl rounded-lg" />
         )}
 
         {url ? (
-          <div
-            className="relative border rounded-lg shadow-sm"
-            style={{ width: "100%", maxWidth: "800px", height: "600px" }}
-          >
-            {/* PDF iframe */}
-            <iframe
-              ref={iframeRef}
-              src={
-                pdfUrl.startsWith("blob:")
-                  ? pdfUrl
-                  : `${ensureDirectPdfUrl(pdfUrl)}#toolbar=0&view=FitH&t=${Date.now()}`
-              }
-              className="w-full h-full"
-              style={{ border: "none" }}
-              onLoad={() => {
-                setIsLoading(false);
-                console.log("PDF iframe loaded successfully");
-                // Ensure canvas is resized after PDF loads
-                if (
-                  containerRef.current &&
-                  canvasRef.current &&
-                  iframeRef.current
-                ) {
-                  const iframe = iframeRef.current;
-                  const canvas = canvasRef.current;
-                  const rect = iframe.getBoundingClientRect();
-                  canvas.width = rect.width;
-                  canvas.height = rect.height;
+          <>
+            <div
+              className="relative border rounded-lg shadow-sm mb-4"
+              style={{ width: "100%", maxWidth: "800px", height: "600px" }}
+            >
+              {/* PDF iframe */}
+              <iframe
+                ref={iframeRef}
+                src={
+                  pdfUrl.startsWith("blob:")
+                    ? pdfUrl
+                    : `${ensureDirectPdfUrl(pdfUrl)}#toolbar=0&view=FitH&t=${Date.now()}`
                 }
-              }}
-              onError={() => {
-                console.error("Failed to load PDF:", pdfUrl);
-                setIsLoading(false);
-                toast({
-                  title: "Error",
-                  description: "Failed to load PDF document",
-                  variant: "destructive",
-                });
-              }}
-            />
+                className="w-full h-full"
+                style={{
+                  border: "none",
+                  pointerEvents: "auto",
+                }}
+                onLoad={() => {
+                  setIsLoading(false);
+                  console.log("PDF iframe loaded successfully");
 
-            {/* Canvas overlay for annotations */}
-            <canvas
-              ref={canvasRef}
-              className="absolute top-0 left-0 w-full h-full"
-              style={{ pointerEvents: "auto", backgroundColor: "transparent" }}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
-            />
-          </div>
+                  // Resize canvas after PDF loads
+                  if (
+                    containerRef.current &&
+                    canvasRef.current &&
+                    iframeRef.current
+                  ) {
+                    const iframe = iframeRef.current;
+                    const canvas = canvasRef.current;
+                    const rect = iframe.getBoundingClientRect();
+                    canvas.width = rect.width;
+                    canvas.height = rect.height;
+                  }
+
+                  // Detect total pages
+                  detectTotalPages();
+                }}
+                onError={() => {
+                  console.error("Failed to load PDF:", pdfUrl);
+                  setIsLoading(false);
+                  toast({
+                    title: "Error",
+                    description: "Failed to load PDF document",
+                    variant: "destructive",
+                  });
+                }}
+              />
+
+              {/* Canvas overlay for annotations */}
+              <canvas
+                ref={canvasRef}
+                className="absolute top-0 left-0 w-full h-full"
+                style={{
+                  pointerEvents: tool === "hand" ? "none" : "auto",
+                  backgroundColor: "transparent",
+                }}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+                onWheel={handleWheel}
+              />
+            </div>
+
+            {/* Page navigation */}
+            <div className="flex items-center justify-center space-x-4 mt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePreviousPage}
+                disabled={currentPage <= 1}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+              </Button>
+
+              <span className="text-sm">
+                Page {currentPage} of {totalPages}
+              </span>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextPage}
+                disabled={currentPage >= totalPages}
+              >
+                Next <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          </>
         ) : (
           <p className="text-gray-500 text-center">No PDF file available</p>
         )}
@@ -1077,114 +1118,6 @@ export function PdfViewer({
           </div>
         </div>
       )}
-
-      {/* Version creation dialog */}
-      {/* {showVersionDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-            <h3 className="text-lg font-medium mb-4">Create New Version</h3>
-            <div className="space-y-4">
-              {/* File upload section */}
-      {/* <div className="space-y-2">
-                <Label htmlFor="versionFile">Upload Document</Label>
-                <div
-                  className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <input
-                    type="file"
-                    id="versionFile"
-                    ref={fileInputRef}
-                    className="hidden"
-                    accept="application/pdf"
-                    onChange={handleFileChange}
-                  />
-                  {uploadedFile ? (
-                    <div className="flex flex-col items-center">
-                      <p className="font-medium text-sm">{uploadedFile.name}</p>
-                      <p className="text-xs text-muted-foreground">{(uploadedFile.size / 1024).toFixed(1)} KB</p>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center">
-                      <Upload className="h-8 w-8 text-muted-foreground mb-2" />
-                      <p className="text-sm font-medium">Click to upload a PDF file</p>
-                      <p className="text-xs text-muted-foreground">or drag and drop</p>
-                    </div>
-                  )}
-                </div>
-              </div> */}
-
-      {/* Version comment */}
-      {/* <div className="space-y-2">
-                <Label htmlFor="versionComment">Version Comment</Label>
-                <Textarea
-                  id="versionComment"
-                  placeholder="Describe the changes in this version..."
-                  value={versionComment}
-                  onChange={(e) => setVersionComment(e.target.value)}
-                  className="resize-none"
-                  rows={3}
-                />
-              </div> */}
-
-      {/* Version type selection with radio buttons */}
-      {/* <div className="space-y-2">
-                <p className="text-sm font-medium">Version Type</p>
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="minorVersion"
-                      name="versionType"
-                      className="h-4 w-4"
-                      checked={selectedVersionType === "M INOR"}
-                      onChange={() => setSelectedVersionType("MINOR")}
-                    />
-                    <Label htmlFor="minorVersion" className="cursor-pointer">
-                      <span className="font-medium">Minor Version</span>
-                      <span className="ml-2 text-sm text-muted-foreground">(Next: {suggestedVersions.minor})</span>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="majorVersion"
-                      name="versionType"
-                      className="h-4 w-4"
-                      checked={selectedVersionType === "MAJOR"}
-                      onChange={() => setSelectedVersionType("MAJOR")}
-                    />
-                    <Label htmlFor="majorVersion" className="cursor-pointer">
-                      <span className="font-medium">Major Version</span>
-                      <span className="ml-2 text-sm text-muted-foreground">(Next: {suggestedVersions.major})</span>
-                    </Label>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-2 pt-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowVersionDialog(false)
-                    setUploadedFile(null)
-                    setVersionComment("")
-                    if (uploadedFileUrl) {
-                      URL.revokeObjectURL(uploadedFileUrl)
-                      setUploadedFileUrl(null)
-                    }
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button onClick={() => handleCreateVersion(selectedVersionType)} disabled={!uploadedFile}>
-                  Create Version
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )} */}
 
       {/* Version History Dialog */}
       <Dialog open={showVersionHistory} onOpenChange={setShowVersionHistory}>
