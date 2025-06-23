@@ -883,7 +883,7 @@ const ViewFormRecord = ({
                 <div className="space-y-2">
                   <Select
                     value={selectedExistingSignatureId}
-                    onValueChange={(value) =>
+                    onValueChange={(value: any) =>
                       handlerSetExistingSignatures({
                         id: parseInt(value),
                         name: "",
