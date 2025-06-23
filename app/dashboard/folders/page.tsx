@@ -923,16 +923,19 @@ export default function FileExplorer() {
     return findCurrentFolder(nodes);
   };
 
-  // Utility to convert MIME types to user-friendly formats
   const getReadableType = (mimeType: string | undefined): string => {
     if (!mimeType) {
-      // Check file extension if MIME type is not available
       const fileExtension = menuTarget?.label?.split(".").pop()?.toLowerCase();
       switch (fileExtension) {
         case "docx":
+        case "doc":
           return "Word Document";
         case "xlsx":
+        case "xls":
           return "Excel Spreadsheet";
+        case "pptx":
+        case "ppt":
+          return "PowerPoint Presentation";
         case "pdf":
           return "PDF Document";
         case "txt":
@@ -948,7 +951,6 @@ export default function FileExplorer() {
       }
     }
 
-    // If MIME type is available, use it for more accurate type detection
     const typeMap: Record<string, string> = {
       "application/pdf": "PDF Document",
       "image/png": "Image (PNG)",
@@ -960,6 +962,9 @@ export default function FileExplorer() {
       "application/vnd.ms-excel": "Excel Spreadsheet",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
         "Excel Spreadsheet",
+      "application/vnd.ms-powerpoint": "PowerPoint Presentation",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+        "PowerPoint Presentation",
     };
 
     return (
@@ -985,17 +990,20 @@ export default function FileExplorer() {
 
     switch (mimeType.toLowerCase()) {
       case "application/pdf":
-        return <FileText size={20} color="#E44D26" />; // Red color for PDF
+        return <FileText size={20} color="#E44D26" />; // Red for PDF
       case "application/msword":
       case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-        return <FileText size={20} color="#2B579A" />; // Blue color for Word
+        return <FileText size={20} color="#2B579A" />; // Blue for Word
+      case "application/vnd.ms-excel":
+      case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+        return <Table size={20} color="#217346" />; // Green for Excel
+      case "application/vnd.ms-powerpoint":
+      case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+        return <FileText size={20} color="#D24726" />; // Orange for PowerPoint
       case "image/jpeg":
       case "image/png":
       case "image/gif":
-        return <Image size={20} color="#0078D4" />; // Blue color for images
-      case "application/vnd.ms-excel":
-      case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
-        return <Table size={20} color="#217346" />; // Green color for Excel
+        return <Image size={20} color="#0078D4" />; // Blue for images
       default:
         return <FileIcon size={20} />;
     }

@@ -2,25 +2,25 @@
 
 import type React from "react";
 
-import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Box, Typography } from "@mui/joy";
-import type { ColorPaletteProp } from "@mui/joy/styles";
-import { Button } from "@/components/ui/button";
-import { DocumentViewer } from "@/components/document-viewer/document-viewer";
-import { useToast } from "@/hooks/use-toast";
-import { FileSidebar } from "@/components/file-view/file-sidebar";
 import { DocumentActions } from "@/components/file-view/document-actions";
+import { FileSidebar } from "@/components/file-view/file-sidebar";
 import {
+  deleteFile,
+  deleteMetadata,
+  getDocumentTypes,
   getFilesByHash,
   getFilesById,
   updateMetadata,
-  deleteMetadata,
-  deleteFile,
-  getDocumentTypes,
 } from "@/components/files/api";
 import { updateFileWithDocumentType } from "@/components/folder/api";
+import { OnlyOfficeEditor } from "@/components/OnlyOfficeEditor";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { Box, Typography } from "@mui/joy";
+import type { ColorPaletteProp } from "@mui/joy/styles";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 interface MetadataItem {
   name: string;
@@ -316,8 +316,8 @@ const FileViewPage = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* File viewer with proper overflow handling */}
         <div className="flex-1 relative overflow-hidden">
-          <DocumentViewer
-            url={document.fileLink}
+          <OnlyOfficeEditor
+            url={document.fileLink!}
             mimeType={document.mimeType}
             filename={document.filename}
             fileId={document.id}
