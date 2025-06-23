@@ -58,7 +58,8 @@ interface IDocumentType {
 }
 
 const FileViewPage = () => {
-  const { id } = useParams();
+  const params = useParams();
+  const id = params?.id as string;
   const router = useRouter();
   const { toast } = useToast();
 
@@ -319,6 +320,7 @@ const FileViewPage = () => {
             url={document.fileLink}
             mimeType={document.mimeType}
             filename={document.filename}
+            fileId={document.id}
           />
         </div>
 
