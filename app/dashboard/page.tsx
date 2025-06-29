@@ -1,16 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, Folder, GitBranch, CheckSquare } from "lucide-react";
-import { UsageChart } from "@/components/UsageChart";
+import { getAllFiles, getFolders } from "@/components/files/api"; // Assuming this API is available
 import { FileTypeChart } from "@/components/FileTypeChart";
-import { WorkflowStatusChart } from "@/components/WorkflowStatusChart";
-import { RecentActivities } from "@/components/RecentActivities";
 import { RecentFilesCard } from "@/components/RecentFilesCard";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { UsageChart } from "@/components/UsageChart";
+import { WorkflowStatusChart } from "@/components/WorkflowStatusChart";
 import { getAllWorkflowInstances } from "@/core/workflowInstance/api";
 import { WorkflowInstance } from "@/lib/types/workflowInstance";
-import { getAllFiles, getFiles, getFolders } from "@/components/files/api"; // Assuming this API is available
+import { CheckSquare, FileText, Folder, GitBranch } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export default function Page() {
   const [fileCount, setFileCount] = useState<string>("...");
@@ -127,14 +126,6 @@ export default function Page() {
         </Card>
         <RecentFilesCard />
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Activities</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <RecentActivities />
-        </CardContent>
-      </Card>
     </div>
   );
 }

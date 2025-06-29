@@ -2,25 +2,26 @@
 
 import type React from "react";
 
-import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Box, Typography } from "@mui/joy";
-import type { ColorPaletteProp } from "@mui/joy/styles";
-import { Button } from "@/components/ui/button";
-import { DocumentViewer } from "@/components/document-viewer/document-viewer";
-import { useToast } from "@/hooks/use-toast";
-import { FileSidebar } from "@/components/file-view/file-sidebar";
 import { DocumentActions } from "@/components/file-view/document-actions";
+import { FileSidebar } from "@/components/file-view/file-sidebar";
 import {
+  deleteFile,
+  deleteMetadata,
+  getDocumentTypes,
   getFilesByHash,
   getFilesById,
   updateMetadata,
-  deleteMetadata,
-  deleteFile,
-  getDocumentTypes,
 } from "@/components/files/api";
 import { updateFileWithDocumentType } from "@/components/folder/api";
+import { OnlyOfficeEditor } from "@/components/OnlyOfficeEditor";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { Box, Typography } from "@mui/joy";
+import type { ColorPaletteProp } from "@mui/joy/styles";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { User } from "@/lib/types/user";
 
 interface MetadataItem {
   name: string;
@@ -58,7 +59,8 @@ interface IDocumentType {
 }
 
 const FileViewPage = () => {
-  const { id } = useParams();
+  const params = useParams();
+  const id = params?.id as string;
   const router = useRouter();
   const { toast } = useToast();
 
@@ -69,6 +71,7 @@ const FileViewPage = () => {
   const [documentTypes, setDocumentTypes] = useState<IDocumentType[]>([]);
   const [currentDocTypeId, setCurrentDocTypeId] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState(true); // Always show sidebar by default
+  const [user, setUser] = useState<User>();
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     color: ColorPaletteProp;
@@ -83,6 +86,13 @@ const FileViewPage = () => {
   useEffect(() => {
     const fetchFileDetails = async () => {
       try {
+        const user = JSON.parse(
+          sessionStorage.getItem("current-user") || "null",
+        );
+        if (!user) {
+          throw new Error("User not found in localStorage");
+        }
+        setUser(user);
         const res = await getFilesById(Number.parseInt(id as string));
         const response = await getFilesByHash(res.hashName);
 
@@ -315,10 +325,13 @@ const FileViewPage = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* File viewer with proper overflow handling */}
         <div className="flex-1 relative overflow-hidden">
-          <DocumentViewer
-            url={document.fileLink}
+          <OnlyOfficeEditor
+            url={document.fileLink!}
             mimeType={document.mimeType}
             filename={document.filename}
+            hashName={document.hashName}
+            user={user}
+            fileId={document.id}
           />
         </div>
 

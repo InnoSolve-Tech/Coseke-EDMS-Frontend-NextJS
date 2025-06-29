@@ -1,8 +1,9 @@
 "use client";
 
 import Header from "@/components/Header";
-import Sidebar from "@/components/Sidebar";
-import { ThemeProvider } from "@/components/ThemeProvider";
+import { TopNavbar } from "@/components/layout/NavigationBar";
+import { AppSidebar } from "@/components/layout/Sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { Toaster } from "@/components/ui/toaster";
 import { Inter } from "next/font/google";
 
@@ -14,19 +15,13 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} dashboard-layout`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <Header />
-          <Sidebar>{children}</Sidebar>
-          <Toaster />
-        </ThemeProvider>
-      </body>
-    </html>
+    <SidebarProvider>
+      <AppSidebar />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <TopNavbar />
+        <main className="flex-1 overflow-auto">{children}</main>
+      </div>
+      <Toaster />
+    </SidebarProvider>
   );
 }

@@ -167,7 +167,7 @@ export const addDocument = async (
 
   try {
     let res = await axios.post(
-      `http://localhost:8081/${ENDPOINT_URL}${folderId}`, // ✅ Check if this is `4`
+      `${process.env.NEXT_PUBLIC_FILES_URL}/${ENDPOINT_URL}${folderId}`, // ✅ Check if this is `4`
       formData,
       {
         headers: {
@@ -245,7 +245,7 @@ export const fullTextSearch = async (
 
 export const getFilesByHash = async (hashName: string): Promise<Blob> => {
   const response = await axios.get(
-    `http://localhost:8081/file-management/api/v1/files/download/${hashName}`,
+    `${process.env.NEXT_PUBLIC_FILES_URL}/file-management/api/v1/files/download/${hashName}`,
     {
       responseType: "blob",
       headers: {
@@ -601,7 +601,7 @@ export const bulkFileUpload = async (
     }
 
     const response = await axios.post(
-      `http://localhost:8081/${ENDPOINT_URL}bulk/${folderID}`,
+      `${process.env.NEXT_PUBLIC_FILES_URL}/${ENDPOINT_URL}bulk/${folderID}`,
       formData,
       {
         headers: {
@@ -651,7 +651,7 @@ export const bulkUpload = async (
 
     // Perform upload request
     const response = await axios.post(
-      `http://localhost:8081/${ENDPOINT_URL}bulk/${folderID}`,
+      `${process.env.NEXT_PUBLIC_FILES_URL}/${ENDPOINT_URL}bulk/${folderID}`,
       formData,
       {
         headers: {
@@ -986,7 +986,7 @@ export const uploadVersionFiles = async (
 
   try {
     const response = await axios.post<VersionDTO>(
-      "http://localhost:8081/file-management/api/v1/files/upload-version",
+      "${process.env.NEXT_PUBLIC_FILES_URL}/file-management/api/v1/files/upload-version",
       formData,
       {
         headers: {
