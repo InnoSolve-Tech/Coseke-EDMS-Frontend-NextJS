@@ -8,7 +8,7 @@ export default function WorkflowViewPage() {
   return (
     <div className="container mx-auto py-10">
       <h1 className="text-3xl font-bold mb-6">View Workflow</h1>
-      <WorkflowViewer id={params.id as string} />
+      <WorkflowViewer id={params?.id as string} />
     </div>
   );
 }

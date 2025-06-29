@@ -60,6 +60,30 @@ interface ErrorResponse {
   details?: string;
 }
 
+// In-memory store for temporary file URLs (use Redis in production)
+const tempFileStore = new Map<
+  string,
+  {
+    originalUrl: string;
+    filename: string;
+    createdAt: number;
+    expiresAt: number;
+  }
+>();
+
+// Cleanup expired entries every 5 minutes
+setInterval(
+  () => {
+    const now = Date.now();
+    for (const [key, value] of tempFileStore.entries()) {
+      if (now > value.expiresAt) {
+        tempFileStore.delete(key);
+      }
+    }
+  },
+  5 * 60 * 1000,
+);
+
 function getFileExtension(filename: string): string {
   return filename.split(".").pop()?.toLowerCase() || "docx";
 }
@@ -102,10 +126,43 @@ function isValidFileType(filename: string): boolean {
     "pptx",
     "ppt",
     "odp",
-    "pdf", // ✅ Added PDF support
+    "pdf",
   ];
   const ext = getFileExtension(filename);
   return supportedExtensions.includes(ext);
+}
+
+function createTemporaryFileId(originalUrl: string, filename: string): string {
+  const timestamp = Date.now();
+  const random = crypto.randomBytes(8).toString("hex");
+  const hash = crypto
+    .createHash("sha256")
+    .update(`${originalUrl}${filename}${timestamp}${random}`)
+    .digest("hex")
+    .substring(0, 16);
+
+  return `temp_${hash}`;
+}
+
+function createTemporaryUrl(
+  originalUrl: string,
+  filename: string,
+  baseUrl: string,
+): string {
+  const tempId = createTemporaryFileId(originalUrl, filename);
+  const expirationTime = 2 * 60 * 60 * 1000; // 2 hours
+  const now = Date.now();
+
+  // Store the mapping
+  tempFileStore.set(tempId, {
+    originalUrl,
+    filename,
+    createdAt: now,
+    expiresAt: now + expirationTime,
+  });
+
+  // Create temporary URL that points to our proxy endpoint
+  return `/api/onlyoffice/proxy/${tempId}`;
 }
 
 function makeUrlAccessibleFromContainer(url: string): string {
@@ -218,7 +275,7 @@ function generateJwtToken(payload: object): string | null {
   try {
     return jwt.sign(payload, secret, {
       algorithm: "HS256",
-      expiresIn: "1h",
+      expiresIn: "2h", // Match temp URL expiration
     });
   } catch (error) {
     console.error("JWT generation error:", error);
@@ -267,7 +324,7 @@ export default async function handler(
     }
 
     if (ext === "pdf") {
-      mode = "view"; // 🔒 Force PDFs to open in read-only mode
+      mode = "view"; // Force PDFs to open in read-only mode
     }
 
     if (mode !== "edit" && mode !== "view") {
@@ -277,27 +334,27 @@ export default async function handler(
       });
     }
 
-    const accessibleUrl = makeUrlAccessibleFromContainer(url);
-    console.log("URL conversion:", {
-      original: url,
-      accessible: accessibleUrl,
-    });
-
-    const validation = await validateUrlAccessibility(accessibleUrl);
+    // Validate the original URL is accessible
+    const validation = await validateUrlAccessibility(url);
     if (!validation.accessible) {
       return res.status(400).json({
-        error: "Document URL not accessible from OnlyOffice Document Server",
+        error: "Source document URL not accessible",
         details: `Validation failed: ${validation.error}`,
       });
     }
-
-    const keySource = fileId || documentId;
-    const documentKey = generateDocumentKey(keySource, filename);
 
     const protocol = req.headers["x-forwarded-proto"] || "http";
     const host =
       req.headers["x-forwarded-host"] || req.headers.host || "localhost:3000";
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`;
+
+    // Create temporary URL for the document
+    const tempUrl = createTemporaryUrl(url, filename, baseUrl);
+    const accessibleTempUrl = makeUrlAccessibleFromContainer(tempUrl);
+
+    const keySource = fileId || documentId;
+    const documentKey = generateDocumentKey(keySource, filename);
+
     const callbackUrl = makeUrlAccessibleFromContainer(
       `${baseUrl}/api/onlyoffice/callback`,
     );
@@ -307,7 +364,7 @@ export default async function handler(
         fileType: ext,
         key: documentKey,
         title: filename,
-        url: accessibleUrl,
+        url: accessibleTempUrl, // Use temporary URL instead of original
         permissions: {
           comment: mode === "edit",
           download: true,
@@ -326,7 +383,7 @@ export default async function handler(
             {
               name: "e-signature",
               url: `${process.env.NEXT_PUBLIC_ONLYOFFICE_URL}/web-apps/apps/plugins/e-signature/plugin.js`,
-              config: {}, // optional config
+              config: {},
             },
           ],
         },
@@ -363,7 +420,8 @@ export default async function handler(
       mode,
       documentType: config.documentType,
       originalUrl: url,
-      accessibleUrl,
+      tempUrl,
+      accessibleTempUrl,
       callbackUrl,
       hasJwt: !!jwtToken,
     });
@@ -378,3 +436,6 @@ export default async function handler(
     });
   }
 }
+
+// Export the store for use in the proxy endpoint
+export { tempFileStore };

@@ -10,7 +10,7 @@ export default function WorkflowEditPage() {
     <WorkflowProvider>
       <div className="container mx-auto py-10">
         <h1 className="text-3xl font-bold mb-6">Edit Workflow</h1>
-        <WorkflowDesigner id={params.id as string} />
+        <WorkflowDesigner id={params?.id as string} />
       </div>
     </WorkflowProvider>
   );

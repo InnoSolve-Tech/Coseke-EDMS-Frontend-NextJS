@@ -11,6 +11,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { User } from "@/lib/types/user";
 
 interface OnlyOfficeEditorProps {
   url: string;
@@ -18,6 +19,8 @@ interface OnlyOfficeEditorProps {
   mimeType: string;
   documentId?: number;
   fileId?: number;
+  hashName: string;
+  user?: User;
   onSave?: (blob: Blob) => Promise<void>;
 }
 
@@ -26,6 +29,8 @@ export function OnlyOfficeEditor({
   filename,
   mimeType,
   documentId,
+  hashName,
+  user,
   fileId,
   onSave,
 }: OnlyOfficeEditorProps) {
@@ -36,6 +41,11 @@ export function OnlyOfficeEditor({
   const editorRef = useRef<HTMLDivElement>(null);
   const docEditorRef = useRef<any>(null);
   const { toast } = useToast();
+
+  // Generate a unique editor ID
+  const editorId = useRef(
+    `onlyoffice-editor-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+  );
 
   useEffect(() => {
     loadOnlyOfficeScript();
@@ -85,47 +95,6 @@ export function OnlyOfficeEditor({
     document.head.appendChild(script);
   };
 
-  const uploadBlobFile = async (
-    blobUrl: string,
-    filename: string,
-  ): Promise<string> => {
-    try {
-      console.log("Uploading blob file:", { blobUrl, filename });
-
-      const response = await fetch(blobUrl);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch blob data: ${response.statusText}`);
-      }
-
-      const blob = await response.blob();
-      console.log("Blob size:", blob.size);
-
-      const formData = new FormData();
-      formData.append("file", blob, filename);
-
-      const uploadResponse = await fetch("/api/upload/blob", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!uploadResponse.ok) {
-        const errorData = await uploadResponse.json().catch(() => ({}));
-        throw new Error(
-          errorData.error || `Upload failed: ${uploadResponse.statusText}`,
-        );
-      }
-
-      const uploadResult = await uploadResponse.json();
-      console.log("Upload successful:", uploadResult);
-      return uploadResult.url;
-    } catch (error) {
-      console.error("Blob upload error:", error);
-      throw new Error(
-        `Failed to upload blob file: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-    }
-  };
-
   const initializeEditor = async () => {
     if (!editorRef.current) {
       setError("Editor container not found");
@@ -137,36 +106,19 @@ export function OnlyOfficeEditor({
       const docIdString = documentId?.toString() || `temp_${Date.now()}`;
       const fileIdString = fileId?.toString();
 
-      if (!filename || !url) {
-        throw new Error("Missing required fields: filename or url");
-      }
-
-      console.log("Initializing editor with:", {
-        filename,
-        url,
-        documentId: docIdString,
-        fileId: fileIdString,
-        urlType: url.startsWith("blob:") ? "blob" : "http",
-      });
-
-      // Handle blob URLs by uploading them first
-      let documentUrl = url;
-      if (url.startsWith("blob:")) {
-        console.log("Converting blob URL to public URL...");
-        documentUrl = await uploadBlobFile(url, filename);
-        console.log("Blob converted to:", documentUrl);
-      }
-
       // Get document configuration from API
-      console.log("Fetching ONLYOFFICE configuration...");
+      const proxyUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/onlyoffice/proxy/document?fileId=${hashName}&mimeType=${encodeURIComponent(mimeType)}`;
+
       const response = await fetch("/api/onlyoffice/config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           filename,
-          url: documentUrl,
+          url: proxyUrl,
           documentId: docIdString,
           fileId: fileIdString,
+          userId: user?.id,
+          userName: user?.first_name + " " + user?.last_name,
         }),
       });
 
@@ -182,7 +134,9 @@ export function OnlyOfficeEditor({
       console.log("ONLYOFFICE configuration received:", config);
 
       setDebugInfo({
-        documentUrl,
+        originalUrl: url,
+        documentUrl: config.document?.url, // This will be the temp URL for blobs
+        editorId: editorId.current,
         config: {
           documentKey: config.document?.key,
           documentType: config.documentType,
@@ -201,9 +155,9 @@ export function OnlyOfficeEditor({
 
       console.log("Creating ONLYOFFICE editor...");
 
-      // Initialize OnlyOffice Document Editor
+      // Initialize OnlyOffice Document Editor using the unique ID
       docEditorRef.current = new (window as any).DocsAPI.DocEditor(
-        editorRef.current.id,
+        editorId.current, // Use the generated unique ID
         {
           ...config,
           events: {
@@ -261,6 +215,8 @@ export function OnlyOfficeEditor({
           },
         },
       );
+
+      // Timeout fallback
       setTimeout(() => {
         if (!isReady) {
           console.warn(
@@ -335,6 +291,9 @@ export function OnlyOfficeEditor({
     setIsReady(false);
     setDebugInfo(null);
 
+    // Generate new editor ID for retry
+    editorId.current = `onlyoffice-editor-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
     // Destroy existing editor
     if (docEditorRef.current) {
       try {
@@ -387,7 +346,7 @@ export function OnlyOfficeEditor({
               onClick={() => window.open(debugInfo.documentUrl, "_blank")}
             >
               <ExternalLink className="h-4 w-4 mr-2" />
-              Test URL
+              Test Temp URL
             </Button>
           )}
         </div>
@@ -460,7 +419,7 @@ export function OnlyOfficeEditor({
 
       {/* OnlyOffice Editor Container */}
       <div className="flex-1 relative min-h-0">
-        <div id="onlyoffice-editor" ref={editorRef} className="w-full h-full" />
+        <div id={editorId.current} ref={editorRef} className="w-full h-full" />
       </div>
     </div>
   );
