@@ -49,37 +49,6 @@ function verifyJwtToken(token: string): boolean {
   }
 }
 
-async function downloadAndSaveDocument(
-  url: string,
-  documentKey: string,
-): Promise<string> {
-  try {
-    // Download the document from ONLYOFFICE
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      throw new Error(`Failed to download document: ${response.statusText}`);
-    }
-
-    const buffer = await response.arrayBuffer();
-
-    // Save to uploads directory
-    const uploadsDir = path.join(process.cwd(), "public", "uploads");
-    await fs.mkdir(uploadsDir, { recursive: true });
-
-    const filename = `${documentKey}_${Date.now()}.docx`;
-    const filepath = path.join(uploadsDir, filename);
-
-    await fs.writeFile(filepath, Buffer.from(buffer));
-
-    console.log("Document saved:", filepath);
-    return filepath;
-  } catch (error) {
-    console.error("Failed to download and save document:", error);
-    throw error;
-  }
-}
-
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<CallbackResponse>,
@@ -136,11 +105,6 @@ export default async function handler(
         }
 
         try {
-          // Download and save the document
-          const savedPath = await downloadAndSaveDocument(url, key);
-
-          console.log(`Document ${key} saved successfully to ${savedPath}`);
-
           // Here you could update your database with the new file location
           // await updateDocumentInDatabase(key, savedPath);
 

@@ -1,22 +1,30 @@
 "use client";
 
 import type React from "react";
-
-import { useState } from "react";
-import { Save, FileText, Calendar, User, Folder } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  Save,
+  FileText,
+  Calendar,
+  User,
+  Folder,
+  Edit2,
+  Check,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { DocumentTypeManager } from "@/components/folder/documentTypeManager";
-import { MetadataForm } from "@/components/folder/metadataForm";
 import {
-  type IDocumentType,
-  type IDocumentTypeForm,
-  createDocumentType,
-  updateDocumentType,
-  deleteDocumentType,
-} from "@/components/folder/api";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { MetadataForm } from "@/components/folder/metadataForm";
+import type { IDocumentType } from "@/components/folder/api";
 import { useToast } from "@/hooks/use-toast";
 
 interface MetadataItem {
@@ -72,111 +80,29 @@ export function FileSidebar({
 }: FileSidebarProps) {
   const { toast } = useToast();
   const [selectedDocType, setSelectedDocType] = useState<IDocumentType | null>(
-    currentDocTypeId
-      ? documentTypes.find((dt) => dt.id.toString() === currentDocTypeId) ||
-          null
-      : null,
+    null,
   );
+  const [isEditingDocType, setIsEditingDocType] = useState(false);
 
-  const handleCreateDocumentType = async (docType: IDocumentTypeForm) => {
-    try {
-      const newDocType = await createDocumentType(docType);
-      setDocumentTypes([...documentTypes, newDocType]);
-      toast({
-        title: "Success",
-        description: "Document type created successfully",
-        className: "bg-green-500 text-white",
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to create document type",
-      });
-    }
-  };
-
-  const handleUpdateDocumentType = async (
-    id: number,
-    updatedFields: Partial<IDocumentTypeForm>,
-  ) => {
-    try {
-      const originalDocType = documentTypes.find(
-        (docType) => docType.id === id,
+  // Auto-select the document type based on the document's assigned type
+  useEffect(() => {
+    if (document && document.documentType && documentTypes.length > 0) {
+      const matchingType = documentTypes.find(
+        (type) => type.name === document.documentType,
       );
-      if (!originalDocType) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Document type not found",
-        });
-        return;
+      if (matchingType) {
+        setSelectedDocType(matchingType);
       }
-
-      const updatedDocTypeData: IDocumentTypeForm = {
-        name: updatedFields.name || originalDocType.name,
-        metadata: updatedFields.metadata || originalDocType.metadata,
-      };
-
-      const updatedDocType = await updateDocumentType(id, updatedDocTypeData);
-      setDocumentTypes(
-        documentTypes.map((docType) =>
-          docType.id === id ? { ...docType, ...updatedDocType } : docType,
-        ),
-      );
-
-      if (selectedDocType?.id === id) {
-        setSelectedDocType({ ...selectedDocType, ...updatedDocType });
-      }
-
-      toast({
-        title: "Success",
-        description: "Document type updated successfully",
-        className: "bg-green-500 text-white",
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to update document type",
-      });
     }
-  };
+  }, [document, documentTypes]);
 
-  const handleDeleteDocumentType = async (id: number) => {
-    try {
-      await deleteDocumentType(id);
-      setDocumentTypes(documentTypes.filter((docType) => docType.id !== id));
-      if (selectedDocType?.id === id) {
-        setSelectedDocType(null);
-      }
-      toast({
-        title: "Success",
-        description: "Document type deleted successfully",
-        className: "bg-green-500 text-white",
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to delete document type",
-      });
-    }
-  };
-
-  const handleSelectDocumentType = (docType: IDocumentType | null) => {
-    setSelectedDocType(docType);
+  const handleDocumentTypeChangeInternal = (value: string) => {
+    const docType = documentTypes.find((dt) => dt.id.toString() === value);
     if (docType) {
-      handleDocumentTypeChange(docType.id.toString());
+      setSelectedDocType(docType);
+      handleDocumentTypeChange(value);
+      setIsEditingDocType(false);
     }
-  };
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
   };
 
   const formatDate = (dateString: string) => {
@@ -244,19 +170,102 @@ export function FileSidebar({
                   Modified: {formatDate(document.lastModifiedDateTime)}
                 </span>
               </div>
+              <div className="flex items-center gap-2">
+                <User className="h-3 w-3" />
+                <span>Created by: User {document.createdBy}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Folder className="h-3 w-3" />
+                <span>Folder ID: {document.folderID}</span>
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Document Type Management */}
-        <DocumentTypeManager
-          documentTypes={documentTypes}
-          onCreateDocumentType={handleCreateDocumentType}
-          onUpdateDocumentType={handleUpdateDocumentType}
-          onDeleteDocumentType={handleDeleteDocumentType}
-          selectedDocType={selectedDocType}
-          onSelectDocumentType={handleSelectDocumentType}
-        />
+        {/* Current Document Type */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center justify-between">
+              Document Type
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsEditingDocType(!isEditingDocType)}
+                className="h-6 px-2"
+              >
+                {isEditingDocType ? (
+                  <X className="h-3 w-3" />
+                ) : (
+                  <Edit2 className="h-3 w-3" />
+                )}
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            {!isEditingDocType ? (
+              <div className="flex items-center gap-2">
+                <Badge variant="default" className="text-sm">
+                  {selectedDocType?.name ||
+                    document.documentType ||
+                    "No Type Assigned"}
+                </Badge>
+                {selectedDocType && (
+                  <Badge variant="outline" className="text-xs">
+                    {selectedDocType.metadata.length} fields
+                  </Badge>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <Select
+                  value={selectedDocType?.id.toString() || ""}
+                  onValueChange={handleDocumentTypeChangeInternal}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select document type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {documentTypes.map((type) => (
+                      <SelectItem key={type.id} value={type.id.toString()}>
+                        <div className="flex items-center justify-between w-full">
+                          <span>{type.name}</span>
+                          <Badge variant="outline" className="text-xs ml-2">
+                            {type.metadata.length} fields
+                          </Badge>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      if (selectedDocType) {
+                        handleDocumentTypeChangeInternal(
+                          selectedDocType.id.toString(),
+                        );
+                      }
+                    }}
+                    className="flex-1"
+                  >
+                    <Check className="h-3 w-3 mr-1" />
+                    Apply
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsEditingDocType(false)}
+                    className="flex-1"
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Metadata Form */}
         {selectedDocType &&
@@ -284,9 +293,36 @@ export function FileSidebar({
             </Card>
           )}
 
+        {/* No Document Type Assigned */}
+        {!selectedDocType && (
+          <Card className="border-dashed border-yellow-300 bg-yellow-50">
+            <CardContent className="p-6 text-center text-yellow-700">
+              <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm font-medium">No Document Type Assigned</p>
+              <p className="text-xs mb-3">
+                Assign a document type to enable metadata editing
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setIsEditingDocType(true)}
+                className="border-yellow-300 text-yellow-700 hover:bg-yellow-100"
+              >
+                <Edit2 className="h-3 w-3 mr-1" />
+                Assign Type
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Action Buttons */}
         <div className="space-y-2 pt-4 border-t">
-          <Button onClick={handleSubmit} className="w-full" size="lg">
+          <Button
+            onClick={handleSubmit}
+            className="w-full"
+            size="lg"
+            disabled={!selectedDocType}
+          >
             <Save className="mr-2 h-4 w-4" />
             Save Changes
           </Button>
