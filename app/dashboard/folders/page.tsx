@@ -1,108 +1,50 @@
 "use client";
-import { FileText, Image, Scan, Table, Upload } from "lucide-react";
-import type React from "react";
-import { useState, useEffect, useRef } from "react";
-import { CreateNewFolder } from "@mui/icons-material";
+import { Breadcrumbs } from "@/components/fileExplorer/Breadcrumbs";
 import {
-  Breadcrumbs,
-  Typography,
-  Card,
-  CardContent,
-  Menu,
-  MenuItem,
-  List,
-  ListItem,
-  ListItemButton,
-  Button,
-  Modal,
-  Input,
-  Snackbar,
-} from "@mui/joy";
-import { useRouter } from "next/navigation";
-import FileUploadDialog from "@/components/folder/FileUploadDialog";
-import SearchBar from "@/components/folder/SearchBar";
-import {
-  getFolders,
+  addDocument,
+  bulkUpload,
   createFolders,
+  createSubFolders,
   deleteFile,
   deleteFolder,
   type DirectoryData,
-  createSubFolders,
-  getDocumentTypes,
   editFolder,
-  getAllFiles,
-  bulkUpload,
   fullTextSearch,
+  getAllFiles,
+  getDocumentTypes,
+  getFolders,
 } from "@/components/files/api";
-import { type File, FolderIcon, FileIcon } from "lucide-react";
+import FileUploadDialog from "@/components/folder/FileUploadDialog";
+import SearchBar from "@/components/folder/SearchBar";
+import { FileData, FileNode } from "@/types/folder";
+import { CreateNewFolder } from "@mui/icons-material";
+import {
+  Button,
+  Card,
+  CardContent,
+  Input,
+  List,
+  ListItem,
+  ListItemButton,
+  Menu,
+  MenuItem,
+  Modal,
+  Snackbar,
+  Typography,
+} from "@mui/joy";
 import type { ColorPaletteProp } from "@mui/joy/styles";
-import { addDocument } from "@/components/files/api";
-
-interface SearchMatchInfo {
-  label: boolean;
-  metadata: boolean;
-}
-
-interface FileNode {
-  [x: string]: any;
-  id: string;
-  label: string;
-  type: "file" | "folder";
-  metadata?: {
-    mimeType?: string;
-    uploadStatus?: string;
-    [key: string]: any;
-  };
-  children?: FileNode[];
-  folderID?: number;
-  fileId?: number;
-  parentFolderID?: number;
-  searchMatches?: SearchMatchInfo;
-}
-
-interface FileData {
-  id: number;
-  name?: string;
-  filename?: string;
-  folderID?: number;
-  fileId?: number;
-  documentType?: string;
-  documentName?: string;
-  hashName?: string;
-  fileLink?: string | null;
-  mimeType?: string;
-  metadata?: {
-    author?: string;
-    version?: string;
-    description?: string;
-    tags?: string[];
-    [key: string]: unknown;
-  };
-  createdDate?: string;
-  lastModifiedDateTime?: string;
-  lastModifiedBy?: number;
-  createdBy?: number;
-  [key: string]: unknown;
-}
-
-interface DocumentType {
-  id: number;
-  name: string;
-  metadata: MetadataField[];
-}
-
-interface MetadataField {
-  name: string;
-  type: "string" | "select" | "number" | "date";
-  value: string | null;
-  options?: string[];
-}
-
-interface SearchResult {
-  path: string[];
-  item: FileNode;
-  matchType: "name" | "content" | "metadata";
-}
+import {
+  FileIcon,
+  FileText,
+  FolderIcon,
+  Image,
+  Scan,
+  Table,
+  Upload,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import type React from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface BulkUploadState {
   files: File[];
@@ -132,6 +74,7 @@ export default function FileExplorer() {
   const router = useRouter();
   const [folderCount, setFolderCount] = useState<string>("...");
   const [currentFolderID, setCurrentFolderID] = useState<number | null>(null);
+  const [uploadFolderId, setUploadFolderId] = useState<number | null>(null);
   const [isSubfolderMode, setIsSubfolderMode] = useState(false);
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
   const [fileCount, setFileCount] = useState<string>("...");
@@ -396,10 +339,6 @@ export default function FileExplorer() {
     };
   }, []);
 
-  const toggleNode = (id: string) => {
-    setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
-
   const handleAction = async (action: string) => {
     if (!menuTarget) return;
 
@@ -422,7 +361,7 @@ export default function FileExplorer() {
         setIsCreateFolderModalOpen(true);
         break;
       case "UploadFile":
-        setCurrentFolderID(menuTarget.folderID ?? null);
+        setUploadFolderId(menuTarget.folderID ?? null);
         setUploadDialogOpen(true);
         break;
       case "View":
@@ -448,25 +387,6 @@ export default function FileExplorer() {
         break;
     }
     handleCloseMenu();
-  };
-
-  const handleRename = async () => {
-    try {
-      if (folderToRename && renameFolderName.trim()) {
-        const folderId = folderToRename.folderID;
-        if (folderId) {
-          await editFolder(folderId, renameFolderName.trim());
-          await refreshCurrentFolder();
-          setIsRenameModalOpen(false);
-          setRenameFolderName("");
-          setFolderToRename(null);
-          showSnackbar("Folder renamed successfully.", "success");
-        }
-      }
-    } catch (error) {
-      console.error("Failed to rename folder:", error);
-      showSnackbar("Failed to rename folder.", "danger");
-    }
   };
 
   const showSnackbar = (message: string, color: ColorPaletteProp) => {
@@ -1258,90 +1178,13 @@ export default function FileExplorer() {
 
   return (
     <div className=" flex flex-col">
-      <div className="bg-white border-b border-gray-200 p-4 flex justify-between items-center">
-        <Typography level="h4" sx={{ fontWeight: "bold" }}>
-          File Explorer
-        </Typography>
-        <div className="flex justify-center items-center gap-3 p-2">
-          {[
-            { count: folderCount, label: "Folders" },
-            { count: fileCount, label: "Files" },
-          ].map((item, index) => (
-            <Card
-              key={index}
-              variant="outlined"
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                minWidth: 120,
-                height: 70,
-                paddingY: 1,
-                borderRadius: "8px",
-                textAlign: "center",
-              }}
-            >
-              <Typography level="body-lg" fontWeight="bold">
-                {item.count}
-              </Typography>
-              <Typography
-                level="body-sm"
-                sx={{ marginTop: 0.5, color: "text.secondary" }}
-              >
-                {item.label}
-              </Typography>
-            </Card>
-          ))}
-
-          <input type="file" multiple hidden ref={fileInputRef} />
-
-          {/* <Button
-            variant="outlined"
-            color="neutral"
-            onClick={() => {
-              setCurrentFolderID(0); // Set upload target to Root
-              setUploadDialogOpen(true); // Open file upload dialog
-            }}
-            size="sm"
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minWidth: 120,
-              height: 70,
-              borderRadius: "8px",
-              fontSize: "0.875rem",
-            }}
-          >
-            Single File Upload
-          </Button> */}
-        </div>
-      </div>
       <div className="flex-grow flex overflow-hidden">
         <div className="flex-grow flex flex-col">
           <div className="flex items-center px-4 py-2 border-b justify-between overflow-x-auto flex-wrap gap-2">
             <Breadcrumbs
-              size="sm"
-              className="truncate overflow-hidden flex-grow"
-            >
-              {currentPath.map((crumb, index) => (
-                <Typography
-                  key={crumb.id}
-                  fontSize="inherit"
-                  color={
-                    index === currentPath.length - 1 ? "primary" : "neutral"
-                  }
-                  onClick={() => handleBreadcrumbClick(index)}
-                  sx={{
-                    cursor: "pointer",
-                    "&:hover": { textDecoration: "underline" },
-                  }}
-                >
-                  {crumb.label}
-                </Typography>
-              ))}
-            </Breadcrumbs>
+              currentPath={currentPath}
+              onBreadcrumbClick={handleBreadcrumbClick}
+            />
             <div className="flex gap-2 flex-shrink-0">
               <Button
                 size="sm"
@@ -1416,7 +1259,7 @@ export default function FileExplorer() {
             file,
             docType,
             metadata,
-            folderID ?? (currentFolderID as number),
+            folderID ?? (uploadFolderId as number),
           )
         }
         folderID={currentFolderID as number}

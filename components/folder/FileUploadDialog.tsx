@@ -1,39 +1,40 @@
 "use client";
 
 import type React from "react";
-import { useEffect, useRef, useState } from "react";
-import { FileText, Pencil, Plus, Save, Trash, Upload, X } from "lucide-react";
-import type { WebViewerInstance } from "@pdftron/webviewer";
+import { useEffect, useState } from "react";
+import {
+  FileText,
+  Upload,
+  X,
+  ImageIcon,
+  FolderOpen,
+  Clock,
+  CheckCircle2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Progress } from "@/components/ui/progress";
+import { DocumentTypeManager } from "./documentTypeManager";
+import { MetadataForm } from "./metadataForm";
 import {
   type IDocumentType,
   type IDocumentTypeForm,
   deleteDocumentType,
   getDocumentTypes,
   updateDocumentType,
+  createDocumentType,
 } from "./api";
 import { useToast } from "@/hooks/use-toast";
 import { bulkFileUpload, getFolders } from "../files/api";
 import { FileQueue } from "../FileQueue";
-import { Typography } from "@mui/joy";
-import { DocumentTypeCreation } from "./DocumentTypes";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = [
@@ -47,42 +48,32 @@ const ALLOWED_TYPES = [
   ".xlsx",
 ];
 
-interface QueueProps {
-  items: { file: File; documentType: string; metadata: Record<string, any> }[];
-  onRemove: (index: number) => void;
+export interface DirectoryData {
+  folderID: number;
+  id?: number;
+  name: string;
+  parentFolderID: number;
+  documentTypeID?: number;
+  createdDate?: string;
+  lastModifiedDateTime?: string;
+  lastModifiedBy?: number;
+  createdBy?: number;
+  files?: any[];
 }
 
 interface FolderOption {
-  id: number;
+  folderID: number;
   name: string;
   level: number;
+  fullPath: string;
 }
 
-const Queue: React.FC<QueueProps> = ({ items, onRemove }) => {
-  return (
-    <div className="mt-4 border border-gray-200 rounded-md p-4">
-      <h3 className="text-lg font-semibold mb-2">Queued Files</h3>
-      <ul className="space-y-2">
-        {items.map((item, index) => (
-          <li
-            key={index}
-            className="flex items-center justify-between bg-gray-50 p-2 rounded-md"
-          >
-            <div className="flex items-center">
-              <FileText className="mr-2 h-4 w-4" />
-              <span>
-                {item.file.name} - {item.documentType}
-              </span>
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => onRemove(index)}>
-              <X className="h-4 w-4" />
-            </Button>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-};
+interface QueueItem {
+  file: File;
+  documentType: string;
+  metadata: Record<string, any>;
+  status: "pending" | "uploading" | "completed" | "error";
+}
 
 interface FileUploadDialogProps {
   open: boolean;
@@ -96,150 +87,103 @@ interface FileUploadDialogProps {
   folderID?: number | null;
 }
 
-interface FileNode {
-  [x: string]: any;
-  id: string;
-  label: string;
-  type: "file" | "folder";
-  metadata?: {
-    mimeType?: string;
-    uploadStatus?: string;
-    [key: string]: any;
-  };
-  children?: FileNode[];
-  folderID?: number;
-  fileId?: number;
-  parentFolderID?: number;
-  searchMatches?: SearchMatchInfo;
-}
-
-interface SearchMatchInfo {
-  label: boolean;
-  metadata: boolean;
-}
-
 export default function FileUploadDialog({
   open,
   onClose,
   onUpload,
   folderID: initialFolderID,
 }: FileUploadDialogProps) {
+  const { toast } = useToast();
+
+  const [documentTypes, setDocumentTypes] = useState<IDocumentType[]>([]);
+  const [folderOptions, setFolderOptions] = useState<FolderOption[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [previewURL, setPreviewURL] = useState<string | null>(null);
-  const [documentTypes, setDocumentTypes] = useState<IDocumentType[]>([]);
   const [selectedDocType, setSelectedDocType] = useState<IDocumentType | null>(
     null,
   );
-  const [metadata, setMetadata] = useState<Record<string, string>>({});
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [metadata, setMetadata] = useState<Record<string, any>>({});
   const [error, setError] = useState<string | null>(null);
-  const [showDocTypeDialog, setShowDocTypeDialog] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editingDocType, setEditingDocType] = useState<IDocumentType | null>(
-    null,
-  );
-  const [editedName, setEditedName] = useState("");
-  const viewerRef = useRef<HTMLDivElement>(null);
-  const webViewerInstance = useRef<WebViewerInstance | null>(null);
-  const [isViewerLoaded, setIsViewerLoaded] = useState(false);
-  const [currentDoc, setCurrentDoc] = useState<any>(null);
-  const [queue, setQueue] = useState<FileQueue>(new FileQueue());
-  const [isQueueMode, setIsQueueMode] = useState(false);
-  const [showUploadPrompt, setShowUploadPrompt] = useState(false);
-  const [hasLoadedBefore, setHasLoadedBefore] = useState(false);
-  const [folderOptions, setFolderOptions] = useState<FolderOption[]>([]);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(
     initialFolderID || null,
   );
-
-  const { toast } = useToast();
+  const [isQueueMode, setIsQueueMode] = useState(false);
+  const [queue, setQueue] = useState<QueueItem[]>([]);
+  const [dragActive, setDragActive] = useState(false);
 
   useEffect(() => {
     setSelectedFolderId(initialFolderID || null);
   }, [initialFolderID]);
 
-  const fetchFolders = async () => {
-    try {
-      console.log("Fetching folders...");
-      const foldersResponse = await getFolders(); // Fetch folder data from API
-      console.log("Fetched folders:", foldersResponse); // ✅ Check API response
-
-      if (!Array.isArray(foldersResponse)) {
-        console.error("Invalid folder response:", foldersResponse);
-        return;
-      }
-
-      // Ensure folderID and name exist
-      const buildFolderOptions = (
-        nodes: any[],
-        level: number = 0,
-      ): FolderOption[] => {
-        let options: FolderOption[] = [];
-        for (const node of nodes) {
-          if (node.folderID && node.name) {
-            // ✅ Ensure valid folder data
-            options.push({
-              id: node.folderID,
-              name: node.name,
-              level: level,
-            });
-            if (node.children && Array.isArray(node.children)) {
-              options = [
-                ...options,
-                ...buildFolderOptions(node.children, level + 1),
-              ];
-            }
-          }
-        }
-        return options;
-      };
-
-      const folderHierarchy = buildFolderOptions(foldersResponse);
-      console.log("Processed folder options:", folderHierarchy); // ✅ Log processed folders
-
-      setFolderOptions(folderHierarchy); // ✅ Store structured folders in state
-    } catch (error) {
-      console.error("Error fetching folders:", error);
-    }
-  };
-
-  // Ensure fetchFolders runs when the dialog opens
-  useEffect(() => {
-    if (open) {
-      fetchFolders();
-    }
-  }, [open]);
-
-  useEffect(() => {
-    fetchDocumentTypes();
-  }, []);
-
-  useEffect(() => {
-    if (open) {
-      setIsViewerLoaded(false);
-      webViewerInstance.current = null;
-      if (viewerRef.current) {
-        viewerRef.current.innerHTML = "";
-      }
-    }
-  }, [open]);
-
   useEffect(() => {
     if (selectedDocType) {
-      setMetadata(
-        selectedDocType.metadata.reduce(
-          (acc, field) => ({
-            ...acc,
-            [field.name]: field.type === "select" ? "" : field.value || "",
-          }),
-          {},
-        ),
-      );
+      // Initialize metadata with default values from the document type
+      const initialMetadata: Record<string, any> = {};
+      selectedDocType.metadata.forEach((field) => {
+        initialMetadata[field.name] = field.value || "";
+      });
+      setMetadata(initialMetadata);
     } else {
       setMetadata({});
     }
   }, [selectedDocType]);
+
+  const buildFolderHierarchy = (folders: DirectoryData[]): FolderOption[] => {
+    const folderMap = new Map<number, DirectoryData>();
+    folders.forEach((folder) => folderMap.set(folder.folderID, folder));
+
+    const buildPath = (
+      folderId: number,
+      visited = new Set<number>(),
+    ): string => {
+      if (visited.has(folderId)) return "";
+      visited.add(folderId);
+
+      const folder = folderMap.get(folderId);
+      if (!folder) return "";
+
+      if (folder.parentFolderID === 0) return folder.name;
+
+      const parentPath = buildPath(folder.parentFolderID, visited);
+      return parentPath ? `${parentPath} / ${folder.name}` : folder.name;
+    };
+
+    const buildHierarchy = (parentId: number, level = 0): FolderOption[] => {
+      const children = folders.filter(
+        (folder) => folder.parentFolderID === parentId,
+      );
+      const result: FolderOption[] = [];
+
+      children.forEach((folder) => {
+        const fullPath = buildPath(folder.folderID);
+        result.push({
+          folderID: folder.folderID,
+          name: folder.name,
+          level,
+          fullPath,
+        });
+        result.push(...buildHierarchy(folder.folderID, level + 1));
+      });
+
+      return result;
+    };
+
+    return buildHierarchy(0);
+  };
+
+  const fetchFolders = async () => {
+    try {
+      const foldersResponse = await getFolders();
+      if (Array.isArray(foldersResponse)) {
+        const folderHierarchy = buildFolderHierarchy(foldersResponse);
+        setFolderOptions(folderHierarchy);
+      }
+    } catch (error) {
+      console.error("Error fetching folders:", error);
+    }
+  };
 
   const fetchDocumentTypes = async () => {
     try {
@@ -250,45 +194,31 @@ export default function FileUploadDialog({
     }
   };
 
-  const loadWebViewer = async () => {
-    if (!viewerRef.current) return;
+  useEffect(() => {
+    fetchDocumentTypes();
+  }, []);
 
-    // If an instance exists, destroy it first
-    if (webViewerInstance.current) {
-      webViewerInstance.current.UI.dispose(); // Properly clean up the instance
-      webViewerInstance.current = null;
-      setIsViewerLoaded(false);
+  useEffect(() => {
+    if (open) {
+      fetchFolders();
     }
+  }, [open]);
 
+  const handleCreateDocumentType = async (docType: IDocumentTypeForm) => {
     try {
-      const viewer = await import("@pdftron/webviewer");
-      const instance = await (window as any).WebViewer(
-        {
-          path: "/lib",
-          enableOfficeEditing: true,
-          enableFilePicker: true,
-          enableMultipleViewerMerging: true,
-          apiKey:
-            "demo:1738607170548:616f59ff03000000007a9bceb1ad873e0fd71f2b4fb84257cc6dd11033",
-        },
-        viewerRef.current,
-      );
-
-      webViewerInstance.current = instance;
-      setIsViewerLoaded(true);
-      setHasLoadedBefore(true);
-
-      instance.UI.addEventListener("documentLoaded", async () => {
-        const doc = instance.Core.documentViewer.getDocument();
-        const filename = await doc.getFilename();
-        setCurrentDoc({ filename, doc });
-      });
-
-      instance.UI.addEventListener("documentUnloaded", () => {
-        setCurrentDoc(null);
+      const newDocType = await createDocumentType(docType);
+      setDocumentTypes((prev) => [...prev, newDocType]);
+      toast({
+        title: "Success",
+        description: "Document type created successfully",
+        className: "bg-green-500 text-white",
       });
     } catch (error) {
-      console.error("Error loading WebViewer:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to create document type",
+      });
     }
   };
 
@@ -310,12 +240,11 @@ export default function FileUploadDialog({
       }
 
       const updatedDocTypeData: IDocumentTypeForm = {
-        ...originalDocType,
-        ...updatedFields,
+        name: updatedFields.name || originalDocType.name,
+        metadata: updatedFields.metadata || originalDocType.metadata,
       };
 
       const updatedDocType = await updateDocumentType(id, updatedDocTypeData);
-
       setDocumentTypes((prev) =>
         prev.map((docType) =>
           docType.id === id ? { ...docType, ...updatedDocType } : docType,
@@ -326,21 +255,16 @@ export default function FileUploadDialog({
         setSelectedDocType({ ...selectedDocType, ...updatedDocType });
       }
 
-      setEditingDocType(null);
-      setEditedName("");
-      setEditDialogOpen(false);
-
       toast({
         title: "Success",
         description: "Document type updated successfully",
         className: "bg-green-500 text-white",
       });
     } catch (error) {
-      console.error("Failed to update document type:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to update document type. Please try again.",
+        description: "Failed to update document type",
       });
     }
   };
@@ -348,29 +272,23 @@ export default function FileUploadDialog({
   const handleDeleteDocumentType = async (id: number) => {
     try {
       await deleteDocumentType(id);
-
       setDocumentTypes((prev) => prev.filter((docType) => docType.id !== id));
-
       if (selectedDocType?.id === id) {
         setSelectedDocType(null);
       }
-
       toast({
         title: "Success",
         description: "Document type deleted successfully",
         className: "bg-green-500 text-white",
       });
     } catch (error) {
-      console.error("Failed to delete document type:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to delete document type. Please try again.",
+        description: "Failed to delete document type",
       });
     }
   };
-
-  // Removed handleFileChange function
 
   const validateFile = (file: File): boolean => {
     setError(null);
@@ -388,139 +306,71 @@ export default function FileUploadDialog({
     return true;
   };
 
-  const handleMetadataChange = (key: string, value: string) => {
+  const handleFileChange = (selectedFile: File) => {
+    if (!validateFile(selectedFile)) return;
+
+    setFile(selectedFile);
+    const fileType = selectedFile.type;
+    if (fileType.startsWith("image/") || fileType === "application/pdf") {
+      const url = URL.createObjectURL(selectedFile);
+      setPreviewURL(url);
+    } else {
+      setPreviewURL(null);
+    }
+  };
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileChange(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleMetadataChange = (key: string, value: any) => {
     setMetadata((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleAddToQueue = async () => {
-    if (!webViewerInstance.current || !selectedDocType) {
+  const handleAddToQueue = () => {
+    if (!file || !selectedDocType) {
       setError(
-        "Please load a document and select a document type before adding to queue.",
+        "Please select a file and document type before adding to queue.",
       );
       return;
     }
 
-    const instance = webViewerInstance.current;
-    const documentViewer = instance.Core.documentViewer;
-    const doc = documentViewer.getDocument();
+    const queueItem: QueueItem = {
+      file,
+      documentType: selectedDocType.name,
+      metadata: { ...metadata },
+      status: "pending",
+    };
 
-    if (!doc) {
-      setError("No document loaded in WebViewer.");
-      return;
-    }
-
-    try {
-      const fileData = await doc.getFileData({});
-      const fileType = doc.getType() || "application/pdf";
-      const fileName = doc.getFilename();
-
-      const fileBlob = new Blob([fileData], { type: fileType });
-      const extractedFile = new File([fileBlob], fileName, {
-        type: fileType,
-      });
-
-      // Create new queue item with all necessary data
-      const queueItem = {
-        file: extractedFile,
-        documentType: selectedDocType.name,
-        documentName: fileName,
-        mimeType: fileType,
-        metadata: { ...metadata },
-      };
-
-      const newQueue = new FileQueue(queue.getItems());
-      newQueue.enqueue(queueItem);
-
-      setQueue(newQueue);
-      resetForm();
-
-      toast({
-        title: "Success",
-        description: "File added to queue",
-      });
-    } catch (error) {
-      console.error("Error adding file to queue:", error);
-      setError("Failed to add file to queue. Please try again.");
-    }
+    setQueue((prev) => [...prev, queueItem]);
+    resetForm();
+    toast({
+      title: "Added to Queue",
+      description: `${file.name} has been added to the upload queue`,
+    });
   };
 
   const handleUpload = async () => {
-    if (!webViewerInstance.current) {
-      setError("WebViewer is not initialized");
+    if (!file || !selectedDocType) {
+      setError("Please select a file and document type.");
       return;
     }
-
-    console.log(
-      "🚀 Uploading to folder ID (Before API Call):",
-      selectedFolderId,
-    );
-
-    if (selectedFolderId === null || selectedFolderId === undefined) {
-      setError("Please select a valid destination folder.");
-      return;
-    }
-
-    const instance = webViewerInstance.current;
-    const documentViewer = instance.Core.documentViewer;
-    const currentDoc = documentViewer.getDocument();
-
-    if (!currentDoc) {
-      setError("No document loaded in WebViewer");
-      return;
-    }
-
-    try {
-      const fileExtension = currentDoc
-        .getFilename()
-        .split(".")
-        .pop()
-        ?.toLowerCase();
-      let mimeType = getMimeTypeFromExtension(fileExtension); // Use a helper function to get MIME type
-      const fileName = currentDoc.getFilename();
-
-      const fileData = await currentDoc.getFileData({});
-      const fileBlob = new Blob([fileData], { type: mimeType });
-      const file = new File([fileBlob], fileName, { type: mimeType });
-
-      // Set the MIME type to 'pdf' in the metadata
-      const uploadMetadata = {
-        ...metadata,
-        mimeType: "pdf", // Change this line to set the MIME type to 'pdf'
-      };
-
-      console.log("📤 Sending file:", file.name);
-      console.log("✅ MIME Type:", file.type);
-      console.log("✅ Confirming folder ID being sent:", selectedFolderId);
-
-      // Pass `uploadMetadata` correctly to `onUpload`
-      await onUpload(
-        file,
-        selectedDocType?.name || "Unknown",
-        uploadMetadata,
-        selectedFolderId,
-      );
-
-      // Reset form and close dialog after successful upload
-      setFile(null);
-      setPreviewURL(null);
-      setSelectedDocType(null);
-      setMetadata({});
-      setUploadProgress(100);
-      onClose();
-    } catch (error) {
-      console.error("❌ Error during upload:", error);
-      setError("Failed to upload file. Please try again.");
-    }
-  };
-
-  const handleUploadAll = async () => {
-    if (queue.isEmpty()) {
-      setError("No files in queue.");
-      return;
-    }
-
-    console.log("BulkUpload - Selected Folder ID:", selectedFolderId);
-    console.log("BulkUpload - Folder ID type:", typeof selectedFolderId);
 
     if (selectedFolderId === null || selectedFolderId === undefined) {
       setError("Please select a valid destination folder.");
@@ -528,44 +378,76 @@ export default function FileUploadDialog({
     }
 
     setIsUploading(true);
-    setError(null);
+    setUploadProgress(0);
 
     try {
-      // Create an array of files and corresponding data
-      const files = queue.getItems().map((item) => item.file);
-      const fileData = queue.getItems().map((item) => ({
-        documentType: item.documentType,
-        metadata: item.metadata,
-        filename: item.file.name,
-      }));
+      // Simulate upload progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 200);
 
-      // Create FormData
-      const formData = new FormData();
-      files.forEach((file, index) => {
-        formData.append("files", file);
+      await onUpload(file, selectedDocType.name, metadata, selectedFolderId);
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      setTimeout(() => {
+        resetForm();
+        onClose();
+      }, 500);
+    } catch (error) {
+      console.error("Upload error:", error);
+      setError("Failed to upload file. Please try again.");
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  const handleUploadAll = async () => {
+    if (queue.length === 0) {
+      setError("No files in queue.");
+      return;
+    }
+
+    if (selectedFolderId === null || selectedFolderId === undefined) {
+      setError("Please select a valid destination folder.");
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const fileQueue = new FileQueue();
+      queue.forEach((item) => {
+        fileQueue.enqueue({
+          file: item.file,
+          documentType: item.documentType,
+          documentName: item.file.name,
+          mimeType: item.file.type,
+          metadata: item.metadata,
+        });
       });
-      formData.append("fileData", JSON.stringify(fileData));
 
-      // Pass the selected folder ID to the upload function
-      await bulkFileUpload(queue, selectedFolderId);
+      await bulkFileUpload(fileQueue, selectedFolderId);
 
       toast({
-        title: "Success",
-        description: `Successfully uploaded ${queue.getItems().length} files`,
+        title: "Upload Complete",
+        description: `Successfully uploaded ${queue.length} files`,
         className: "bg-green-500 text-white",
       });
 
-      setQueue(new FileQueue());
+      setQueue([]);
       resetForm();
       onClose();
     } catch (error: any) {
-      console.error("Upload error:", error);
+      console.error("Bulk upload error:", error);
       setError(error.message || "Failed to upload files");
-      toast({
-        variant: "destructive",
-        title: "Upload Failed",
-        description: error.message || "Failed to upload files",
-      });
     } finally {
       setIsUploading(false);
     }
@@ -573,425 +455,355 @@ export default function FileUploadDialog({
 
   const resetForm = () => {
     setFile(null);
-    setSelectedDocType(null);
+    setPreviewURL(null);
     setMetadata({});
     setError(null);
-    if (viewerRef.current) {
-      viewerRef.current.innerHTML = "";
-    }
-    setIsViewerLoaded(false);
   };
 
   const handleClose = () => {
     resetForm();
-    setIsViewerLoaded(false);
-
-    // Properly dispose of WebViewer when closing
-    if (webViewerInstance.current) {
-      webViewerInstance.current.UI.dispose();
-      webViewerInstance.current = null;
-    }
-
+    setQueue([]);
+    setSelectedDocType(null);
     onClose();
   };
 
-  const handleCreateNewDocType = (newDocType: IDocumentType) => {
-    setDocumentTypes((prev) => [...prev, newDocType]);
-    setSelectedDocType(newDocType);
-    setShowDocTypeDialog(false);
+  const removeFromQueue = (index: number) => {
+    setQueue((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleFileSelection = () => {
-    if (webViewerInstance.current && selectedDocType) {
-      if (isQueueMode) {
-        handleAddToQueue(); // ✅ Correctly adds file to queue
-      } else {
-        setShowUploadPrompt(true);
-      }
-    } else {
-      setError(
-        "Please load a document and select a document type before uploading.",
-      );
+  const getFileIcon = (file: File) => {
+    if (file.type.startsWith("image/"))
+      return <ImageIcon className="h-5 w-5 text-blue-500" />;
+    return <FileText className="h-5 w-5 text-green-500" />;
+  };
+
+  const getStatusIcon = (status: QueueItem["status"]) => {
+    switch (status) {
+      case "pending":
+        return <Clock className="h-4 w-4 text-yellow-500" />;
+      case "uploading":
+        return <Upload className="h-4 w-4 text-blue-500" />;
+      case "completed":
+        return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+      case "error":
+        return <X className="h-4 w-4 text-red-500" />;
     }
-  };
-
-  // Helper function to get MIME type from file extension
-  const getMimeTypeFromExtension = (extension: string | undefined): string => {
-    const mimeTypes: Record<string, string> = {
-      pdf: "application/pdf",
-      doc: "application/msword",
-      docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      txt: "text/plain",
-      jpg: "image/jpeg",
-      jpeg: "image/jpeg",
-      png: "image/png",
-      // Add more mappings as needed
-    };
-    return mimeTypes[extension || ""] || "application/octet-stream"; // Fallback to a generic binary type
   };
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-7xl p-0 max-h-[180vh] overflow-hidden flex flex-col bg-opacity-100 bg-white rounded-lg shadow-lg">
-        <DialogHeader className="px-6 pt-6">
-          <DialogTitle className="text-lg font-semibold">
-            Document Upload & Preview
+      <DialogContent className="max-w-7xl max-h-[95vh] overflow-hidden flex flex-col">
+        <DialogHeader className="border-b pb-4">
+          <DialogTitle className="text-xl font-semibold flex items-center gap-2">
+            <Upload className="h-5 w-5" />
+            Document Upload & Management
           </DialogTitle>
         </DialogHeader>
 
-        <div className="px-6 mt-4">
-          <Typography level="body-sm" sx={{ mb: 1 }}>
-            Select Destination Folder
-          </Typography>
-          <div style={{ position: "relative", overflow: "hidden" }}>
-            <select
-              value={selectedFolderId || ""}
-              onChange={(e) => {
-                const newFolderId = Number(e.target.value);
-                console.log("Folder selected:", {
-                  id: newFolderId,
-                  value: e.target.value,
-                  type: typeof newFolderId,
-                });
-                setSelectedFolderId(newFolderId);
-              }}
-              style={{
-                width: "100%",
-                padding: "8px",
-                borderRadius: "4px",
-                border: "1px solid #e0e0e0",
-                backgroundColor: "#ffffff",
-                color: "#333333",
-                fontSize: "14px",
-                outline: "none",
-                cursor: "pointer",
-                boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-                transition: "border-color 0.2s ease",
-                position: "relative",
-                zIndex: 10,
-              }}
-              onMouseOver={(e) =>
-                (e.currentTarget.style.borderColor = "#bdbdbd")
-              }
-              onMouseOut={(e) =>
-                (e.currentTarget.style.borderColor = "#e0e0e0")
-              }
-            >
-              <option value="">Select a folder</option>
-              <option value="0">Root</option>
-              {folderOptions.length > 0 ? (
-                folderOptions.map((folder) => (
-                  <option
-                    key={folder.id}
-                    value={folder.id}
-                    style={{
-                      paddingLeft: `${folder.level * 20}px`,
-                      backgroundColor:
-                        folder.level % 2 === 0 ? "#ffffff" : "#fafafa",
-                    }}
-                  >
-                    {"└─".repeat(folder.level)} {folder.name}
-                  </option>
-                ))
-              ) : (
-                <option disabled>No folders found (Check console logs)</option>
-              )}
-            </select>
-          </div>
-        </div>
-
-        <div className="flex gap-6">
-          {/* File Upload Section */}
-
-          <div className="flex flex-col md:w-2/3 bg-gray-50 border p-4 rounded-lg shadow-sm relative min-h-[400px]">
-            {!isViewerLoaded && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center h-full bg-white">
-                <Upload className="h-12 w-12 text-gray-400" />
-                <Button
-                  className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 mt-4"
-                  onClick={loadWebViewer}
+        <div className="flex gap-6 flex-1 overflow-hidden">
+          {/* Left Panel - File Upload */}
+          <div className="flex-1 space-y-4 overflow-y-auto">
+            {/* Folder Selection */}
+            <Card className="border-l-4 border-l-blue-500">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <FolderOpen className="h-4 w-4" />
+                  Destination Folder
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <select
+                  value={selectedFolderId?.toString() || ""}
+                  onChange={(e) => setSelectedFolderId(Number(e.target.value))}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  {hasLoadedBefore
-                    ? "Reload Document Viewer"
-                    : "Load Document Viewer"}
-                </Button>
-              </div>
-            )}
+                  <option value="0">📁 Root Directory</option>
+                  {folderOptions.map((folder) => (
+                    <option
+                      key={folder.folderID}
+                      value={folder.folderID.toString()}
+                    >
+                      {"📁 " + "  ".repeat(folder.level) + folder.name}
+                    </option>
+                  ))}
+                </select>
+                {selectedFolderId && selectedFolderId > 0 && (
+                  <div className="mt-2 text-xs text-gray-500 bg-gray-50 p-2 rounded">
+                    <strong>Path:</strong>{" "}
+                    {folderOptions.find((f) => f.folderID === selectedFolderId)
+                      ?.fullPath || "Unknown"}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-            <div
-              ref={viewerRef}
-              className={`w-full h-[400px] border border-gray-300 rounded-md bg-white overflow-hidden ${
-                isViewerLoaded ? "block" : "hidden"
-              }`}
-            />
-            {isViewerLoaded && (
-              <Button
-                className="mt-4 px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                onClick={() => {
-                  setIsViewerLoaded(false);
-                  webViewerInstance.current = null;
-                  if (viewerRef.current) {
-                    viewerRef.current.innerHTML = "";
-                  }
-                  loadWebViewer();
-                }}
-              >
-                Reload Document Viewer
-              </Button>
-            )}
-          </div>
-
-          {/* Metadata Section */}
-          <Card className="shadow-md flex-grow basis-1/3 overflow-y-auto max-h-[500px]">
-            <CardContent className="p-6 space-y-6">
-              <div className="flex items-center mb-4">
-                <Label htmlFor="queueMode" className="mr-2">
-                  Queue Mode
-                </Label>
-                <input
-                  type="checkbox"
-                  id="queueMode"
-                  checked={isQueueMode}
-                  onChange={(e) => setIsQueueMode(e.target.checked)}
-                />
-              </div>
-
-              <div>
-                <Label>Document Type</Label>
-                <div className="flex gap-2 items-center">
-                  <Select
-                    value={selectedDocType?.id.toString()}
-                    onValueChange={(value) => {
-                      const docType = documentTypes.find(
-                        (dt) => dt.id.toString() === value,
-                      );
-                      setSelectedDocType(docType || null);
-                    }}
-                  >
-                    <SelectTrigger className="bg-white border-gray-300 rounded-md">
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white rounded-md">
-                      <div className="max-h-[200px] overflow-y-auto">
-                        {documentTypes.map((type) => (
-                          <div
-                            key={type.id}
-                            className="flex items-center justify-between p-2"
-                          >
-                            <SelectItem value={type.id.toString()}>
-                              {type.name}
-                            </SelectItem>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setEditingDocType(type);
-                                  setEditedName(type.name);
-                                  setEditDialogOpen(true);
-                                }}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteDocumentType(type.id);
-                                }}
-                              >
-                                <Trash className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
+            {/* File Drop Zone */}
+            <Card className="flex-1">
+              <CardContent className="p-6">
+                <div
+                  className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 ${
+                    dragActive
+                      ? "border-blue-500 bg-blue-50 scale-105"
+                      : "border-gray-300 hover:border-gray-400 hover:bg-gray-50"
+                  }`}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                >
+                  {!file ? (
+                    <div className="space-y-4">
+                      <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                        <Upload className="h-8 w-8 text-blue-500" />
                       </div>
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    onClick={() => setShowDocTypeDialog(!showDocTypeDialog)}
-                  >
-                    <Plus />
-                  </Button>
-                </div>
-              </div>
-
-              {/* Edit Document Type Dialog */}
-              <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-                <DialogContent className="sm:max-w-[425px]">
-                  <DialogHeader>
-                    <DialogTitle>Edit Document Type</DialogTitle>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="name">Name</Label>
-                      <Input
-                        id="name"
-                        value={editedName}
-                        onChange={(e) => setEditedName(e.target.value)}
-                        placeholder="Enter document type name"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex justify-end gap-4">
-                    <Button
-                      variant="outline"
-                      onClick={() => setEditDialogOpen(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        if (editingDocType) {
-                          handleUpdateDocumentType(editingDocType.id, {
-                            ...editingDocType,
-                            name: editedName,
-                          });
-                          setEditDialogOpen(false);
+                      <div>
+                        <p className="text-lg font-medium text-gray-900">
+                          Drop files here or click to upload
+                        </p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          Supports PDF, DOC, DOCX, TXT, JPG, PNG • Max 10MB
+                        </p>
+                      </div>
+                      <input
+                        type="file"
+                        className="hidden"
+                        id="file-upload"
+                        accept={ALLOWED_TYPES.join(",")}
+                        onChange={(e) =>
+                          e.target.files?.[0] &&
+                          handleFileChange(e.target.files[0])
                         }
-                      }}
-                    >
-                      Save Changes
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-              {/* DocumentTypeCreation */}
-              {showDocTypeDialog && (
-                <div className="mt-4 p-4 border border-gray-200 rounded-md">
-                  <DocumentTypeCreation
-                    onCreate={(newDocType) => {
-                      handleCreateNewDocType(newDocType);
-                      setShowDocTypeDialog(false);
-                    }}
-                    onCancel={() => setShowDocTypeDialog(false)}
-                  />
-                </div>
-              )}
-
-              {/* Metadata Fields */}
-              {selectedDocType?.metadata.map((field) => (
-                <div key={field.name} className="space-y-2">
-                  <Label className="text-sm font-semibold">{field.name}</Label>
-                  {field.type === "select" ? (
-                    <Select
-                      value={metadata[field.name] || ""}
-                      onValueChange={(value) =>
-                        handleMetadataChange(field.name, value)
-                      }
-                    >
-                      <SelectTrigger className="bg-white border-gray-300 rounded-md h-12">
-                        <SelectValue placeholder={`Select ${field.name}`} />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white rounded-md">
-                        {field.options?.map((option: string) => (
-                          <SelectItem key={option} value={option}>
-                            {option}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      />
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        onClick={() =>
+                          document.getElementById("file-upload")?.click()
+                        }
+                        className="border-2 border-dashed border-blue-300 hover:border-blue-500"
+                      >
+                        Choose File
+                      </Button>
+                    </div>
                   ) : (
-                    <Input
-                      className="bg-gray-50 border border-gray-300 rounded-md text-lg h-12 px-4 focus:ring-2 focus:ring-blue-500"
-                      placeholder={`Enter value for ${field.name}`}
-                      value={metadata[field.name] || ""}
-                      onChange={(e) =>
-                        handleMetadataChange(field.name, e.target.value)
-                      }
-                    />
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-center gap-3">
+                        {getFileIcon(file)}
+                        <div className="text-left">
+                          <p className="font-medium text-gray-900">
+                            {file.name}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {(file.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setFile(null);
+                            setPreviewURL(null);
+                          }}
+                          className="ml-auto"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      {/* File Preview */}
+                      {previewURL && (
+                        <div className="mt-4 border rounded-lg overflow-hidden bg-white">
+                          {file.type.startsWith("image/") ? (
+                            <img
+                              src={previewURL || "/placeholder.svg"}
+                              alt="Preview"
+                              className="max-w-full max-h-64 object-contain mx-auto"
+                            />
+                          ) : file.type === "application/pdf" ? (
+                            <iframe
+                              src={previewURL}
+                              className="w-full h-64"
+                              title="PDF Preview"
+                            />
+                          ) : null}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
-              ))}
 
-              {isQueueMode && (
-                <Queue
-                  items={queue.getItems()}
-                  onRemove={(index) => {
-                    queue.removeAt(index);
-                    setQueue(new FileQueue(queue.getItems())); // Trigger re-render
-                  }}
-                />
-              )}
+                {/* Upload Progress */}
+                {isUploading && (
+                  <div className="mt-4 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Uploading...</span>
+                      <span>{uploadProgress}%</span>
+                    </div>
+                    <Progress value={uploadProgress} className="h-2" />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
-              <div className="flex justify-end gap-4">
-                <Button variant="outline" onClick={handleClose}>
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleFileSelection}
-                  disabled={!webViewerInstance.current || !selectedDocType}
-                  className={`${
-                    !webViewerInstance.current || !selectedDocType
-                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                      : "bg-blue-600 text-white hover:bg-blue-700"
-                  }`}
-                >
-                  <Save className="mr-2 h-4 w-4" />
-                  {isQueueMode ? "Add to Queue" : "Upload"}
-                </Button>
-                {isQueueMode && (
+          {/* Right Panel - Document Management */}
+          <div className="w-96 space-y-4 overflow-y-auto">
+            {/* Queue Mode Toggle */}
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Batch Upload Mode</p>
+                    <p className="text-xs text-gray-500">
+                      Queue multiple files before uploading
+                    </p>
+                  </div>
+                  <Switch
+                    checked={isQueueMode}
+                    onCheckedChange={setIsQueueMode}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Document Type Management */}
+            <DocumentTypeManager
+              documentTypes={documentTypes}
+              onCreateDocumentType={handleCreateDocumentType}
+              onUpdateDocumentType={handleUpdateDocumentType}
+              onDeleteDocumentType={handleDeleteDocumentType}
+              selectedDocType={selectedDocType}
+              onSelectDocumentType={setSelectedDocType}
+            />
+
+            {/* Metadata Form */}
+            {selectedDocType && (
+              <MetadataForm
+                fields={selectedDocType.metadata || []}
+                values={metadata}
+                onChange={handleMetadataChange}
+              />
+            )}
+
+            {/* Queue Display */}
+            {isQueueMode && queue.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    Upload Queue ({queue.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0 space-y-2 max-h-40 overflow-y-auto">
+                  {queue.map((item, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+                    >
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        {getFileIcon(item.file)}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">
+                            {item.file.name}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              {item.documentType}
+                            </Badge>
+                            {getStatusIcon(item.status)}
+                          </div>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeFromQueue(index)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Error Display */}
+            {error && (
+              <Card className="border-red-200 bg-red-50">
+                <CardContent className="p-4">
+                  <p className="text-sm text-red-600 flex items-center gap-2">
+                    <X className="h-4 w-4" />
+                    {error}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Action Buttons */}
+            <div className="space-y-3 pt-4 border-t">
+              {isQueueMode ? (
+                <>
+                  <Button
+                    onClick={handleAddToQueue}
+                    disabled={!file || !selectedDocType}
+                    className="w-full"
+                    size="lg"
+                  >
+                    Add to Queue
+                  </Button>
                   <Button
                     onClick={handleUploadAll}
-                    disabled={queue.isEmpty() || isUploading}
-                    className={`${
-                      queue.isEmpty() || isUploading
-                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                        : "bg-green-600 text-white hover:bg-green-700"
-                    }`}
+                    disabled={queue.length === 0 || isUploading}
+                    className="w-full"
+                    size="lg"
+                    variant="default"
                   >
                     {isUploading ? (
                       <>
-                        <div className="animate-spin mr-2">⌛</div>
+                        <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
                         Uploading...
                       </>
                     ) : (
                       <>
                         <Upload className="mr-2 h-4 w-4" />
-                        Upload All ({queue.getItems().length})
+                        Upload All ({queue.length})
                       </>
                     )}
                   </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                </>
+              ) : (
+                <Button
+                  onClick={handleUpload}
+                  disabled={!file || !selectedDocType || isUploading}
+                  className="w-full"
+                  size="lg"
+                >
+                  {isUploading ? (
+                    <>
+                      <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="mr-2 h-4 w-4" />
+                      Upload File
+                    </>
+                  )}
+                </Button>
+              )}
+
+              <Button
+                variant="outline"
+                onClick={handleClose}
+                className="w-full bg-transparent"
+                size="lg"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
         </div>
       </DialogContent>
-
-      {/* Upload Prompt Dialog */}
-      <Dialog open={showUploadPrompt} onOpenChange={setShowUploadPrompt}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Upload File</DialogTitle>
-          </DialogHeader>
-          <p>Are you sure you want to upload this file?</p>
-          <div className="flex justify-end gap-4 mt-4">
-            <Button
-              variant="outline"
-              onClick={() => setShowUploadPrompt(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                setShowUploadPrompt(false);
-                handleUpload();
-              }}
-            >
-              Upload
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </Dialog>
   );
-}
-
-function setFolderOptions(folderHierarchy: FolderOption[]) {
-  throw new Error("Function not implemented.");
 }

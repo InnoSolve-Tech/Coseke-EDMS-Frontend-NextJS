@@ -1,9 +1,8 @@
 "use client";
 
 import type React from "react";
-
 import { DocumentActions } from "@/components/file-view/document-actions";
-import { FileSidebar } from "@/components/file-view/file-sidebar";
+import { FileSidebar } from "@/components/fileView/file-sidebar";
 import {
   deleteFile,
   deleteMetadata,
@@ -21,7 +20,7 @@ import type { ColorPaletteProp } from "@mui/joy/styles";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { User } from "@/lib/types/user";
+import type { User } from "@/lib/types/user";
 
 interface MetadataItem {
   name: string;
@@ -35,8 +34,6 @@ interface Metadata {
 }
 
 interface Document {
-  comments: any;
-  version: React.ReactNode;
   id: number;
   folderID: number;
   filename: string;
@@ -50,6 +47,7 @@ interface Document {
   lastModifiedDateTime: string;
   lastModifiedBy: number;
   createdBy: number;
+  version?: React.ReactNode;
 }
 
 interface IDocumentType {
@@ -70,7 +68,7 @@ const FileViewPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [documentTypes, setDocumentTypes] = useState<IDocumentType[]>([]);
   const [currentDocTypeId, setCurrentDocTypeId] = useState<string | null>(null);
-  const [showSidebar, setShowSidebar] = useState(true); // Always show sidebar by default
+  const [showSidebar, setShowSidebar] = useState(true);
   const [user, setUser] = useState<User>();
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
@@ -92,7 +90,9 @@ const FileViewPage = () => {
         if (!user) {
           throw new Error("User not found in localStorage");
         }
+
         setUser(user);
+
         const res = await getFilesById(Number.parseInt(id as string));
         const response = await getFilesByHash(res.hashName);
 
@@ -102,8 +102,8 @@ const FileViewPage = () => {
             fileLink: URL.createObjectURL(
               new Blob([response], { type: res.mimeType }),
             ),
-            comments: res.comments || [], // Ensure comments is initialized
           };
+
           setDocument(fileData as unknown as Document);
         } else {
           throw new Error("No file found");
@@ -125,7 +125,6 @@ const FileViewPage = () => {
       try {
         const types = await getDocumentTypes();
         setDocumentTypes(types);
-
         // If document has a documentType already set, find and select it
         if (document && document.documentType) {
           const matchingType = types.find(
@@ -145,7 +144,6 @@ const FileViewPage = () => {
 
   // Ensure sidebar visibility is restored from localStorage
   useEffect(() => {
-    // Check if we have a stored preference for sidebar visibility
     const storedSidebarState = localStorage.getItem("document-sidebar-visible");
     if (storedSidebarState !== null) {
       setShowSidebar(storedSidebarState === "true");
@@ -175,9 +173,9 @@ const FileViewPage = () => {
 
     try {
       await deleteMetadata(document.id, [key]);
-
       const newMetadata = { ...document.metadata };
       delete newMetadata[key];
+
       setDocument({
         ...document,
         metadata: newMetadata,
@@ -224,7 +222,6 @@ const FileViewPage = () => {
 
     try {
       const blob = await getFilesByHash(document.hashName);
-
       if (!blob || !(blob instanceof Blob)) {
         throw new Error("Invalid file data");
       }
@@ -235,7 +232,6 @@ const FileViewPage = () => {
       link.style.display = "none";
       window.document.body.appendChild(link);
       link.click();
-
       window.document.body.removeChild(link);
       window.URL.revokeObjectURL(link.href);
     } catch (error) {
@@ -269,7 +265,7 @@ const FileViewPage = () => {
       setDocument(updatedDocument);
 
       try {
-        await updateFileWithDocumentType(document.id, docType.name); // 👈 persist
+        await updateFileWithDocumentType(document.id, docType.name);
       } catch (error) {
         console.error("Failed to update document type:", error);
       }
@@ -349,7 +345,7 @@ const FileViewPage = () => {
           variant="outline"
           size="sm"
           onClick={toggleSidebar}
-          className="rounded-l-md rounded-r-none border-r-0 h-8 px-2 shadow-md"
+          className="rounded-l-md rounded-r-none border-r-0 h-8 px-2 shadow-md bg-transparent"
         >
           {showSidebar ? (
             <ChevronRight className="h-4 w-4" />

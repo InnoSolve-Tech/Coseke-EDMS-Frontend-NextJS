@@ -144,29 +144,9 @@ function createTemporaryFileId(originalUrl: string, filename: string): string {
   return `temp_${hash}`;
 }
 
-function createTemporaryUrl(
-  originalUrl: string,
-  filename: string,
-  baseUrl: string,
-): string {
-  const tempId = createTemporaryFileId(originalUrl, filename);
-  const expirationTime = 2 * 60 * 60 * 1000; // 2 hours
-  const now = Date.now();
-
-  // Store the mapping
-  tempFileStore.set(tempId, {
-    originalUrl,
-    filename,
-    createdAt: now,
-    expiresAt: now + expirationTime,
-  });
-
-  // Create temporary URL that points to our proxy endpoint
-  return `/api/onlyoffice/proxy/${tempId}`;
-}
-
 function makeUrlAccessibleFromContainer(url: string): string {
   try {
+    console.log("Converting URL for container access:", url);
     const urlObj = new URL(url);
     if (urlObj.hostname === "localhost" || urlObj.hostname === "127.0.0.1") {
       if (process.env.NODE_ENV === "development") {
@@ -348,9 +328,8 @@ export default async function handler(
       req.headers["x-forwarded-host"] || req.headers.host || "localhost:3000";
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`;
 
-    // Create temporary URL for the document
-    const tempUrl = createTemporaryUrl(url, filename, baseUrl);
-    const accessibleTempUrl = makeUrlAccessibleFromContainer(tempUrl);
+    // Use original URL directly - make it accessible from OnlyOffice container
+    const accessibleUrl = makeUrlAccessibleFromContainer(url);
 
     const keySource = fileId || documentId;
     const documentKey = generateDocumentKey(keySource, filename);
@@ -364,7 +343,7 @@ export default async function handler(
         fileType: ext,
         key: documentKey,
         title: filename,
-        url: accessibleTempUrl, // Use temporary URL instead of original
+        url: accessibleUrl, // Use original URL directly
         permissions: {
           comment: mode === "edit",
           download: true,
@@ -395,7 +374,7 @@ export default async function handler(
           name: userName,
         },
         customization: {
-          autosave: true,
+          autosave: false,
           forcesave: false,
           compactToolbar: false,
           hideRightMenu: false,
@@ -420,8 +399,7 @@ export default async function handler(
       mode,
       documentType: config.documentType,
       originalUrl: url,
-      tempUrl,
-      accessibleTempUrl,
+      accessibleUrl, // This is what OnlyOffice will actually use
       callbackUrl,
       hasJwt: !!jwtToken,
     });
