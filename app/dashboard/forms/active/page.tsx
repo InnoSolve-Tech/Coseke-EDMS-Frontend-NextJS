@@ -1,6 +1,6 @@
 "use client";
 
-import { addDocument, DirectoryData, getFolders } from "@/components/files/api";
+import { addDocument, DirectoryData, getFolders } from "@/core/files/api";
 import FolderTreeSelector from "@/components/forms/Active/FolderTreeSelector";
 import RecordDetailsDialog from "@/components/forms/Active/RecordDetailsDialog";
 import { getUserFromSessionStorage } from "@/components/routes/sessionStorage";
@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/table";
 import { createFormRecord, getFormRecordByForm } from "@/core/formrecords/api";
 import { getAllForms } from "@/core/forms/api";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/core/hooks/use-toast";
 import type { FormRecord } from "@/lib/types/formRecords";
 import type { Form, FormField } from "@/lib/types/forms";
 import { FileData } from "@/types/file";

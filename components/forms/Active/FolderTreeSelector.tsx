@@ -9,7 +9,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { DirectoryData } from "@/components/files/api";
+import { DirectoryData } from "@/core/files/api";
 
 const FolderTreeSelector = ({
   folders,

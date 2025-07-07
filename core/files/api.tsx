@@ -1,9 +1,10 @@
 "use client";
 
 import axios from "axios";
-import { AxiosInstance } from "../routes/api";
-import { getTokenFromSessionStorage } from "../routes/sessionStorage";
-import { FileQueue } from "../FileQueue";
+import { AxiosInstance } from "../../components/routes/api";
+import { getTokenFromSessionStorage } from "../../components/routes/sessionStorage";
+import { FileQueue } from "../../components/FileQueue";
+import { FileData, FileVersions } from "@/types/file";
 
 const ENDPOINT_URL = "file-management/api/v1/files/";
 const VERSION_ENDPOINT = "file-management/api/versions";
@@ -48,28 +49,6 @@ type DocumentType = {
   name: string;
   metadata: Record<string, unknown>[];
 };
-
-type FileData = {
-  versions: any;
-  comments: never[];
-  id: number;
-  folderID: number;
-  filename: string;
-  documentType: string;
-  documentName: string;
-  hashName: string;
-  fileLink: string | null;
-  mimeType: string;
-  metadata: Metadata;
-  createdDate: string;
-  lastModifiedDateTime: string;
-  lastModifiedBy: number;
-  createdBy: number;
-};
-
-interface Metadata {
-  [key: string]: string | string[];
-}
 
 type ApiResponse<T> = {
   length: number;
@@ -179,6 +158,39 @@ export const addDocument = async (
     return res.data;
   } catch (error) {
     console.error("❌ Error uploading document:", error);
+  }
+};
+
+export const updateDocument = async (
+  file: File,
+  data: FileVersions,
+  fileId: number,
+): Promise<FileData | undefined> => {
+  // Create FormData object
+  let formData = new FormData();
+  console.log("📤 FileData:", data);
+  console.log("📂 FormData before sending:", formData);
+
+  formData.append(
+    "fileData",
+    new Blob([JSON.stringify(data)], { type: "application/json" }),
+  );
+  formData.append("file", file);
+
+  try {
+    let res = await axios.put(
+      `${process.env.NEXT_PUBLIC_FILES_URL}/${ENDPOINT_URL}`,
+      formData,
+      {
+        headers: {
+          "X-Proxy-Secret": "my-proxy-secret-key",
+          "Content-Type": "multipart/form-data",
+        },
+      },
+    );
+    return res.data;
+  } catch (error) {
+    console.error("❌ Error updating document:", error);
   }
 };
 

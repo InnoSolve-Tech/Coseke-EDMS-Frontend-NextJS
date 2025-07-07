@@ -11,6 +11,8 @@ import {
   Edit2,
   Check,
   X,
+  History,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,46 +25,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { MetadataForm } from "@/components/folder/metadataForm";
 import type { IDocumentType } from "@/components/folder/api";
-import { useToast } from "@/hooks/use-toast";
-
-interface MetadataItem {
-  name: string;
-  type: string;
-  value: string;
-  options?: any;
-}
-
-interface Metadata {
-  [key: string]: string | string[];
-}
-
-interface Document {
-  id: number;
-  folderID: number;
-  filename: string;
-  documentType: string;
-  documentName: string;
-  hashName: string;
-  fileLink: string | null;
-  mimeType: string;
-  metadata: Metadata;
-  createdDate: string;
-  lastModifiedDateTime: string;
-  lastModifiedBy: number;
-  createdBy: number;
-  version?: React.ReactNode;
-}
+import { useToast } from "@/core/hooks/use-toast";
+import { FileData, FileVersions } from "@/types/file";
 
 interface FileSidebarProps {
-  document: Document;
-  setDocument: (doc: Document) => void;
+  document: FileData;
+  setDocument: (doc: FileData) => void;
   documentTypes: IDocumentType[];
   setDocumentTypes: (types: IDocumentType[]) => void;
   handleMetadataChange: (key: string, value: string) => void;
   handleDeleteMetadata: (key: string) => void;
   handleSubmit: () => void;
+  handleChangeVersion?: (version: FileVersions) => void;
   currentDocTypeId: string | null;
   handleDocumentTypeChange: (value: string) => void;
 }
@@ -75,6 +56,7 @@ export function FileSidebar({
   handleMetadataChange,
   handleDeleteMetadata,
   handleSubmit,
+  handleChangeVersion,
   currentDocTypeId,
   handleDocumentTypeChange,
 }: FileSidebarProps) {
@@ -83,6 +65,22 @@ export function FileSidebar({
     null,
   );
   const [isEditingDocType, setIsEditingDocType] = useState(false);
+  const [selectedVersion, setSelectedVersion] = useState<FileVersions | null>(
+    null,
+  );
+  const [isVersionPopoverOpen, setIsVersionPopoverOpen] = useState(false);
+
+  // Sort versions by ID (newest first)
+  const sortedVersions =
+    document.fileVersions?.sort((a, b) => b.id - a.id) || [];
+  const currentVersion = sortedVersions[0];
+
+  // Initialize selected version
+  useEffect(() => {
+    if (currentVersion && !selectedVersion) {
+      setSelectedVersion(currentVersion);
+    }
+  }, [currentVersion, selectedVersion]);
 
   // Auto-select the document type based on the document's assigned type
   useEffect(() => {
@@ -105,13 +103,42 @@ export function FileSidebar({
     }
   };
 
+  const handleVersionChange = (version: FileVersions) => {
+    setSelectedVersion(version);
+    setIsVersionPopoverOpen(false);
+    if (handleChangeVersion) {
+      handleChangeVersion(version);
+    }
+    toast({
+      title: "Version Changed",
+      description: `Switched to version ${version.versionName}`,
+    });
+  };
+
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+    const systemTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    return new Date(dateString).toLocaleString("en-KE", {
       year: "numeric",
       month: "short",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      hour12: true,
+      timeZone: systemTimeZone,
+    });
+  };
+
+  const formatDateShort = (dateString: string) => {
+    const systemTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    return new Date(dateString).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: systemTimeZone,
     });
   };
 
@@ -127,12 +154,12 @@ export function FileSidebar({
   return (
     <div className="w-96 bg-background border-l border-border h-full overflow-y-auto">
       <div className="p-4 space-y-4">
-        {/* Document Info Header */}
+        {/* File Info Header */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-lg font-semibold flex items-center gap-2">
               <FileText className="h-5 w-5" />
-              Document Details
+              File Details
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -146,15 +173,86 @@ export function FileSidebar({
               <p className="text-xs text-gray-500">{document.documentName}</p>
             </div>
 
+            {/* Version History - Compact Design */}
+            {sortedVersions.length > 1 && (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <History className="h-3 w-3 text-gray-500" />
+                  <span className="text-xs text-gray-600">Version:</span>
+                </div>
+                <Popover
+                  open={isVersionPopoverOpen}
+                  onOpenChange={setIsVersionPopoverOpen}
+                >
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs font-medium hover:bg-gray-100"
+                    >
+                      {selectedVersion?.versionName ||
+                        currentVersion?.versionName}
+                      <ChevronDown className="h-3 w-3 ml-1" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-2" align="end">
+                    <div className="space-y-1">
+                      <div className="px-2 py-1 text-xs font-medium text-gray-500 border-b">
+                        Version History ({sortedVersions.length} versions)
+                      </div>
+                      <div className="max-h-48 overflow-y-auto">
+                        {sortedVersions.map((version, index) => (
+                          <div
+                            key={version.id}
+                            className={`flex items-center justify-between p-2 rounded-md cursor-pointer transition-colors ${
+                              selectedVersion?.id === version.id
+                                ? "bg-blue-50 border border-blue-200"
+                                : "hover:bg-gray-50"
+                            }`}
+                            onClick={() => handleVersionChange(version)}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">
+                                  {version.versionName}
+                                </span>
+                                {index === 0 && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-xs px-1 py-0"
+                                  >
+                                    Latest
+                                  </Badge>
+                                )}
+                                {selectedVersion?.id === version.id && (
+                                  <Badge
+                                    variant="default"
+                                    className="text-xs px-1 py-0"
+                                  >
+                                    Current
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-xs text-gray-500 truncate">
+                                {formatDateShort(version.createdDate)}
+                              </p>
+                            </div>
+                            {selectedVersion?.id === version.id && (
+                              <Check className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
+
             <div className="flex items-center gap-2">
               <Badge variant="secondary" className="text-xs">
                 {document.mimeType}
               </Badge>
-              {document.version && (
-                <Badge variant="outline" className="text-xs">
-                  v{document.version}
-                </Badge>
-              )}
             </div>
 
             <Separator />
@@ -162,21 +260,19 @@ export function FileSidebar({
             <div className="space-y-2 text-xs text-gray-600">
               <div className="flex items-center gap-2">
                 <Calendar className="h-3 w-3" />
-                <span>Created: {formatDate(document.createdDate)}</span>
+                <span>
+                  Created:{" "}
+                  {formatDate(String(currentVersion?.createdDate || ""))}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <Calendar className="h-3 w-3" />
                 <span>
-                  Modified: {formatDate(document.lastModifiedDateTime)}
+                  Modified:{" "}
+                  {formatDate(
+                    String(currentVersion?.lastModifiedDateTime || ""),
+                  )}
                 </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <User className="h-3 w-3" />
-                <span>Created by: User {document.createdBy}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Folder className="h-3 w-3" />
-                <span>Folder ID: {document.folderID}</span>
               </div>
             </div>
           </CardContent>

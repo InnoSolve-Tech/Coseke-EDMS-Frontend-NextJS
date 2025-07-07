@@ -43,7 +43,7 @@ import {
   updateMultiplePermissions,
   getAllPermissions,
 } from "@/core/roles";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "@/core/hooks/use-toast";
 import { Permission, Role } from "@/lib/types/user";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";

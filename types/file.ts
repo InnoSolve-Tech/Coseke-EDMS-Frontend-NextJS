@@ -15,25 +15,32 @@ export interface FileData {
   filename?: string;
   folderID?: number;
   fileId?: number;
-  documentType?: string;
-  documentName?: string;
-  hashName?: string;
-  fileLink?: string | null;
-  mimeType?: string;
-  metadata?: {
-    author?: string;
-    version?: string;
-    description?: string;
-    tags?: string[];
-    [key: string]: unknown;
-  };
+  documentType: string;
+  documentName: string;
+  hashName: string;
+  mimeType: string;
+  metadata: Metadata;
   createdDate?: string;
+  signature?: string;
   lastModifiedDateTime?: string;
   lastModifiedBy?: number;
   createdBy?: number;
   [key: string]: unknown;
   comments?: string;
-  versions?: any;
+  fileVersions: FileVersions[];
+}
+
+interface Metadata {
+  [key: string]: string | string[];
+}
+
+export interface FileVersions {
+  id: number;
+  fileManager: FileData;
+  versionName: string;
+  filePath: string;
+  createdDate: string;
+  lastModifiedDateTime: string;
 }
 
 export interface DocumentType {

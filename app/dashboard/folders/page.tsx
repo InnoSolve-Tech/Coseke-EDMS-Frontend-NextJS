@@ -13,7 +13,7 @@ import {
   getAllFiles,
   getDocumentTypes,
   getFolders,
-} from "@/components/files/api";
+} from "@/core/files/api";
 import FileUploadDialog from "@/components/folder/FileUploadDialog";
 import SearchBar from "@/components/folder/SearchBar";
 import { FileData, FileNode } from "@/types/folder";

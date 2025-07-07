@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { deleteWorkflow, getAllWorkflows } from "@/core/workflows/api";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/core/hooks/use-toast";
 import { Workflow } from "@/lib/types/workflow";
 import { Edit, Eye, Trash2 } from "lucide-react";
 import Link from "next/link";

@@ -1,6 +1,6 @@
 "use client";
 
-import { getFolders } from "@/components/files/api";
+import { getFolders } from "@/core/files/api";
 import { FileData, FileNode } from "@/types/file";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";

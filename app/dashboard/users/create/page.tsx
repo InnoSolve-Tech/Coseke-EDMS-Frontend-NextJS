@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Plus, Search } from "lucide-react";
 import { getAllUsers } from "@/core/authentication/api";
 import { deleteUser } from "@/core/users";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/core/hooks/use-toast";
 import { User } from "@/lib/types/user";
 
 export default function UsersPage() {

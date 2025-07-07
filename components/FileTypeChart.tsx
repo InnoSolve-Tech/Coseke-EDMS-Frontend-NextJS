@@ -2,7 +2,7 @@
 
 import { Pie, PieChart, ResponsiveContainer, Cell, Legend } from "recharts";
 import { useEffect, useState } from "react";
-import { getAllFiles } from "@/components/files/api";
+import { getAllFiles } from "@/core/files/api";
 import { FileText, FileImage, FileSpreadsheet } from "lucide-react";
 
 interface FileData {

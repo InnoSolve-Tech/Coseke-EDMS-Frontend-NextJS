@@ -6,9 +6,9 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
-  const { fileId, mimeType } = req.query;
+  const { fileId, mimeType, version } = req.query;
 
-  const fileUrl = `${process.env.NEXT_PUBLIC_FILES_URL}/file-management/api/v1/files/download/${fileId}`;
+  const fileUrl = `${process.env.NEXT_PUBLIC_FILES_URL}/file-management/api/v1/files/download/${fileId}?version=${version}`;
 
   try {
     const response = await fetch(fileUrl, {

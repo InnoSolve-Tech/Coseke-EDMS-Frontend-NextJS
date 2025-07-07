@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getAllForms } from "@/core/forms/api";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "@/core/hooks/use-toast";
 import type { Form } from "@/lib/types/forms";
 import type { Workflow, WorkflowNode } from "@/lib/types/workflow";
 import { useEffect, useState } from "react";

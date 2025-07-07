@@ -3,7 +3,7 @@
 import { EditFormDialog } from "@/components/forms/EditFormDialog";
 import { Button } from "@/components/ui/button";
 import { createForm } from "@/core/forms/api";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "@/core/hooks/use-toast";
 import { PlusIcon } from "lucide-react";
 
 export function CreateFormButton({

@@ -16,14 +16,14 @@ import {
   updateFormRecord,
 } from "@/core/formrecords/api";
 import { getAllForms } from "@/core/forms/api";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/core/hooks/use-toast";
 import type { FormRecord } from "@/lib/types/formRecords";
 import type { Form, FormField } from "@/lib/types/forms";
 import { useEffect, useState } from "react";
 import { getUserFromSessionStorage } from "../routes/sessionStorage";
 import FolderTreeSelector from "@/components/forms/Active/FolderTreeSelector";
-import { addDocument, getFolders } from "@/components/files/api";
-import type { DirectoryData } from "@/components/files/api";
+import { addDocument, getFolders } from "@/core/files/api";
+import type { DirectoryData } from "@/core/files/api";
 import type { FileData } from "@/types/file";
 import { Workflow, WorkflowType } from "@/lib/types/workflow";
 import { updateWorkflowInstance } from "@/core/workflowInstance/api";

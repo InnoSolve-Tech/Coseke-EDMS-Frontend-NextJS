@@ -1,8 +1,9 @@
 "use client";
 
-import type React from "react";
-import { DocumentActions } from "@/components/file-view/document-actions";
 import { FileSidebar } from "@/components/fileView/file-sidebar";
+import { updateFileWithDocumentType } from "@/components/folder/api";
+import { OnlyOfficeEditor } from "@/components/OnlyOfficeEditor";
+import { Button } from "@/components/ui/button";
 import {
   deleteFile,
   deleteMetadata,
@@ -10,44 +11,21 @@ import {
   getFilesByHash,
   getFilesById,
   updateMetadata,
-} from "@/components/files/api";
-import { updateFileWithDocumentType } from "@/components/folder/api";
-import { OnlyOfficeEditor } from "@/components/OnlyOfficeEditor";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+} from "@/core/files/api";
+import { useToast } from "@/core/hooks/use-toast";
+import type { User } from "@/lib/types/user";
+import type { FileData, FileVersions } from "@/types/file";
 import { Box, Typography } from "@mui/joy";
 import type { ColorPaletteProp } from "@mui/joy/styles";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import type { User } from "@/lib/types/user";
 
 interface MetadataItem {
   name: string;
   type: string;
   value: string;
   options?: any;
-}
-
-interface Metadata {
-  [key: string]: string | string[];
-}
-
-interface Document {
-  id: number;
-  folderID: number;
-  filename: string;
-  documentType: string;
-  documentName: string;
-  hashName: string;
-  fileLink: string | null;
-  mimeType: string;
-  metadata: Metadata;
-  createdDate: string;
-  lastModifiedDateTime: string;
-  lastModifiedBy: number;
-  createdBy: number;
-  version?: React.ReactNode;
 }
 
 interface IDocumentType {
@@ -63,13 +41,16 @@ const FileViewPage = () => {
   const { toast } = useToast();
 
   // State management
-  const [document, setDocument] = useState<Document | null>(null);
+  const [document, setDocument] = useState<FileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [documentTypes, setDocumentTypes] = useState<IDocumentType[]>([]);
   const [currentDocTypeId, setCurrentDocTypeId] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState(true);
   const [user, setUser] = useState<User>();
+  const [currentVersion, setCurrentVersion] = useState<FileVersions | null>(
+    null,
+  );
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     color: ColorPaletteProp;
@@ -90,7 +71,6 @@ const FileViewPage = () => {
         if (!user) {
           throw new Error("User not found in localStorage");
         }
-
         setUser(user);
 
         const res = await getFilesById(Number.parseInt(id as string));
@@ -103,8 +83,16 @@ const FileViewPage = () => {
               new Blob([response], { type: res.mimeType }),
             ),
           };
+          setDocument(fileData as unknown as FileData);
 
-          setDocument(fileData as unknown as Document);
+          // Set initial version (latest)
+          const sortedVersions =
+            res.fileVersions?.sort(
+              (a: FileVersions, b: FileVersions) => b.id - a.id,
+            ) || [];
+          if (sortedVersions.length > 0) {
+            setCurrentVersion(sortedVersions[0]);
+          }
         } else {
           throw new Error("No file found");
         }
@@ -158,7 +146,6 @@ const FileViewPage = () => {
   // Handlers
   const handleMetadataChange = (key: string, value: string) => {
     if (!document) return;
-
     setDocument({
       ...document,
       metadata: {
@@ -170,17 +157,14 @@ const FileViewPage = () => {
 
   const handleDeleteMetadata = async (key: string) => {
     if (!document) return;
-
     try {
       await deleteMetadata(document.id, [key]);
       const newMetadata = { ...document.metadata };
       delete newMetadata[key];
-
       setDocument({
         ...document,
         metadata: newMetadata,
       });
-
       showSnackbar("Metadata field deleted", "success");
     } catch (error) {
       console.error("Error deleting metadata field:", error);
@@ -190,10 +174,9 @@ const FileViewPage = () => {
 
   const handleDeleteDocument = async () => {
     if (!document) return;
-
     try {
       await deleteFile(document.id);
-      showSnackbar("Document deleted successfully", "success");
+      showSnackbar("File deleted successfully", "success");
       router.back();
     } catch (error) {
       console.error("Error deleting document:", error);
@@ -203,40 +186,34 @@ const FileViewPage = () => {
 
   const handleSubmit = async () => {
     if (!document) return;
-
     try {
       await updateMetadata(document.id, document.metadata);
-      showSnackbar("Document metadata updated successfully", "success");
+      showSnackbar("File metadata updated successfully", "success");
     } catch (error) {
       console.error("Error updating metadata:", error);
       showSnackbar("Failed to update metadata", "danger");
     }
   };
 
-  const handleDownload = async () => {
-    if (!document || !document.hashName || !document.filename) {
-      console.error("Invalid document object");
-      showSnackbar("Invalid document", "danger");
-      return;
-    }
+  const handleChangeVersion = async (version: FileVersions) => {
+    setCurrentVersion(version);
 
+    // If you need to fetch specific file content for the version, do it here
     try {
-      const blob = await getFilesByHash(document.hashName);
-      if (!blob || !(blob instanceof Blob)) {
-        throw new Error("Invalid file data");
-      }
+      // Optional: Fetch the file content for the specific version if needed
+      // const versionContent = await getFilesByHash(version.hashName || document.hashName)
+      // if (versionContent) {
+      //   // Update document with version-specific content
+      // }
 
-      const link = window.document.createElement("a");
-      link.href = window.URL.createObjectURL(blob);
-      link.download = document.filename;
-      link.style.display = "none";
-      window.document.body.appendChild(link);
-      link.click();
-      window.document.body.removeChild(link);
-      window.URL.revokeObjectURL(link.href);
+      console.log("Changed to version:", version);
+      toast({
+        title: "Version Changed",
+        description: `Switched to version ${version.versionName}`,
+      });
     } catch (error) {
-      console.error("Download failed:", error);
-      showSnackbar("Failed to download file", "danger");
+      console.error("Error loading version:", error);
+      showSnackbar("Failed to load version", "danger");
     }
   };
 
@@ -250,7 +227,8 @@ const FileViewPage = () => {
           const existingValue = document?.metadata?.[field.name];
           acc[field.name] = Array.isArray(existingValue)
             ? existingValue.join(", ")
-            : existingValue || field.value || "";
+            : existingValue ||
+              (typeof field.value === "string" ? field.value : "");
           return acc;
         },
         {} as Record<string, string>,
@@ -322,21 +300,21 @@ const FileViewPage = () => {
         {/* File viewer with proper overflow handling */}
         <div className="flex-1 relative overflow-hidden">
           <OnlyOfficeEditor
-            url={document.fileLink!}
-            mimeType={document.mimeType}
-            filename={document.filename}
-            hashName={document.hashName}
+            key={`${document.id}-${currentVersion?.id || "latest"}`} // This forces re-render when version changes
+            url={
+              currentVersion?.filePath ||
+              document.fileVersions.sort((a, b) => b.id - a.id)[0]?.filePath ||
+              ""
+            }
+            mimeType={document.mimeType!}
+            filename={document.filename!}
+            hashName={document.hashName!}
+            oneDocument={document}
+            version={currentVersion?.versionName!}
             user={user}
             fileId={document.id}
           />
         </div>
-
-        {/* Action buttons */}
-        <DocumentActions
-          document={document}
-          handleDownload={handleDownload}
-          handleDeleteDocument={handleDeleteDocument}
-        />
       </div>
 
       {/* Sidebar toggle button - fixed position */}
@@ -365,6 +343,7 @@ const FileViewPage = () => {
           handleMetadataChange={handleMetadataChange}
           handleDeleteMetadata={handleDeleteMetadata}
           handleSubmit={handleSubmit}
+          handleChangeVersion={handleChangeVersion}
           currentDocTypeId={currentDocTypeId}
           handleDocumentTypeChange={handleDocumentTypeChange}
         />

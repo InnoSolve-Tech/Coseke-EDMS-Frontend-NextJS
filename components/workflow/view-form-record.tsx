@@ -30,7 +30,7 @@ import {
   updateWorkflowInstance,
   updateWorkflowInstanceStep,
 } from "@/core/workflowInstance/api";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/core/hooks/use-toast";
 import { FormRecord } from "@/lib/types/formRecords";
 import { Form } from "@/lib/types/forms";
 import { Edge, WorkflowNode } from "@/lib/types/workflow";

@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { FileText, FileImage, FileSpreadsheet } from "lucide-react";
-import { getAllFiles } from "@/components/files/api";
+import { getAllFiles } from "@/core/files/api";
 
 interface FileData {
   id: number;

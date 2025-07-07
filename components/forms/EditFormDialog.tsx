@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "@/core/hooks/use-toast";
 import { Form, FormField } from "@/lib/types/forms";
 import { PlusIcon, TrashIcon, XIcon } from "lucide-react";
 import { useEffect, useState } from "react";

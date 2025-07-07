@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { updatePassword, updateUser } from "@/core/users";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/core/hooks/use-toast";
 import { User } from "@/lib/types/user";
 import { Edit, Loader2 } from "lucide-react";
 import * as React from "react";

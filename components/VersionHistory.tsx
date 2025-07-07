@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { Box, Typography, List, ListItem } from "@mui/joy";
 import { ListItemText } from "@mui/material";
-import { getAllVersionsForDocument, VersionDTO } from "./files/api";
+import { getAllVersionsForDocument, VersionDTO } from "../core/files/api";
 
 interface VersionHistoryProps {
   documentId: number;

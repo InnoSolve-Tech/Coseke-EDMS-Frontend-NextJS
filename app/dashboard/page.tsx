@@ -1,6 +1,6 @@
 "use client";
 
-import { getAllFiles, getFolders } from "@/components/files/api"; // Assuming this API is available
+import { getAllFiles, getFolders } from "@/core/files/api"; // Assuming this API is available
 import { FileTypeChart } from "@/components/FileTypeChart";
 import { RecentFilesCard } from "@/components/RecentFilesCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

@@ -41,7 +41,7 @@ import {
   updateWorkflowInstanceStep,
 } from "@/core/workflowInstance/api";
 import { getAllWorkflows } from "@/core/workflows/api";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/core/hooks/use-toast";
 import type { Edge, Workflow, WorkflowType } from "@/lib/types/workflow";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertTriangle, Circle, FileText, Flag, Plus } from "lucide-react";
