@@ -1,16 +1,6 @@
 "use client";
 
-import type React from "react";
-import { useEffect, useState } from "react";
-import {
-  FileText,
-  Upload,
-  X,
-  ImageIcon,
-  FolderOpen,
-  Clock,
-  CheckCircle2,
-} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -19,22 +9,31 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
-import { DocumentTypeManager } from "./documentTypeManager";
-import { MetadataForm } from "./metadataForm";
+import { useToast } from "@/core/hooks/use-toast";
+import {
+  CheckCircle2,
+  Clock,
+  FileText,
+  FolderOpen,
+  ImageIcon,
+  Upload,
+  X,
+} from "lucide-react";
+import type React from "react";
+import { useEffect, useState } from "react";
+import { bulkFileUpload, getFolders } from "../../core/files/api";
+import { FileQueue } from "../FileQueue";
 import {
   type IDocumentType,
   type IDocumentTypeForm,
+  createDocumentType,
   deleteDocumentType,
   getDocumentTypes,
   updateDocumentType,
-  createDocumentType,
 } from "./api";
-import { useToast } from "@/core/hooks/use-toast";
-import { bulkFileUpload, getFolders } from "../../core/files/api";
-import { FileQueue } from "../FileQueue";
+import { DocumentTypeManager } from "./documentTypeManager";
+import { MetadataForm } from "./metadataForm";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = [
@@ -648,24 +647,6 @@ export default function FileUploadDialog({
 
           {/* Right Panel - Document Management */}
           <div className="w-96 space-y-4 overflow-y-auto">
-            {/* Queue Mode Toggle */}
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Batch Upload Mode</p>
-                    <p className="text-xs text-gray-500">
-                      Queue multiple files before uploading
-                    </p>
-                  </div>
-                  <Switch
-                    checked={isQueueMode}
-                    onCheckedChange={setIsQueueMode}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Document Type Management */}
             <DocumentTypeManager
               documentTypes={documentTypes}

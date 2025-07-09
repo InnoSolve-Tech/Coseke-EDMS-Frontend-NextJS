@@ -45,6 +45,7 @@ import {
 import { useRouter } from "next/navigation";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
+import PropertiesDialog from "@/components/folder/PropertiesDialog";
 
 interface BulkUploadState {
   files: File[];
@@ -68,12 +69,14 @@ export default function FileExplorer() {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [fileData, setFileData] = useState<FileNode[]>([]);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [propertiesDialogOpen, setPropertiesDialogOpen] = useState(false);
   const [searchType, setSearchType] = useState("simple");
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const router = useRouter();
   const [folderCount, setFolderCount] = useState<string>("...");
   const [currentFolderID, setCurrentFolderID] = useState<number | null>(null);
+  const [currentPFolderID, setCurrentPFolderID] = useState<number | null>(null);
   const [uploadFolderId, setUploadFolderId] = useState<number | null>(null);
   const [isSubfolderMode, setIsSubfolderMode] = useState(false);
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
@@ -364,6 +367,10 @@ export default function FileExplorer() {
         setUploadFolderId(menuTarget.folderID ?? null);
         setUploadDialogOpen(true);
         break;
+      case "Properties":
+        setCurrentPFolderID(menuTarget.folderID ?? null);
+        setPropertiesDialogOpen(true);
+        break;
       case "View":
         if (menuTarget.type === "file" && menuTarget.fileId) {
           router.push(`/dashboard/folders/file/${menuTarget.fileId}`);
@@ -405,14 +412,14 @@ export default function FileExplorer() {
         parentFolderID: parentFolderID,
       };
 
-      setFileData((prev) => [...prev, tempFolder]);
-
       const newFolder: Omit<DirectoryData, "id"> = {
         name: newFolderName.trim(),
         folderID: parentFolderID,
       };
 
-      const createdFolder = await createFolders(newFolder);
+      await createFolders(newFolder);
+
+      setFileData((prev) => [...prev, tempFolder]);
 
       setFileData((prev) => prev.filter((item) => item.id !== tempFolder.id));
 
@@ -1265,6 +1272,12 @@ export default function FileExplorer() {
         folderID={currentFolderID as number}
       />
 
+      <PropertiesDialog
+        open={propertiesDialogOpen}
+        onClose={() => setPropertiesDialogOpen(false)}
+        folderID={currentPFolderID as number}
+      />
+
       {isVisible && (
         <Card
           className="absolute bg-white shadow-lg rounded-lg p-2 z-50"
@@ -1457,6 +1470,20 @@ export default function FileExplorer() {
             >
               Delete
             </MenuItem>
+
+            <MenuItem
+              onClick={() => {
+                handleAction("Properties");
+                handleCloseMenu(); // Closes the menu
+              }}
+              sx={{
+                padding: "8px 16px",
+                color: "error.main",
+                "&:hover": { bgcolor: "error.light" },
+              }}
+            >
+              View Properties
+            </MenuItem>
           </>
         ) : (
           <>
@@ -1544,56 +1571,6 @@ export default function FileExplorer() {
           <Typography level="h4" sx={{ mb: 2 }}>
             Bulk Upload Files
           </Typography>
-
-          {/* <div style={{ marginBottom: "20px" }}>
-            <Typography level="body-sm" sx={{ mb: 1 }}>
-              Select Destination Folder
-            </Typography>
-            <select
-              value={bulkUploadState.targetFolderId || ""}
-              onChange={(e) =>
-                setBulkUploadState((prev) => ({
-                  ...prev,
-                  targetFolderId: Number(e.target.value),
-                }))
-              }
-              style={{
-                width: "100%",
-                padding: "8px",
-                borderRadius: "4px",
-                border: "1px solid #e0e0e0",
-                backgroundColor: "#ffffff",
-                color: "#333333",
-                fontSize: "14px",
-                outline: "none",
-                cursor: "pointer",
-                boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-                transition: "border-color 0.2s ease",
-              }}
-              onMouseOver={(e) =>
-                (e.currentTarget.style.borderColor = "#bdbdbd")
-              }
-              onMouseOut={(e) =>
-                (e.currentTarget.style.borderColor = "#e0e0e0")
-              }
-            >
-              <option value="">Select a folder</option>
-              <option value="0">Root</option>
-              {folderOptions.map((folder) => (
-                <option
-                  key={folder.id}
-                  value={folder.id}
-                  style={{
-                    paddingLeft: `${folder.level * 20}px`, // Indent based on level
-                    backgroundColor:
-                      folder.level % 2 === 0 ? "#ffffff" : "#fafafa", // Alternate background
-                  }}
-                >
-                  {"  ".repeat(folder.level)}└─ {folder.name}
-                </option>
-              ))}
-            </select>
-          </div> */}
 
           <div
             onDragOver={(e) => {
