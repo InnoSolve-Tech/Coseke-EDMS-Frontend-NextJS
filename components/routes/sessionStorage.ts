@@ -21,6 +21,21 @@ export const getUserFromSessionStorage = () => {
   return JSON.parse(response || "{}");
 };
 
+// Permission checking utility
+export const hasPermission = (
+  userPermissions: string[],
+  requiredPermissions?: string[],
+): boolean => {
+  if (!requiredPermissions || requiredPermissions.length === 0) {
+    return true; // No permissions required
+  }
+
+  // Check if user has at least one of the required permissions
+  return requiredPermissions.some((permission) =>
+    userPermissions.includes(permission),
+  );
+};
+
 export const updateSessionStorage = (data: IUserDetails) => {
   addTokenToSessionStorage(data.token);
   addUserToSessionStorage(data);
@@ -29,4 +44,24 @@ export const updateSessionStorage = (data: IUserDetails) => {
 export const clearSessionStorage = () => {
   sessionStorage.removeItem(accessToken);
   sessionStorage.removeItem(user);
+};
+
+// Extract user permissions from roles
+export const getUserPermissions = (user: any): string[] => {
+  if (!user.roles || !Array.isArray(user.roles)) {
+    return [];
+  }
+
+  const permissions: string[] = [];
+  user.roles.forEach((role: any) => {
+    if (role.permissions && Array.isArray(role.permissions)) {
+      role.permissions.forEach((permission: any) => {
+        if (permission.name && !permissions.includes(permission.name)) {
+          permissions.push(permission.name);
+        }
+      });
+    }
+  });
+
+  return permissions;
 };

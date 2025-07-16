@@ -1,5 +1,13 @@
 "use client";
 import { Breadcrumbs } from "@/components/fileExplorer/Breadcrumbs";
+import FileUploadDialog from "@/components/folder/FileUploadDialog";
+import PropertiesDialog from "@/components/folder/PropertiesDialog";
+import SearchBar from "@/components/folder/SearchBar";
+import {
+  getUserFromSessionStorage,
+  getUserPermissions,
+  hasPermission,
+} from "@/components/routes/sessionStorage";
 import {
   addDocument,
   bulkUpload,
@@ -14,8 +22,6 @@ import {
   getDocumentTypes,
   getFolders,
 } from "@/core/files/api";
-import FileUploadDialog from "@/components/folder/FileUploadDialog";
-import SearchBar from "@/components/folder/SearchBar";
 import { FileData, FileNode } from "@/types/folder";
 import { CreateNewFolder } from "@mui/icons-material";
 import {
@@ -45,7 +51,6 @@ import {
 import { useRouter } from "next/navigation";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
-import PropertiesDialog from "@/components/folder/PropertiesDialog";
 
 interface BulkUploadState {
   files: File[];
@@ -85,7 +90,6 @@ export default function FileExplorer() {
   const [folderToRename, setFolderToRename] = useState<FileNode | null>(null);
   const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
   const [filteredData, setFilteredData] = useState<FileNode[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     color: ColorPaletteProp;
@@ -109,6 +113,27 @@ export default function FileExplorer() {
   const [isVisible, setIsVisible] = useState(false);
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editedFolderName, setEditedFolderName] = useState("");
+  const [user, setUser] = useState({
+    id: 0,
+    first_name: "",
+    last_name: "",
+    email: "",
+    phone: "",
+    address: "",
+    password: "",
+    roles: [],
+    name: "",
+  });
+
+  const [userPermissions, setUserPermissions] = useState<string[]>([]);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+    const currentUser = getUserFromSessionStorage();
+    setUser(currentUser);
+    setUserPermissions(getUserPermissions(currentUser));
+  }, []);
 
   const loadFoldersAndFiles = async () => {
     try {
@@ -1457,33 +1482,36 @@ export default function FileExplorer() {
             >
               Edit
             </MenuItem>
-            <MenuItem
-              onClick={() => {
-                handleAction("Delete");
-                handleCloseMenu(); // Closes the menu
-              }}
-              sx={{
-                padding: "8px 16px",
-                color: "error.main",
-                "&:hover": { bgcolor: "error.light" },
-              }}
-            >
-              Delete
-            </MenuItem>
-
-            <MenuItem
-              onClick={() => {
-                handleAction("Properties");
-                handleCloseMenu(); // Closes the menu
-              }}
-              sx={{
-                padding: "8px 16px",
-                color: "error.main",
-                "&:hover": { bgcolor: "error.light" },
-              }}
-            >
-              View Properties
-            </MenuItem>
+            {hasPermission(userPermissions, ["DELETE_FOLDER"]) && (
+              <MenuItem
+                onClick={() => {
+                  handleAction("Delete");
+                  handleCloseMenu(); // Closes the menu
+                }}
+                sx={{
+                  padding: "8px 16px",
+                  color: "error.main",
+                  "&:hover": { bgcolor: "error.light" },
+                }}
+              >
+                Delete
+              </MenuItem>
+            )}
+            {hasPermission(userPermissions, ["UPDATE_FOLDER"]) && (
+              <MenuItem
+                onClick={() => {
+                  handleAction("Properties");
+                  handleCloseMenu(); // Closes the menu
+                }}
+                sx={{
+                  padding: "8px 16px",
+                  color: "error.main",
+                  "&:hover": { bgcolor: "error.light" },
+                }}
+              >
+                View Properties
+              </MenuItem>
+            )}
           </>
         ) : (
           <>
