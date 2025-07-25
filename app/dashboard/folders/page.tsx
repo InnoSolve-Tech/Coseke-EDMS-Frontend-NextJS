@@ -1,5 +1,6 @@
 "use client";
 import { Breadcrumbs } from "@/components/fileExplorer/Breadcrumbs";
+import { AccessType } from "@/components/folder/api";
 import FileUploadDialog from "@/components/folder/FileUploadDialog";
 import PropertiesDialog from "@/components/folder/PropertiesDialog";
 import SearchBar from "@/components/folder/SearchBar";
@@ -8,6 +9,7 @@ import {
   getUserPermissions,
   hasPermission,
 } from "@/components/routes/sessionStorage";
+import { IRole } from "@/core/authentication/interface";
 import {
   addDocument,
   bulkUpload,
@@ -134,49 +136,100 @@ export default function FileExplorer() {
     setUserPermissions(getUserPermissions(currentUser));
   }, []);
 
-  const loadFoldersAndFiles = async () => {
-    try {
-      console.log("Loading folders and files...");
-      const foldersResponse = await getFolders();
-      console.log("Folders Response:", foldersResponse);
+   const roleHasAccess = (
+    node: FileNode,
+    userRoles: number[],
+  ): boolean => {
+    if (!node.accessControl) return true; // No access control means public access
+    const { accessType, roles: requiredRoles } = node.accessControl;
+    switch (accessType) {
+      case AccessType.PUBLIC:
+        return true; // Public access 
+       
+      case AccessType.MODERATED:
+         return userRoles.some((role) => requiredRoles.includes(role));
+      default:
+      return false;
+    }
+  };
 
-      const folders = Array.isArray(foldersResponse)
-        ? foldersResponse
-        : foldersResponse.data || [];
+ const loadFoldersAndFiles = async () => {
+  try {
+    const foldersResponse = await getFolders();
 
-      console.log("Parsed Folders:", folders);
+    const folders = Array.isArray(foldersResponse)
+      ? foldersResponse
+      : foldersResponse.data || [];
 
-      const folderMap = new Map();
-      const rootNodes: FileNode[] = [];
+    // Get current user data directly from session storage
+    const currentUser = getUserFromSessionStorage();
+    const currentUserRoles = currentUser?.roles.map((r:IRole) => r.id) || [];
 
-      for (const folder of folders) {
-        const fileNodes: FileNode[] = (folder.files || []).map(
-          (file: FileData) => ({
-            id: file.id.toString(),
-            label: file.filename || file.documentName || "Unnamed File",
-            type: "file",
-            lastModifiedDateTime: folder.lastModifiedDateTime, // Assign from folder data
-            folderID: folder.folderID,
-            fileId: file.id,
-            parentFolderID: folder.folderID,
-            metadata: file,
-          }),
-        );
+    const folderMap = new Map();
+    const rootNodes: FileNode[] = [];
 
+    for (const folder of folders) {
+      const fileNodes: FileNode[] = (folder.files || []).map(
+        (file: FileData) => ({
+          id: file.id.toString(),
+          label: file.filename || file.documentName || "Unnamed File",
+          type: "file",
+          lastModifiedDateTime: folder.lastModifiedDateTime,
+          folderID: folder.folderID,
+          fileId: file.id,
+          parentFolderID: folder.folderID,
+          metadata: file,
+        }),
+      );
+
+      // Check access control permissions
+      let hasAccess = false;
+      
+      if (folder.accessControl) {
+        const { accessType, roles: requiredRoles } = folder.accessControl;
+        
+        switch (accessType) {
+          case AccessType.PUBLIC:
+            hasAccess = true;
+            break;
+          case AccessType.PRIVATE:
+                       // Check if user has any of the required roles
+            hasAccess = currentUserRoles.some((userRole:number) => 
+              requiredRoles.includes(userRole)
+            );
+            break;
+          case AccessType.MODERATED:
+               hasAccess = true;
+            break;
+ 
+          default:
+            hasAccess = false;
+        }
+      } else {
+        // If no access control is defined, default to allowing access
+        hasAccess = true;
+      }
+
+      // Only add folder if user has access
+      if (hasAccess) {
         const folderNode: FileNode = {
           id: folder.folderID?.toString() || "",
           label: folder.name,
           type: "folder",
           folderID: folder.folderID,
+          accessControl: folder.accessControl || undefined,
           parentFolderID: folder.parentFolderID || 0,
           children: fileNodes,
         };
 
         folderMap.set(folder.folderID, folderNode);
       }
+    }
 
-      for (const folder of folders) {
-        const folderNode = folderMap.get(folder.folderID);
+    // Build the folder hierarchy
+    for (const folder of folders) {
+      const folderNode = folderMap.get(folder.folderID);
+      if (folderNode) {
         if (folder.parentFolderID && folderMap.has(folder.parentFolderID)) {
           const parentNode = folderMap.get(folder.parentFolderID);
           if (!parentNode.children) {
@@ -187,28 +240,29 @@ export default function FileExplorer() {
           rootNodes.push(folderNode);
         }
       }
-
-      const sortChildren = (node: FileNode) => {
-        if (node.children) {
-          node.children.sort((a, b) => {
-            if (a.type === b.type) {
-              return a.label.localeCompare(b.label);
-            }
-            return a.type === "folder" ? -1 : 1;
-          });
-          node.children.forEach(sortChildren);
-        }
-      };
-
-      rootNodes.forEach(sortChildren);
-
-      console.log("Final Root Nodes:", rootNodes);
-      return rootNodes;
-    } catch (error) {
-      console.error("Failed to load folders and files:", error);
-      return [];
     }
-  };
+
+    const sortChildren = (node: FileNode) => {
+      if (node.children) {
+        node.children.sort((a, b) => {
+          if (a.type === b.type) {
+            return a.label.localeCompare(b.label);
+          }
+          return a.type === "folder" ? -1 : 1;
+        });
+        node.children.forEach(sortChildren);
+      }
+    };
+
+    rootNodes.forEach(sortChildren);
+
+    console.log("Final Root Nodes:", rootNodes);
+    return rootNodes;
+  } catch (error) {
+    console.error("Failed to load folders and files:", error);
+    return [];
+  }
+};
 
   const findFolderById = (
     nodes: FileNode[],
@@ -810,7 +864,12 @@ export default function FileExplorer() {
     }
   };
 
+
   const handleRightClick = (event: React.MouseEvent, node: FileNode) => {
+    if(!roleHasAccess(node, user.roles.map((r: IRole) => Number(r.id)))) {
+      showSnackbar("You do not have permission to access this folder", "danger");
+      return;
+    }
     event.preventDefault();
     setAnchorEl(event.currentTarget as HTMLElement);
     setMenuTarget(node);
@@ -968,6 +1027,36 @@ export default function FileExplorer() {
     }
   };
 
+   const getAccessStatusIndicator = (accessType: AccessType | undefined) => {
+        if (!accessType) return null;
+        
+        const formatAccessType = (type: string) => {
+          return type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+        };
+
+        const getStatusColor = (type: AccessType | undefined) => {
+          switch (type?.toLowerCase()) {
+            case 'public':
+              return 'bg-green-500';
+            case 'private':
+              return 'bg-red-500';
+            case 'moderated':
+              return 'bg-yellow-500';
+            default:
+              return 'bg-gray-500';
+          }
+        };
+
+        return (
+          <div className="flex items-center gap-1">
+            <div className={`w-2 h-2 ${getStatusColor(accessType)} rounded-full`}></div>
+            <span className="text-xs text-gray-600">
+              {formatAccessType(accessType)}
+            </span>
+          </div>
+        );
+      };
+
   const renderTree = (nodes: FileNode[]) => {
     const dataToRender = filteredData.length > 0 ? filteredData : nodes;
     const visibleNodes = getVisibleNodes(dataToRender, currentFolderID || 0);
@@ -981,8 +1070,10 @@ export default function FileExplorer() {
         ? formatDate(node.lastModifiedDateTime)
         : formatDate(node.metadata?.lastModifiedDateTime);
       const readableType = isFolder
-        ? "Folder"
+        ?  getAccessStatusIndicator(node.accessControl?.accessType)
         : getReadableType(node.metadata?.mimeType);
+
+     
 
       return (
         <ListItem

@@ -1,3 +1,5 @@
+import { IAccessControl } from "@/components/folder/api";
+
 export interface SearchMatchInfo {
   label: boolean;
   metadata: boolean;
@@ -15,6 +17,7 @@ export interface FileNode {
   };
   children?: FileNode[];
   folderID?: number;
+  accessControl?: IAccessControl;
   fileId?: number;
   parentFolderID?: number;
   searchMatches?: SearchMatchInfo;
