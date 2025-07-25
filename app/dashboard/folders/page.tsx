@@ -88,7 +88,6 @@ export default function FileExplorer() {
   const [fileCount, setFileCount] = useState<string>("...");
   const [renameFolderName, setRenameFolderName] = useState("");
   const [folderToRename, setFolderToRename] = useState<FileNode | null>(null);
-  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
   const [filteredData, setFilteredData] = useState<FileNode[]>([]);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
@@ -271,7 +270,7 @@ export default function FileExplorer() {
     };
 
     initializeData();
-  }, []);
+  }, [propertiesDialogOpen]);
 
   useEffect(() => {
     const fetchFolderCount = async () => {
@@ -371,18 +370,6 @@ export default function FileExplorer() {
     if (!menuTarget) return;
 
     switch (action) {
-      case "Rename":
-        try {
-          if (menuTarget?.type === "folder" && menuTarget.folderID) {
-            setFolderToRename(menuTarget);
-            setRenameFolderName(menuTarget.label || "");
-            setIsRenameModalOpen(true);
-          }
-        } catch (error) {
-          console.error("Failed to open rename dialog:", error);
-          showSnackbar("Failed to open rename dialog.", "danger");
-        }
-        break;
       case "CreateSubfolder":
         setCurrentFolderID(menuTarget.folderID ?? null);
         setIsSubfolderMode(true);
@@ -1382,51 +1369,6 @@ export default function FileExplorer() {
           </CardContent>
         </Card>
       </Modal>
-      {isRenameModalOpen && folderToRename && (
-        <Modal
-          open={isRenameModalOpen}
-          onClose={() => {
-            setIsRenameModalOpen(false);
-            setRenameFolderName("");
-            setFolderToRename(null);
-          }}
-        >
-          <Card>
-            <CardContent>
-              <List>
-                {fileData.map((node) => (
-                  <ListItem key={node.id}>
-                    {editingFolderId === node.id ? (
-                      <Input
-                        autoFocus
-                        value={editedFolderName}
-                        onChange={(e) => setEditedFolderName(e.target.value)}
-                        onBlur={() =>
-                          handleFolderRename(node.id, editedFolderName)
-                        }
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            handleFolderRename(node.id, editedFolderName);
-                          }
-                        }}
-                      />
-                    ) : (
-                      <ListItemButton
-                        onDoubleClick={() => {
-                          setEditingFolderId(node.id);
-                          setEditedFolderName(node.label);
-                        }}
-                      >
-                        {node.label}
-                      </ListItemButton>
-                    )}
-                  </ListItem>
-                ))}
-              </List>
-            </CardContent>
-          </Card>
-        </Modal>
-      )}
       <Menu
         ref={menuRef}
         open={Boolean(anchorEl)}
@@ -1469,18 +1411,6 @@ export default function FileExplorer() {
               }}
             >
               Upload File
-            </MenuItem>
-            <MenuItem
-              onClick={() => {
-                handleAction("Rename");
-                handleCloseMenu(); // Closes the menu
-              }}
-              sx={{
-                padding: "8px 16px",
-                "&:hover": { bgcolor: "action.hover" },
-              }}
-            >
-              Edit
             </MenuItem>
             {hasPermission(userPermissions, ["DELETE_FOLDER"]) && (
               <MenuItem

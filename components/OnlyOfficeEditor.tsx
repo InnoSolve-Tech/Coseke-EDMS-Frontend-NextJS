@@ -724,12 +724,6 @@ export function OnlyOfficeEditor({
               <span className="text-xs text-orange-600">• Unsaved changes</span>
             )}
           </div>
-          <div className="flex space-x-2">
-            <Button variant="outline" size="sm" onClick={handleDownload}>
-              <Download className="h-4 w-4 mr-2" />
-              Download
-            </Button>
-          </div>
         </div>
       </div>
 

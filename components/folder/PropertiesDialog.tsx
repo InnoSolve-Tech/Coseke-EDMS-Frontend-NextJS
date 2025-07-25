@@ -34,20 +34,15 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { DirectoryData } from "./FileUploadDialog";
+import { getAllRoles } from "@/core/authentication/api";
+import { Role } from "@/lib/types/user";
+import { AccessType, updateDirectory } from "./api";
 
 interface PropertiesDialogProps {
   open: boolean;
   onClose: () => void;
   folderID: number;
 }
-
-interface Role {
-  id: string;
-  name: string;
-  description: string;
-}
-
-type ViewingPermission = "public" | "moderated" | "private";
 
 export default function PropertiesDialog({
   open,
@@ -59,34 +54,16 @@ export default function PropertiesDialog({
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState("");
   const [viewingPermission, setViewingPermission] =
-    useState<ViewingPermission>("public");
+    useState<AccessType>();
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
 
-  // Sample roles - in a real app, these would come from an API
-  const availableRoles: Role[] = [
-    {
-      id: "1",
-      name: "Admin",
-      description: "Full access to all folders and files",
-    },
-    {
-      id: "2",
-      name: "Manager",
-      description: "Can manage team folders and files",
-    },
-    { id: "3", name: "Editor", description: "Can edit and upload files" },
-    { id: "4", name: "Viewer", description: "Can only view files" },
-    {
-      id: "5",
-      name: "Guest",
-      description: "Limited access to specific folders",
-    },
-    {
-      id: "6",
-      name: "Contributor",
-      description: "Can contribute files but not delete",
-    },
-  ];
+  useEffect(() => {
+    (async() => {
+      let res = await getAllRoles();
+      setRoles(res);
+    })();
+  }, []);
 
   useEffect(() => {
     const fetchFolderData = async () => {
@@ -95,11 +72,13 @@ export default function PropertiesDialog({
         try {
           const res: any = await getFolders();
           const data: any = res.find((f: any) => f.folderID == folderID);
+          console.log("Fetched folder data:", data);
           setFolder(data);
           setEditedName(data?.name || "");
-          // Initialize with sample data
-          setViewingPermission("moderated");
-          setSelectedRoles(["1", "2", "3"]);
+          setViewingPermission(data?.accessControl?.accessType);
+          setSelectedRoles(
+            data?.accessControl?.roles?.map((role: number) => role.toString()) || [],
+          );
         } catch (error) {
           console.error("Error fetching folder data:", error);
         } finally {
@@ -112,13 +91,19 @@ export default function PropertiesDialog({
 
   const handleSave = async () => {
     try {
-      console.log("Saving folder data:", {
-        name: editedName,
-        viewingPermission,
-        selectedRoles,
-      });
       setIsEditing(false);
-      setFolder((prev) => (prev ? { ...prev, name: editedName } : undefined));
+      const updatedFolder: DirectoryData = {
+        folderID:folderID,
+        name: editedName,
+        parentFolderID: folder!.parentFolderID,
+        accessControl:{
+        id: folder!.accessControl ? folder!.accessControl.id : undefined,
+        roles: selectedRoles.map((id) => parseInt(id)),
+        accessType: viewingPermission!,
+      }}
+      await updateDirectory(updatedFolder);
+      setFolder(undefined);
+      onClose();
     } catch (error) {
       console.error("Error saving folder:", error);
     }
@@ -148,8 +133,8 @@ export default function PropertiesDialog({
   };
 
   const getSelectedRoleNames = () => {
-    return availableRoles
-      .filter((role) => selectedRoles.includes(role.id))
+    return roles
+      .filter((role) => selectedRoles.includes(role.id?.toString() || ""))
       .map((role) => role.name);
   };
 
@@ -253,7 +238,7 @@ export default function PropertiesDialog({
                       {isEditing ? (
                         <Select
                           value={viewingPermission}
-                          onValueChange={(value: ViewingPermission) =>
+                          onValueChange={(value: AccessType) =>
                             setViewingPermission(value)
                           }
                         >
@@ -261,19 +246,19 @@ export default function PropertiesDialog({
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="public">
+                            <SelectItem value={AccessType.PUBLIC}>
                               <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                                 Public - Anyone can view
                               </div>
                             </SelectItem>
-                            <SelectItem value="moderated">
+                            <SelectItem value={AccessType.MODERATED}>
                               <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
                                 Moderated - Selected roles can view
                               </div>
                             </SelectItem>
-                            <SelectItem value="private">
+                            <SelectItem value={AccessType.PRIVATE}>
                               <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 bg-red-500 rounded-full"></div>
                                 Private - Selected roles can view
@@ -285,9 +270,9 @@ export default function PropertiesDialog({
                         <div className="mt-1 p-2 bg-gray-50 rounded flex items-center gap-2">
                           <div
                             className={`w-2 h-2 rounded-full ${
-                              viewingPermission === "public"
+                              viewingPermission === AccessType.PUBLIC
                                 ? "bg-green-500"
-                                : viewingPermission === "moderated"
+                                : viewingPermission === AccessType.MODERATED
                                   ? "bg-yellow-500"
                                   : "bg-red-500"
                             }`}
@@ -298,10 +283,8 @@ export default function PropertiesDialog({
                         </div>
                       )}
                     </div>
-
-                    {/* Role Selection - Only show for moderated or private */}
-                    {(viewingPermission === "moderated" ||
-                      viewingPermission === "private") && (
+                    {(viewingPermission === AccessType.MODERATED ||
+                      viewingPermission === AccessType.PRIVATE) && (
                       <div>
                         <Label className="text-xs font-medium flex items-center gap-2 mb-3">
                           <Users className="h-3 w-3" />
@@ -315,16 +298,16 @@ export default function PropertiesDialog({
 
                         {isEditing ? (
                           <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-3">
-                            {availableRoles.map((role) => (
+                            {roles.map((role) => (
                               <div
                                 key={role.id}
                                 className="flex items-start space-x-3"
                               >
                                 <Checkbox
                                   id={`role-${role.id}`}
-                                  checked={selectedRoles.includes(role.id)}
+                                  checked={selectedRoles.includes(role.id?.toString() || "")}
                                   onCheckedChange={() =>
-                                    handleRoleToggle(role.id)
+                                    handleRoleToggle(role.id?.toString() || "")
                                   }
                                   className="mt-1"
                                 />
@@ -335,9 +318,6 @@ export default function PropertiesDialog({
                                   >
                                     {role.name}
                                   </Label>
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    {role.description}
-                                  </p>
                                 </div>
                               </div>
                             ))}
@@ -433,8 +413,8 @@ export default function PropertiesDialog({
         <DialogFooter className="border-t pt-4">
           <div className="flex justify-between items-center w-full">
             <div className="text-sm text-gray-500">
-              {(viewingPermission === "moderated" ||
-                viewingPermission === "private") && (
+              {(viewingPermission === AccessType.MODERATED ||
+                viewingPermission === AccessType.PRIVATE) && (
                 <span>{selectedRoles.length} roles selected for access</span>
               )}
             </div>

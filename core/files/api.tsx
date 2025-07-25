@@ -5,6 +5,7 @@ import { AxiosInstance } from "../../components/routes/api";
 import { getTokenFromSessionStorage } from "../../components/routes/sessionStorage";
 import { FileQueue } from "../../components/FileQueue";
 import { FileData, FileVersions } from "@/types/file";
+import { IAccessControl } from "@/components/folder/api";
 
 const ENDPOINT_URL = "file-management/api/v1/files/";
 const VERSION_ENDPOINT = "file-management/api/versions";
@@ -74,6 +75,7 @@ export interface DirectoryData {
   id?: number;
   name: string;
   parentFolderID?: number;
+  accessControl?: IAccessControl[];
 }
 
 export interface FileManagerData {

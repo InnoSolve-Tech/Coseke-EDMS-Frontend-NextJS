@@ -25,6 +25,7 @@ import { useEffect, useState } from "react";
 import { bulkFileUpload, getFolders } from "../../core/files/api";
 import { FileQueue } from "../FileQueue";
 import {
+  IAccessControl,
   type IDocumentType,
   type IDocumentTypeForm,
   createDocumentType,
@@ -53,6 +54,7 @@ export interface DirectoryData {
   name: string;
   parentFolderID: number;
   documentTypeID?: number;
+  accessControl?: IAccessControl;
   createdDate?: string;
   lastModifiedDateTime?: string;
   lastModifiedBy?: number;

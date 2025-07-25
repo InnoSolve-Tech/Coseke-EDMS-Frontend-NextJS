@@ -1,6 +1,6 @@
 "use client";
-
 import { AxiosInstance } from "../routes/api";
+import { DirectoryData } from "./FileUploadDialog";
 
 export interface IDocumentType {
   id: number;
@@ -21,6 +21,18 @@ export interface MetadataItem {
   name: string;
   type: string;
   value: string;
+}
+
+export interface IAccessControl {
+  roles: number[];
+  accessType: AccessType;
+  id?: number;
+}
+
+export enum AccessType {
+  PUBLIC = "PUBLIC",
+  PRIVATE = "PRIVATE",
+  MODERATED = "MODERATED"
 }
 
 export async function getDocumentTypes(): Promise<IDocumentType[]> {
@@ -46,6 +58,16 @@ export async function updateDocumentType(
 ): Promise<IDocumentType> {
   const { data: response } = await AxiosInstance.put(
     `file-management/api/v1/document-types/${id}`,
+    data,
+  );
+  return response;
+}
+
+export async function updateDirectory(
+  data: DirectoryData,
+): Promise<DirectoryData> {
+  const { data: response } = await AxiosInstance.put(
+    `file-management/api/v1/directories`,
     data,
   );
   return response;
