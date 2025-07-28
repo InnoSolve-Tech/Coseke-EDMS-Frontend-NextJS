@@ -12,14 +12,16 @@ import {
   Edit3,
   Save,
   Calendar,
-  Folder,
+  File,
   FileText,
   Clock,
   Shield,
   Users,
+  Hash,
+  Type,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { getFolders } from "@/core/files/api";
+import { getFilesById } from "@/core/files/api";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -33,96 +35,102 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import type { DirectoryData } from "./FileUploadDialog";
 import { getAllRoles } from "@/core/authentication/api";
 import { Role } from "@/lib/types/user";
-import { AccessType, updateDirectory } from "./api";
+import { AccessType, IAccessControl, updateFileAccess } from "./api";
+import { FileData } from "@/types/file";
 import { ColorPaletteProp, Snackbar } from "@mui/joy";
 
 interface PropertiesDialogProps {
   open: boolean;
   onClose: () => void;
-  folderID: number;
+  fileID: number;
 }
 
-export default function PropertiesDialog({
+export default function FilePropertiesDialog({
   open,
   onClose,
-  folderID,
+  fileID,
 }: PropertiesDialogProps) {
-  const [folder, setFolder] = useState<DirectoryData>();
+  const [file, setFile] = useState<FileData>();
   const [loading, setLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState("");
-  const [viewingPermission, setViewingPermission] =
-    useState<AccessType>();
+
+  const [viewingPermission, setViewingPermission] = useState<AccessType>();
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
-      const [snackbar, setSnackbar] = useState<{
-        open: boolean;
-        color: ColorPaletteProp;
-        message: string;
-      }>({
-        open: false,
-        message: "",
-        color: "success",
-      });
+    const [snackbar, setSnackbar] = useState<{
+      open: boolean;
+      color: ColorPaletteProp;
+      message: string;
+    }>({
+      open: false,
+      message: "",
+      color: "success",
+    });
 
   useEffect(() => {
-    (async() => {
+    (async () => {
       let res = await getAllRoles();
       setRoles(res);
     })();
   }, []);
-      const showSnackbar = (message: string, color: ColorPaletteProp) => {
-        setSnackbar({ open: true, message, color });
-      };
+
+    const showSnackbar = (message: string, color: ColorPaletteProp) => {
+      setSnackbar({ open: true, message, color });
+    };
 
   useEffect(() => {
-    const fetchFolderData = async () => {
-      if (folderID) {
+    const fetchFileData = async () => {
+      if (fileID) {
         setLoading(true);
+        
         try {
-          const res: any = await getFolders();
-          const data: any = res.find((f: any) => f.folderID == folderID);
-          console.log("Fetched folder data:", data);
-          setFolder(data);
-          setEditedName(data?.name || "");
-          setViewingPermission(data?.accessControl?.accessType);
+          const res: FileData = await getFilesById(fileID);
+          setFile(res);
+          setEditedName(res.documentName);
+          setViewingPermission(res.accessControl?.accessType);
           setSelectedRoles(
-            data?.accessControl?.roles?.map((role: number) => role.toString()) || [],
+            res?.accessControl?.roles?.map((role: number) => role.toString()) || []
           );
         } catch (error) {
-          console.error("Error fetching folder data:", error);
+          console.error("Error fetching file data:", error);
         } finally {
           setLoading(false);
         }
       }
     };
-    fetchFolderData();
-  }, [folderID]);
+    
+    fetchFileData();
+  }, [fileID]);
 
   const handleSave = async () => {
+    if (!file) return;
+    
     try {
-            if(selectedRoles.length <= 0 && viewingPermission !== AccessType.PUBLIC) {
-                showSnackbar("Atleast one role must be selected!", "danger");
-                return;
-            }
-      setIsEditing(false);
-      const updatedFolder: DirectoryData = {
-        folderID:folderID,
-        name: editedName,
-        parentFolderID: folder!.parentFolderID,
-        accessControl:{
-        id: folder!.accessControl ? folder!.accessControl.id : undefined,
+      setLoading(true);
+
+      if(selectedRoles.length <= 0 && viewingPermission !== AccessType.PUBLIC) {
+          showSnackbar("Atleast one role must be selected!", "danger");
+          return;
+      }
+      
+      const accessControl: IAccessControl = {
+        id: file.accessControl?.id,
         roles: selectedRoles.map((id) => parseInt(id)),
         accessType: viewingPermission!,
-      }}
-      await updateDirectory(updatedFolder);
-      setFolder(undefined);
-      onClose();
+      };
+      
+      await updateFileAccess(file.id, accessControl);
+      
+      // Update local state
+      setFile({ ...file, accessControl: accessControl });
+      setIsEditing(false);
+      handleClose();
     } catch (error) {
-      console.error("Error saving folder:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -130,12 +138,17 @@ export default function PropertiesDialog({
     setSelectedRoles((prev) =>
       prev.includes(roleId)
         ? prev.filter((id) => id !== roleId)
-        : [...prev, roleId],
+        : [...prev, roleId]
     );
   };
 
   const handleClose = () => {
     setIsEditing(false);
+    setEditedName(file?.documentName || "");
+    setViewingPermission(file?.accessControl?.accessType);
+    setSelectedRoles(
+      file?.accessControl?.roles?.map((role: number) => role.toString()) || []
+    );
     onClose();
   };
 
@@ -157,11 +170,11 @@ export default function PropertiesDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[95vh] overflow-hidden flex flex-col">
-        <DialogHeader className="border-b pb-4">
+      <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+        <DialogHeader className="border-b pb-4 flex-shrink-0">
           <DialogTitle className="text-xl font-semibold flex items-center gap-2">
-            <Folder className="h-5 w-5 text-blue-600" />
-            Folder Properties
+            <File className="h-5 w-5 text-blue-600" />
+            File Properties
             {isEditing && (
               <Badge variant="outline" className="ml-2">
                 <Edit3 className="h-3 w-3 mr-1" />
@@ -171,12 +184,13 @@ export default function PropertiesDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden">
-          <div className="flex items-center justify-between mb-4">
+        <div className="flex-1 overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between mb-4 flex-shrink-0">
             <h3 className="text-lg font-semibold flex items-center gap-2">
               <FileText className="h-4 w-4" />
-              Folder Information
+              File Information
             </h3>
+            
             <Button
               variant={isEditing ? "default" : "outline"}
               size="sm"
@@ -197,40 +211,35 @@ export default function PropertiesDialog({
             </Button>
           </div>
 
-          <div className="grid grid-cols-2 gap-6 h-full">
+          <div className="grid grid-cols-2 gap-6 flex-1 min-h-0">
             {/* Left Column */}
-            <ScrollArea className="max-h-[calc(95vh-200px)] pb-4">
+            <ScrollArea className="h-full">
               <div className="space-y-6 pr-4">
                 {/* Basic Information */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-sm">Basic Information</CardTitle>
                   </CardHeader>
+                  
                   <CardContent className="space-y-4">
                     <div>
-                      <Label
-                        htmlFor="folder-name"
-                        className="text-xs font-medium"
-                      >
-                        Folder Name
-                      </Label>
-                      {isEditing ? (
-                        <Input
-                          id="folder-name"
-                          value={editedName}
-                          onChange={(e) => setEditedName(e.target.value)}
-                          className="mt-1"
-                        />
-                      ) : (
-                        <p className="text-sm text-gray-900 mt-1 p-2 bg-gray-50 rounded">
-                          {folder?.name || "N/A"}
-                        </p>
-                      )}
-                    </div>
-                                        <div>
-                      <Label className="text-xs font-medium">Total Files</Label>
+                      <Label className="text-xs font-medium">Original Filename</Label>
                       <p className="text-sm text-gray-900 mt-1 p-2 bg-gray-50 rounded">
-                        {folder?.files?.length || 0}
+                        {file?.filename || file?.name || "N/A"}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <Label className="text-xs font-medium">Document Type</Label>
+                      <p className="text-sm text-gray-900 mt-1 p-2 bg-gray-50 rounded">
+                        {file?.documentType || "N/A"}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <Label className="text-xs font-medium">MIME Type</Label>
+                      <p className="text-sm text-gray-900 mt-1 p-2 bg-gray-50 rounded">
+                        {file?.mimeType || "N/A"}
                       </p>
                     </div>
                   </CardContent>
@@ -244,14 +253,13 @@ export default function PropertiesDialog({
                       Access Control
                     </CardTitle>
                   </CardHeader>
+                  
                   <CardContent className="space-y-4">
                     <div>
-                      <Label
-                        htmlFor="viewing-permission"
-                        className="text-xs font-medium"
-                      >
+                      <Label htmlFor="viewing-permission" className="text-xs font-medium">
                         Viewing Permission
                       </Label>
+                      
                       {isEditing ? (
                         <Select
                           value={viewingPermission}
@@ -262,6 +270,7 @@ export default function PropertiesDialog({
                           <SelectTrigger className="mt-1">
                             <SelectValue />
                           </SelectTrigger>
+                          
                           <SelectContent>
                             <SelectItem value={AccessType.PUBLIC}>
                               <div className="flex items-center gap-2">
@@ -269,12 +278,14 @@ export default function PropertiesDialog({
                                 Public - Anyone can view
                               </div>
                             </SelectItem>
+                            
                             <SelectItem value={AccessType.MODERATED}>
                               <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
                                 Moderated - Selected roles can view
                               </div>
                             </SelectItem>
+                            
                             <SelectItem value={AccessType.PRIVATE}>
                               <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 bg-red-500 rounded-full"></div>
@@ -295,11 +306,12 @@ export default function PropertiesDialog({
                             }`}
                           ></div>
                           <span className="text-sm text-gray-900 capitalize">
-                            {viewingPermission}
+                            {viewingPermission || "Not set"}
                           </span>
                         </div>
                       )}
                     </div>
+                    
                     {(viewingPermission === AccessType.MODERATED ||
                       viewingPermission === AccessType.PRIVATE) && (
                       <div>
@@ -328,6 +340,7 @@ export default function PropertiesDialog({
                                   }
                                   className="mt-1"
                                 />
+                                
                                 <div className="flex-1">
                                   <Label
                                     htmlFor={`role-${role.id}`}
@@ -361,7 +374,7 @@ export default function PropertiesDialog({
             </ScrollArea>
 
             {/* Right Column */}
-            <ScrollArea className="max-h-[calc(95vh-200px)]">
+            <ScrollArea className="h-full">
               <div className="space-y-6 pr-4">
                 {/* Timestamps */}
                 <Card>
@@ -371,6 +384,7 @@ export default function PropertiesDialog({
                       Timestamps
                     </CardTitle>
                   </CardHeader>
+                  
                   <CardContent className="space-y-3">
                     <div>
                       <Label className="text-xs font-medium flex items-center gap-1">
@@ -378,20 +392,36 @@ export default function PropertiesDialog({
                         Created Date
                       </Label>
                       <p className="text-sm text-gray-900 mt-1 p-2 bg-gray-50 rounded">
-                        {folder?.createdDate
-                          ? formatDate(folder.createdDate)
-                          : "N/A"}
+                        {file?.createdDate ? formatDate(file.createdDate) : "N/A"}
                       </p>
                     </div>
+                    
                     <div>
                       <Label className="text-xs font-medium flex items-center gap-1">
                         <Clock className="h-3 w-3" />
                         Last Modified
                       </Label>
                       <p className="text-sm text-gray-900 mt-1 p-2 bg-gray-50 rounded">
-                        {folder?.lastModifiedDateTime
-                          ? formatDate(folder.lastModifiedDateTime)
-                          : "N/A"}
+                        {file?.lastModifiedDateTime ? formatDate(file.lastModifiedDateTime) : "N/A"}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Version Information */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <FileText className="h-3 w-3" />
+                      Version Information
+                    </CardTitle>
+                  </CardHeader>
+                  
+                  <CardContent className="space-y-3">
+                    <div>
+                      <Label className="text-xs font-medium">Total Versions</Label>
+                      <p className="text-sm text-gray-900 mt-1 p-2 bg-gray-50 rounded">
+                        {file?.fileVersions?.length || 0}
                       </p>
                     </div>
                   </CardContent>
@@ -401,7 +431,7 @@ export default function PropertiesDialog({
           </div>
         </div>
 
-        <DialogFooter className="border-t pt-4">
+        <DialogFooter className="border-t pt-4 flex-shrink-0">
           <div className="flex justify-between items-center w-full">
             <div className="text-sm text-gray-500">
               {(viewingPermission === AccessType.MODERATED ||
@@ -409,18 +439,24 @@ export default function PropertiesDialog({
                 <span>{selectedRoles.length} roles selected for access</span>
               )}
             </div>
+            
             <div className="flex gap-2">
               {isEditing && (
                 <Button
                   variant="outline"
                   onClick={() => {
                     setIsEditing(false);
-                    setEditedName(folder?.name || "");
+                    setEditedName(file?.documentName || "");
+                    setViewingPermission(file?.accessControl?.accessType);
+                    setSelectedRoles(
+                      file?.accessControl?.roles?.map((role: number) => role.toString()) || []
+                    );
                   }}
                 >
                   Cancel
                 </Button>
               )}
+              
               <Button variant="secondary" onClick={handleClose}>
                 Close
               </Button>

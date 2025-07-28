@@ -1,3 +1,5 @@
+import { IAccessControl } from "@/components/folder/api";
+
 export interface FileNode {
   id: string;
   label: string;
@@ -27,6 +29,7 @@ export interface FileData {
   createdBy?: number;
   [key: string]: unknown;
   comments?: string;
+  accessControl?:IAccessControl
   fileVersions: FileVersions[];
 }
 

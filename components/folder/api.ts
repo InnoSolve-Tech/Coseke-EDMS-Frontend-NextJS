@@ -52,6 +52,16 @@ export async function createDocumentType(
   return response;
 }
 
+export async function updateFileAccess(
+  fileId:number,
+  data:IAccessControl
+) {
+  const {data:response} = await AxiosInstance.put(
+    `file-management/api/v1/files/access/${fileId}`,
+    data
+  )
+}
+
 export async function updateDocumentType(
   id: number,
   data: IDocumentTypeForm,

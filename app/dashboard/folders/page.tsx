@@ -1,6 +1,7 @@
 "use client";
 import { Breadcrumbs } from "@/components/fileExplorer/Breadcrumbs";
-import { AccessType } from "@/components/folder/api";
+import { AccessType, IAccessControl } from "@/components/folder/api";
+import FilePropertiesDialog from "@/components/folder/FilePropertiesDialog";
 import FileUploadDialog from "@/components/folder/FileUploadDialog";
 import PropertiesDialog from "@/components/folder/PropertiesDialog";
 import SearchBar from "@/components/folder/SearchBar";
@@ -77,6 +78,7 @@ export default function FileExplorer() {
   const [fileData, setFileData] = useState<FileNode[]>([]);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [propertiesDialogOpen, setPropertiesDialogOpen] = useState(false);
+    const [filePropertiesDialogOpen, setFilePropertiesDialogOpen] = useState(false);
   const [searchType, setSearchType] = useState("simple");
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
@@ -88,8 +90,6 @@ export default function FileExplorer() {
   const [isSubfolderMode, setIsSubfolderMode] = useState(false);
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
   const [fileCount, setFileCount] = useState<string>("...");
-  const [renameFolderName, setRenameFolderName] = useState("");
-  const [folderToRename, setFolderToRename] = useState<FileNode | null>(null);
   const [filteredData, setFilteredData] = useState<FileNode[]>([]);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
@@ -113,7 +113,6 @@ export default function FileExplorer() {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isVisible, setIsVisible] = useState(false);
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
-  const [editedFolderName, setEditedFolderName] = useState("");
   const [user, setUser] = useState({
     id: 0,
     first_name: "",
@@ -144,14 +143,14 @@ export default function FileExplorer() {
     const { accessType, roles: requiredRoles } = node.accessControl;
     switch (accessType) {
       case AccessType.PUBLIC:
-        return true; // Public access 
+        return true;
        
       case AccessType.MODERATED:
          return userRoles.some((role) => requiredRoles.includes(role));
       default:
-      return false;
+      return true;
     }
-  };
+  }
 
  const loadFoldersAndFiles = async () => {
   try {
@@ -169,18 +168,50 @@ export default function FileExplorer() {
     const rootNodes: FileNode[] = [];
 
     for (const folder of folders) {
-      const fileNodes: FileNode[] = (folder.files || []).map(
-        (file: FileData) => ({
-          id: file.id.toString(),
-          label: file.filename || file.documentName || "Unnamed File",
-          type: "file",
-          lastModifiedDateTime: folder.lastModifiedDateTime,
-          folderID: folder.folderID,
-          fileId: file.id,
-          parentFolderID: folder.folderID,
-          metadata: file,
-        }),
-      );
+     const fileNodes: FileNode[] = (folder.files || []).map((file: FileData) => {
+  // Check access control permissions
+  let hasAccess = false;
+
+  if (file.accessControl) {
+    const { accessType, roles: requiredRoles } = file.accessControl as IAccessControl;
+
+    switch (accessType) {
+      case AccessType.PUBLIC:
+        hasAccess = true;
+        break;
+      case AccessType.PRIVATE:
+        // Check if user has any of the required roles
+        hasAccess = currentUserRoles.some((userRole: number) =>
+          requiredRoles.includes(userRole)
+        );
+        break;
+      case AccessType.MODERATED:
+        hasAccess = true;
+        break;
+      default:
+        hasAccess = false;
+    }
+  } else {
+    // If no access control is defined, default to allowing access
+    hasAccess = true;
+  }
+
+  // Only return the file node if access is allowed
+  if (!hasAccess) return null;
+
+  return {
+    id: file.id.toString(),
+    label: file.filename || file.documentName || "Unnamed File",
+    type: "file",
+    lastModifiedDateTime: folder.lastModifiedDateTime,
+    folderID: folder.folderID,
+    fileId: file.id,
+    accessControl: file.accessControl,
+    parentFolderID: folder.folderID,
+    metadata: file,
+  };
+}).filter(Boolean); // remove nulls from denied access
+
 
       // Check access control permissions
       let hasAccess = false;
@@ -324,7 +355,7 @@ export default function FileExplorer() {
     };
 
     initializeData();
-  }, [propertiesDialogOpen]);
+  }, [propertiesDialogOpen, filePropertiesDialogOpen]);
 
   useEffect(() => {
     const fetchFolderCount = async () => {
@@ -436,6 +467,10 @@ export default function FileExplorer() {
       case "Properties":
         setCurrentPFolderID(menuTarget.folderID ?? null);
         setPropertiesDialogOpen(true);
+        break;
+      case "FileProperties":
+        setCurrentPFolderID(menuTarget.fileId ?? null);
+        setFilePropertiesDialogOpen(true);
         break;
       case "View":
         if (menuTarget.type === "file" && menuTarget.fileId) {
@@ -867,7 +902,7 @@ export default function FileExplorer() {
 
   const handleRightClick = (event: React.MouseEvent, node: FileNode) => {
     if(!roleHasAccess(node, user.roles.map((r: IRole) => Number(r.id)))) {
-      showSnackbar("You do not have permission to access this folder", "danger");
+      showSnackbar(`You do not have permission to access properties of this ${node.type}`, "danger");
       return;
     }
     event.preventDefault();
@@ -1381,6 +1416,12 @@ export default function FileExplorer() {
         folderID={currentPFolderID as number}
       />
 
+            <FilePropertiesDialog
+        open={filePropertiesDialogOpen}
+        onClose={() => setFilePropertiesDialogOpen(false)}
+        fileID={currentPFolderID as number}
+      />
+
       {isVisible && (
         <Card
           className="absolute bg-white shadow-lg rounded-lg p-2 z-50"
@@ -1560,6 +1601,7 @@ export default function FileExplorer() {
             >
               Download
             </MenuItem>
+                   {hasPermission(userPermissions, ["DELETE_FOLDER"]) && (
             <MenuItem
               onClick={() => {
                 handleAction("Delete");
@@ -1573,6 +1615,22 @@ export default function FileExplorer() {
             >
               Delete
             </MenuItem>
+                   )}
+                                           {hasPermission(userPermissions, ["UPDATE_FOLDER"]) && (
+              <MenuItem
+                onClick={() => {
+                  handleAction("FileProperties");
+                  handleCloseMenu(); // Closes the menu
+                }}
+                sx={{
+                  padding: "8px 16px",
+                  color: "error.main",
+                  "&:hover": { bgcolor: "error.light" },
+                }}
+              >
+                View File Properties
+              </MenuItem>
+            )}
           </>
         )}
       </Menu>

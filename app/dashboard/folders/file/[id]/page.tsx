@@ -1,9 +1,10 @@
 "use client";
 
 import { FileSidebar } from "@/components/fileView/file-sidebar";
-import { updateFileWithDocumentType } from "@/components/folder/api";
+import { AccessType, updateFileWithDocumentType } from "@/components/folder/api";
 import { OnlyOfficeEditor } from "@/components/OnlyOfficeEditor";
 import { Button } from "@/components/ui/button";
+import { IUserDetails } from "@/core/authentication/interface";
 import {
   deleteFile,
   deleteMetadata,
@@ -15,6 +16,7 @@ import {
 import { useToast } from "@/core/hooks/use-toast";
 import type { User } from "@/lib/types/user";
 import type { FileData, FileVersions } from "@/types/file";
+import { FileNode } from "@/types/folder";
 import { Box, Typography } from "@mui/joy";
 import type { ColorPaletteProp } from "@mui/joy/styles";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -60,7 +62,25 @@ const FileViewPage = () => {
     message: "",
     color: "success",
   });
+  const roleHasAccess = (
+    node: FileNode,
+    userRoles: number[],
+  ): boolean => {
+    if (!node.accessControl) return true; // No access control means public access
+    const { accessType, roles: requiredRoles } = node.accessControl;
+    switch (accessType) {
+      case AccessType.PUBLIC:
+        return true;
+       
+      case AccessType.MODERATED:
+         return userRoles.some((role) => requiredRoles.includes(role));
 
+      case AccessType.PRIVATE:
+         return false;
+      default:
+      return true;
+    }
+  }
   // Fetch document data
   useEffect(() => {
     const fetchFileDetails = async () => {
@@ -74,8 +94,12 @@ const FileViewPage = () => {
         setUser(user);
 
         const res = await getFilesById(Number.parseInt(id as string));
+        if(roleHasAccess(res as unknown as FileNode, user.roles.map((r:any) => Number(r.id))) === false){
+             showSnackbar("You are not authorized to view this file", "danger");
+             router.push("/dashboard/folders");
+             return;
+        }
         const response = await getFilesByHash(res.hashName);
-
         if (response) {
           const fileData = {
             ...res,
