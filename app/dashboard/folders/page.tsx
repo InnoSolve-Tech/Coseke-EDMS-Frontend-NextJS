@@ -206,6 +206,7 @@ export default function FileExplorer() {
     lastModifiedDateTime: folder.lastModifiedDateTime,
     folderID: folder.folderID,
     fileId: file.id,
+    hash: file.hashName,
     accessControl: file.accessControl,
     parentFolderID: folder.folderID,
     metadata: file,
@@ -484,7 +485,7 @@ export default function FileExplorer() {
             await refreshCurrentFolder();
             showSnackbar("Folder deleted successfully", "success");
           } else if (menuTarget.type === "file" && menuTarget.fileId) {
-            await deleteFile(menuTarget.fileId);
+            await deleteFile(menuTarget.hash);
             await refreshCurrentFolder();
             showSnackbar("File deleted successfully", "success");
           }

@@ -347,10 +347,10 @@ export const deleteDocumentType = async (
   }
 };
 
-export const deleteFile = async (id: number): Promise<ApiResponse<void>> => {
+export const deleteFile = async (hash: string): Promise<ApiResponse<void>> => {
   try {
     const response = await AxiosInstance.delete<ApiResponse<void>>(
-      `file-management/api/v1/files/delete/${id}`,
+      `file-management/api/v1/files/delete/${hash}`,
     );
     return response.data;
   } catch (error) {
