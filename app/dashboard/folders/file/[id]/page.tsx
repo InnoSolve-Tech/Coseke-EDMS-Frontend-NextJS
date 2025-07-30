@@ -199,7 +199,7 @@ const FileViewPage = () => {
   const handleDeleteDocument = async () => {
     if (!document) return;
     try {
-      await deleteFile(document.id);
+      await deleteFile(document.hashName);
       showSnackbar("File deleted successfully", "success");
       router.back();
     } catch (error) {
