@@ -7,7 +7,7 @@ import Link from "next/link";
 
 export default function WorkflowsPage() {
   return (
-    <div className="container mx-auto py-10">
+    <div className="mx-10 py-10">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold mb-6">Workflows</h1>
         <Button asChild>

@@ -159,7 +159,7 @@ export function RecentFilesCard() {
 
   if (loading) {
     return (
-      <Card className="w-full max-w-2xl">
+      <Card className="w-full max-w-2xl bg-secondary/5">
         <CardHeader className="p-4">
           <CardTitle className="text-lg">Recent Files</CardTitle>
         </CardHeader>

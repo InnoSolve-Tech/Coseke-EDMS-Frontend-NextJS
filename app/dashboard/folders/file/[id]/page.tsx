@@ -196,18 +196,6 @@ const FileViewPage = () => {
     }
   };
 
-  const handleDeleteDocument = async () => {
-    if (!document) return;
-    try {
-      await deleteFile(document.hashName);
-      showSnackbar("File deleted successfully", "success");
-      router.back();
-    } catch (error) {
-      console.error("Error deleting document:", error);
-      showSnackbar("Failed to delete document", "danger");
-    }
-  };
-
   const handleSubmit = async () => {
     if (!document) return;
     try {
@@ -222,14 +210,7 @@ const FileViewPage = () => {
   const handleChangeVersion = async (version: FileVersions) => {
     setCurrentVersion(version);
 
-    // If you need to fetch specific file content for the version, do it here
     try {
-      // Optional: Fetch the file content for the specific version if needed
-      // const versionContent = await getFilesByHash(version.hashName || document.hashName)
-      // if (versionContent) {
-      //   // Update document with version-specific content
-      // }
-
       console.log("Changed to version:", version);
       toast({
         title: "Version Changed",

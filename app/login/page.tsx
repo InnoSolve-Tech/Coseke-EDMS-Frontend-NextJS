@@ -21,6 +21,7 @@ import { loginSchema } from "@/core/authentication/schema";
 import { loginService } from "@/core/authentication/api";
 import { updateSessionStorage } from "@/components/routes/sessionStorage";
 import type { ILoginState } from "@/core/authentication/interface";
+import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -70,10 +71,7 @@ export default function LoginPage() {
         <Card className="bg-white/95 backdrop-blur-sm shadow-2xl">
           <CardHeader className="text-center">
             <div className="flex items-center justify-center mb-4">
-              <FileText className="h-8 w-8 text-blue-600 mr-2" />
-              <span className="text-2xl font-bold text-gray-900">
-                Coseke EDMS
-              </span>
+             <Image src="/logo.png" alt="NLGRB Logo" width={200} height={200} className="rounded-lg shadow-lg" />
             </div>
             <CardTitle className="text-2xl">Sign In</CardTitle>
             <CardDescription>
@@ -143,7 +141,7 @@ export default function LoginPage() {
             <div className="mt-6 text-center">
               <Link
                 href="#replace-with-a-link"
-                className="text-sm text-blue-600 hover:text-blue-500 transition-colors"
+                className="text-sm text-secondary hover:text-primary transition-colors"
               >
                 Forgot your password?
               </Link>
@@ -151,7 +149,7 @@ export default function LoginPage() {
 
             <div className="mt-6 pt-6 border-t border-gray-200">
               <p className="text-xs text-gray-500 text-center">
-                © {new Date().getFullYear()} Coseke EDMS System. All rights
+                © {new Date().getFullYear()} Coseke ChetaDocs. All rights
                 reserved.
               </p>
             </div>

@@ -1,28 +1,11 @@
-"use client";
-
-import * as React from "react";
-import { useRouter } from "next/navigation";
-import {
-  ChevronRight,
-  File,
-  Folder,
-  HelpCircle,
-  LayoutDashboard,
-  ListIcon,
-  LogOut,
-  Settings,
-  User,
-  Workflow,
-} from "lucide-react";
-
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+"use client"
+import * as React from "react"
+import { useRouter } from "next/navigation"
+import { ChevronRight, File, Folder, HelpCircle, LayoutDashboard, LogOut, Settings, User, Workflow } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import {
   Sidebar,
   SidebarContent,
@@ -38,53 +21,55 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarRail,
-} from "@/components/ui/sidebar";
+} from "@/components/ui/sidebar"
 import {
   clearSessionStorage,
   getUserFromSessionStorage,
   getUserPermissions,
   hasPermission,
-} from "@/components/routes/sessionStorage";
-import ThemeToggle from "@/components/ThemeToggle";
+} from "@/components/routes/sessionStorage"
+import Image from "next/image"
 
 // Define types for navigation and menu items
 type SubItem = {
-  label: string;
-  path: string;
-  requiredPermissions?: string[];
-};
+  label: string
+  path: string
+  requiredPermissions?: string[]
+}
 
 type NavigationItem = {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  path: string;
-  subItems: SubItem[];
-  chipCount?: number;
-  requiredPermissions?: string[];
-};
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  path: string
+  subItems: SubItem[]
+  chipCount?: number
+  requiredPermissions?: string[]
+  themeColor?: "primary" | "secondary" | "accent" | "muted"
+}
 
 type FooterItem = {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  routerLink?: boolean;
-  path: string;
-  requiredPermissions?: string[];
-};
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  routerLink?: boolean
+  path: string
+  requiredPermissions?: string[]
+}
 
-// Define navigation items with permissions
+// Define navigation items with permissions and theme colors
 const NAVIGATION_ITEMS: NavigationItem[] = [
   {
     icon: LayoutDashboard,
     label: "Dashboard",
     path: "/dashboard",
     subItems: [],
-    // Dashboard is usually accessible to all authenticated users
+    themeColor: "primary",
   },
   {
     icon: Folder,
     label: "Folders",
     path: "/dashboard/folders",
     subItems: [],
+    themeColor: "secondary",
   },
   {
     icon: Workflow,
@@ -102,25 +87,8 @@ const NAVIGATION_ITEMS: NavigationItem[] = [
         requiredPermissions: ["CREATE_WORKFLOW"],
       },
     ],
-    requiredPermissions: [
-      "READ_WORKFLOW",
-      "CREATE_WORKFLOW",
-      "UPDATE_WORKFLOW",
-      "DELETE_WORKFLOW",
-    ],
-  },
-  {
-    icon: ListIcon,
-    label: "Tasks",
-    path: "/dashboard/tasks",
-    subItems: [
-      { label: "All Tasks", path: "/dashboard/tasks/all" },
-      { label: "Backlog", path: "/dashboard/tasks/backlog" },
-      { label: "In Progress", path: "/dashboard/tasks/in-progress" },
-      { label: "Done", path: "/dashboard/tasks/done" },
-    ],
-    // Tasks don't seem to have specific permissions in the provided data
-    // You might want to add TASK permissions to your backend
+    requiredPermissions: ["READ_WORKFLOW", "CREATE_WORKFLOW", "UPDATE_WORKFLOW", "DELETE_WORKFLOW"],
+    themeColor: "accent",
   },
   {
     icon: User,
@@ -130,7 +98,6 @@ const NAVIGATION_ITEMS: NavigationItem[] = [
       {
         label: "My Profile",
         path: "/dashboard/users/profile",
-        // Profile is usually accessible to all users
       },
       {
         label: "Create User",
@@ -143,12 +110,8 @@ const NAVIGATION_ITEMS: NavigationItem[] = [
         requiredPermissions: ["READ_ROLE", "READ_PERMISSION"],
       },
     ],
-    requiredPermissions: [
-      "READ_USER",
-      "CREATE_USER",
-      "UPDATE_USER",
-      "DELETE_USER",
-    ],
+    requiredPermissions: ["READ_USER", "CREATE_USER", "UPDATE_USER", "DELETE_USER"],
+    themeColor: "muted",
   },
   {
     icon: File,
@@ -166,14 +129,10 @@ const NAVIGATION_ITEMS: NavigationItem[] = [
         requiredPermissions: ["READ_FORM"],
       },
     ],
-    requiredPermissions: [
-      "READ_FORM",
-      "CREATE_FORM",
-      "UPDATE_FORM",
-      "DELETE_FORM",
-    ],
+    requiredPermissions: ["READ_FORM", "CREATE_FORM", "UPDATE_FORM", "DELETE_FORM"],
+    themeColor: "primary",
   },
-];
+]
 
 const FOOTER_ITEMS: FooterItem[] = [
   {
@@ -181,18 +140,16 @@ const FOOTER_ITEMS: FooterItem[] = [
     label: "Support",
     path: "https://support.coseke.com",
     routerLink: true,
-    // Support is usually accessible to all users
   },
   {
     icon: Settings,
     label: "Settings",
     path: "/dashboard/settings",
-    // Settings might require specific permissions, adjust as needed
   },
-];
+]
 
 export function AppSidebar() {
-  const router = useRouter();
+  const router = useRouter()
   const [user, setUser] = React.useState({
     id: 0,
     first_name: "",
@@ -203,102 +160,96 @@ export function AppSidebar() {
     password: "",
     roles: [],
     name: "",
-  });
-
-  const [userPermissions, setUserPermissions] = React.useState<string[]>([]);
-  const [isClient, setIsClient] = React.useState(false);
+  })
+  const [userPermissions, setUserPermissions] = React.useState<string[]>([])
+  const [isClient, setIsClient] = React.useState(false)
 
   React.useEffect(() => {
-    setIsClient(true);
-    const currentUser = getUserFromSessionStorage();
-    setUser(currentUser);
-    setUserPermissions(getUserPermissions(currentUser));
-  }, []);
+    setIsClient(true)
+    const currentUser = getUserFromSessionStorage()
+    setUser(currentUser)
+    setUserPermissions(getUserPermissions(currentUser))
+  }, [])
 
   const handleLogout = () => {
-    clearSessionStorage();
-    router.push("/");
-  };
+    clearSessionStorage()
+    router.push("/")
+  }
+
+  const getThemeColorClasses = (themeColor?: string) => {
+    switch (themeColor) {
+      case "primary":
+        return "hover:bg-primary/10 hover:text-primary data-[active=true]:bg-primary/10 data-[active=true]:text-primary"
+      case "secondary":
+        return "hover:bg-secondary/10 hover:text-secondary data-[active=true]:bg-secondary/10 data-[active=true]:text-secondary"
+      case "accent":
+        return "hover:bg-accent/10 hover:text-accent data-[active=true]:bg-accent/10 data-[active=true]:text-accent"
+      case "muted":
+        return "hover:bg-muted/50 hover:text-muted-foreground data-[active=true]:bg-muted/50 data-[active=true]:text-muted-foreground"
+      default:
+        return "hover:bg-accent/10 hover:text-accent-foreground"
+    }
+  }
 
   // Show loading state during SSR and initial client render
   if (!isClient) {
     return (
-      <Sidebar className="border-r border-border bg-card">
-        <SidebarHeader className="border-b border-border bg-card">
-          <div className="flex items-center gap-2 px-4 py-2">
-            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Folder className="size-4" />
-            </div>
-            <div className="flex flex-col gap-0.5 leading-none">
-              <span className="font-semibold text-foreground">Coseke EDMS</span>
-              <span className="text-xs text-muted-foreground">
-                Document Management
-              </span>
+      <Sidebar className="border-r">
+        <SidebarHeader className="border-b">
+          <div className="flex items-center gap-2 px-4 py-3">
+            <div className="w-8 h-8 bg-muted rounded-lg animate-pulse"></div>
+            <div className="flex flex-col gap-1">
+              <div className="w-24 h-4 bg-muted animate-pulse rounded"></div>
+              <div className="w-16 h-2 bg-muted/50 animate-pulse rounded"></div>
             </div>
           </div>
         </SidebarHeader>
-
-        <SidebarContent className="bg-card">
+        <SidebarContent>
           <SidebarGroup>
-            <SidebarGroupLabel className="text-muted-foreground">
-              Loading...
-            </SidebarGroupLabel>
+            <SidebarGroupLabel>Loading...</SidebarGroupLabel>
           </SidebarGroup>
         </SidebarContent>
-
-        <SidebarFooter className="border-t border-border bg-card">
+        <SidebarFooter className="border-t">
           <SidebarMenu>
             <SidebarMenuItem>
               <div className="flex items-center gap-2 px-2 py-1.5">
                 <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-muted text-muted-foreground">
-                    --
-                  </AvatarFallback>
+                  <AvatarFallback>--</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-foreground truncate">
-                    Loading...
-                  </div>
+                  <div className="text-sm font-medium truncate">Loading...</div>
                 </div>
               </div>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarFooter>
-
         <SidebarRail />
       </Sidebar>
-    );
+    )
   }
 
   // Filter navigation items based on permissions
   const filteredNavigationItems = NAVIGATION_ITEMS.filter((item) =>
     hasPermission(userPermissions, item.requiredPermissions),
-  );
+  )
 
   // Filter footer items based on permissions
-  const filteredFooterItems = FOOTER_ITEMS.filter((item) =>
-    hasPermission(userPermissions, item.requiredPermissions),
-  );
+  const filteredFooterItems = FOOTER_ITEMS.filter((item) => hasPermission(userPermissions, item.requiredPermissions))
 
   return (
-    <Sidebar className="border-r border-border bg-card">
-      <SidebarHeader className="border-b border-border bg-card">
-        <div className="flex items-center gap-2 px-4 py-2">
-          <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Folder className="size-4" />
-          </div>
-          <div className="flex flex-col gap-0.5 leading-none">
-            <span className="font-semibold text-foreground">Coseke EDMS</span>
-            <span className="text-xs text-muted-foreground">
-              Document Management
-            </span>
+    <Sidebar className="border-r">
+      <SidebarHeader className="border-b bg-muted/20">
+        <div className="flex items-center gap-3 px-4 py-3">
+          <div className="relative">
+            <Image src="/logo.png" alt="NLGRB Logo" width={200} height={200} />
           </div>
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="bg-card">
+      <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-muted-foreground">
+          <SidebarGroupLabel className="font-semibold flex items-center gap-2">
+            <div className="w-2 h-2 bg-primary rounded-full"></div>
             Navigation
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -307,16 +258,18 @@ export function AppSidebar() {
                 // Filter sub-items based on permissions
                 const filteredSubItems = item.subItems.filter((subItem) =>
                   hasPermission(userPermissions, subItem.requiredPermissions),
-                );
+                )
 
                 if (filteredSubItems.length > 0) {
                   return (
                     <Collapsible key={item.label} className="group/collapsible">
                       <SidebarMenuItem>
                         <CollapsibleTrigger asChild>
-                          <SidebarMenuButton className="hover:bg-accent hover:text-accent-foreground">
+                          <SidebarMenuButton
+                            className={`transition-all duration-200 ${getThemeColorClasses(item.themeColor)}`}
+                          >
                             <item.icon className="size-4" />
-                            <span>{item.label}</span>
+                            <span className="font-medium">{item.label}</span>
                             {item.chipCount && (
                               <Badge variant="secondary" className="ml-auto">
                                 {item.chipCount}
@@ -331,11 +284,10 @@ export function AppSidebar() {
                               <SidebarMenuSubItem key={subItem.label}>
                                 <SidebarMenuSubButton
                                   asChild
-                                  className="hover:bg-accent hover:text-accent-foreground"
+                                  className="hover:bg-accent/10 hover:text-accent transition-all duration-200"
                                 >
-                                  <button
-                                    onClick={() => router.push(subItem.path)}
-                                  >
+                                  <button onClick={() => router.push(subItem.path)}>
+                                    <div className="w-2 h-2 bg-muted-foreground/50 rounded-full mr-2"></div>
                                     {subItem.label}
                                   </button>
                                 </SidebarMenuSubButton>
@@ -345,7 +297,7 @@ export function AppSidebar() {
                         </CollapsibleContent>
                       </SidebarMenuItem>
                     </Collapsible>
-                  );
+                  )
                 }
 
                 // If no sub-items or item has no sub-items, show as regular menu item
@@ -354,11 +306,11 @@ export function AppSidebar() {
                     <SidebarMenuItem key={item.label}>
                       <SidebarMenuButton
                         asChild
-                        className="hover:bg-accent hover:text-accent-foreground"
+                        className={`transition-all duration-200 ${getThemeColorClasses(item.themeColor)}`}
                       >
                         <button onClick={() => router.push(item.path)}>
                           <item.icon className="size-4" />
-                          <span>{item.label}</span>
+                          <span className="font-medium">{item.label}</span>
                           {item.chipCount && (
                             <Badge variant="secondary" className="ml-auto">
                               {item.chipCount}
@@ -367,10 +319,9 @@ export function AppSidebar() {
                         </button>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
-                  );
+                  )
                 }
-
-                return null;
+                return null
               })}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -378,7 +329,8 @@ export function AppSidebar() {
 
         {filteredFooterItems.length > 0 && (
           <SidebarGroup>
-            <SidebarGroupLabel className="text-muted-foreground">
+            <SidebarGroupLabel className="font-semibold flex items-center gap-2">
+              <div className="w-2 h-2 bg-secondary rounded-full"></div>
               Support
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -387,17 +339,13 @@ export function AppSidebar() {
                   <SidebarMenuItem key={item.label}>
                     <SidebarMenuButton
                       asChild
-                      className="hover:bg-accent hover:text-accent-foreground"
+                      className="hover:bg-secondary/10 hover:text-secondary transition-all duration-200"
                     >
                       <button
-                        onClick={() =>
-                          item.routerLink
-                            ? window.open(item.path, "_blank")
-                            : router.push(item.path)
-                        }
+                        onClick={() => (item.routerLink ? window.open(item.path, "_blank") : router.push(item.path))}
                       >
                         <item.icon className="size-4" />
-                        <span>{item.label}</span>
+                        <span className="font-medium">{item.label}</span>
                       </button>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -408,32 +356,34 @@ export function AppSidebar() {
         )}
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-border bg-card">
+      <SidebarFooter className="border-t bg-muted/20">
         <SidebarMenu>
           <SidebarMenuItem>
-            <div className="flex items-center gap-2 px-2 py-1.5">
-              <Avatar className="h-8 w-8">
+            <div className="flex items-center gap-3 px-2 py-2 rounded-lg bg-card border">
+              <Avatar className="h-10 w-10 ring-2 ring-primary/20">
                 <AvatarImage
                   src={`https://api.dicebear.com/6.x/initials/svg?seed=${user.first_name} ${user.last_name}`}
                 />
-                <AvatarFallback className="bg-muted text-muted-foreground">
+                <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
                   {user.first_name?.[0] || "U"}
                   {user.last_name?.[0] || "U"}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-foreground truncate">
+                <div className="text-sm font-semibold truncate">
                   {user.first_name} {user.last_name}
                 </div>
-                <div className="text-xs text-muted-foreground truncate">
-                  {user.email}
+                <div className="text-xs text-muted-foreground truncate">{user.email}</div>
+                <div className="flex items-center gap-1 mt-1">
+                  <div className="w-2 h-2 bg-accent rounded-full animate-pulse"></div>
+                  <span className="text-xs text-accent font-medium">Online</span>
                 </div>
               </div>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={handleLogout}
-                className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground"
+                className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive transition-all duration-200"
               >
                 <LogOut className="h-4 w-4" />
                 <span className="sr-only">Logout</span>
@@ -442,8 +392,7 @@ export function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
-
       <SidebarRail />
     </Sidebar>
-  );
+  )
 }

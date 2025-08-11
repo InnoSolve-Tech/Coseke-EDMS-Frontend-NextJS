@@ -75,7 +75,7 @@ export default function Page() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <StatCard
           icon={<FileText className="h-8 w-8 text-blue-600" />}
           title="Total Files"
@@ -91,14 +91,9 @@ export default function Page() {
           title="Active Workflows"
           value={workflowInstanceCount}
         />
-        <StatCard
-          icon={<CheckSquare className="h-8 w-8 text-yellow-600" />}
-          title="Pending Tasks"
-          value="89"
-        />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
+        <Card className="bg-secondary/5">
           <CardHeader>
             <CardTitle>Usage Statistics</CardTitle>
           </CardHeader>
@@ -106,7 +101,7 @@ export default function Page() {
             <UsageChart />
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-secondary/5">
           <CardHeader>
             <CardTitle>File Type Distribution</CardTitle>
           </CardHeader>
@@ -116,7 +111,7 @@ export default function Page() {
         </Card>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
+        <Card className="bg-secondary/5">
           <CardHeader>
             <CardTitle>Workflow Status</CardTitle>
           </CardHeader>
@@ -141,7 +136,7 @@ function StatCard({
 }) {
   return (
     <Card>
-      <CardContent className="flex items-center p-6">
+      <CardContent className="flex items-center p-6 bg-secondary/5">
         <div className="mr-4">{icon}</div>
         <div>
           <p className="text-sm font-medium text-gray-500">{title}</p>
