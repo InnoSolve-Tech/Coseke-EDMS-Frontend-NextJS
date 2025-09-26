@@ -230,6 +230,10 @@ export function OnlyOfficeEditor({
       const ephemeralDocumentKey = generateEphemeralDocumentKey();
 
       // Get document configuration from API
+      if(version != "v1.0" && mimeType == "application/pdf") {
+        mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        filename = filename.replace(/\.pdf$/, ".docx");
+      }
       const proxyUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/onlyoffice/proxy/document?fileId=${hashName}&mimeType=${encodeURIComponent(mimeType)}&version=${version}`;
       console.log("Proxy URL for document:", proxyUrl);
       console.log("Initializing editor with URL:", url);

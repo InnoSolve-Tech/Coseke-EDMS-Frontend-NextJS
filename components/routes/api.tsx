@@ -9,6 +9,8 @@ export const AxiosInstance = axios.create({
   baseURL,
 });
 
+export const getBaseUrl = () => baseURL;
+
 AxiosInstance.interceptors.request.use(
   (config) => {
     const token = getTokenFromSessionStorage(),

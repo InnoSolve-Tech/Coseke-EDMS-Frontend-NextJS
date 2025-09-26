@@ -1,8 +1,6 @@
 // pages/api/onlyoffice/callback.ts
-import type { NextApiRequest, NextApiResponse } from "next";
 import jwt from "jsonwebtoken";
-import fs from "fs/promises";
-import path from "path";
+import type { NextApiRequest, NextApiResponse } from "next";
 
 interface CallbackData {
   key: string;

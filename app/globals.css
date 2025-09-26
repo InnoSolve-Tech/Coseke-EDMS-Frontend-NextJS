@@ -4,37 +4,33 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%; /* white */
+    --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 0 72% 51%; /* Red from NLGRB logo */
+    --primary: 221 83% 53%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 45 93% 47%; /* Yellow from NLGRB logo */
-    --secondary-foreground: 222.2 84% 4.9%;
-    --muted: 210 40% 96%;
+    --secondary: 0 74% 51%;
+    --secondary-foreground: 210 40% 98%;
+    --accent: 47 96% 53%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 142 71% 45%; /* Green from NLGRB logo */
-    --accent-foreground: 222.2 84% 4.9%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 0 72% 51%;
+    --ring: 221 83% 53%;
     --radius: 0.5rem;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
 
-    /* Custom NLGRB theme colors */
-    --nlgrb-red: 0 72% 51%;
-    --nlgrb-yellow: 45 93% 47%;
-    --nlgrb-green: 142 71% 45%;
-    --nlgrb-gray: 220 9% 46%;
+    /* Chart colors */
+    --chart-1: 221 83% 53%;
+    --chart-2: 0 74% 51%;
+    --chart-3: 47 96% 53%;
+    --chart-4: 262 83% 58%;
+    --chart-5: 176 59% 41%;
   }
 
   .dark {
@@ -44,24 +40,26 @@
     --card-foreground: 210 40% 98%;
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
-    --primary: 0 72% 51%;
-    --primary-foreground: 222.2 84% 4.9%;
-    --secondary: 45 93% 47%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 0 74% 51%;
     --secondary-foreground: 210 40% 98%;
+    --accent: 47 96% 53%;
+    --accent-foreground: 222.2 47.4% 11.2%;
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
-    --accent: 142 71% 45%;
-    --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 0 72% 51%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --ring: 224.3 76.3% 48%;
+
+    /* Chart colors */
+    --chart-1: 217.2 91.2% 59.8%;
+    --chart-2: 0 74% 51%;
+    --chart-3: 47 96% 53%;
+    --chart-4: 262 83% 58%;
+    --chart-5: 176 59% 41%;
   }
 }
 
@@ -71,45 +69,5 @@
   }
   body {
     @apply bg-background text-foreground;
-  }
-}
-
-/* Custom utility classes for NLGRB theme colors */
-@layer utilities {
-  .bg-nlgrb-red {
-    background-color: hsl(var(--nlgrb-red));
-  }
-  .bg-nlgrb-yellow {
-    background-color: hsl(var(--nlgrb-yellow));
-  }
-  .bg-nlgrb-green {
-    background-color: hsl(var(--nlgrb-green));
-  }
-  .bg-nlgrb-gray {
-    background-color: hsl(var(--nlgrb-gray));
-  }
-  .text-nlgrb-red {
-    color: hsl(var(--nlgrb-red));
-  }
-  .text-nlgrb-yellow {
-    color: hsl(var(--nlgrb-yellow));
-  }
-  .text-nlgrb-green {
-    color: hsl(var(--nlgrb-green));
-  }
-  .text-nlgrb-gray {
-    color: hsl(var(--nlgrb-gray));
-  }
-  .border-nlgrb-red {
-    border-color: hsl(var(--nlgrb-red));
-  }
-  .border-nlgrb-yellow {
-    border-color: hsl(var(--nlgrb-yellow));
-  }
-  .border-nlgrb-green {
-    border-color: hsl(var(--nlgrb-green));
-  }
-  .border-nlgrb-gray {
-    border-color: hsl(var(--nlgrb-gray));
   }
 }

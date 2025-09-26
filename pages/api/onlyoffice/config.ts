@@ -303,9 +303,9 @@ export default async function handler(
       });
     }
 
-    if (ext === "pdf") {
-      mode = "view"; // Force PDFs to open in read-only mode
-    }
+    // if (ext === "pdf") {
+    //   mode = "view"; // Force PDFs to open in read-only mode
+    // }
 
     if (mode !== "edit" && mode !== "view") {
       return res.status(400).json({
