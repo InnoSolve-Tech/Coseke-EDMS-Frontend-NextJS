@@ -132,18 +132,6 @@ function isValidFileType(filename: string): boolean {
   return supportedExtensions.includes(ext);
 }
 
-function createTemporaryFileId(originalUrl: string, filename: string): string {
-  const timestamp = Date.now();
-  const random = crypto.randomBytes(8).toString("hex");
-  const hash = crypto
-    .createHash("sha256")
-    .update(`${originalUrl}${filename}${timestamp}${random}`)
-    .digest("hex")
-    .substring(0, 16);
-
-  return `temp_${hash}`;
-}
-
 function makeUrlAccessibleFromContainer(url: string): string {
   try {
     console.log("Converting URL for container access:", url);
